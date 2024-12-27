@@ -1,0 +1,5 @@
+# just create noise when working with clangd.
+Diagnostics:
+  UnusedIncludes: None
+CompileFlags:
+  CompilationDatabase: build/Debug

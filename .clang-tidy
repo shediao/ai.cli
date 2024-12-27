@@ -1,0 +1,17 @@
+Checks: >
+  *
+  -llvm-header-guard
+  -modernize-use-trailing-return-type
+  -readability-identifier-naming
+  -cppcoreguidelines-pro-type-cstyle-cast
+  -cppcoreguidelines-avoid-magic-numbers
+  -bugprone-easily-swappable-parameters
+  -performance-unnecessary-value-param
+  -modernize-pass-by-value
+  -modernize-use-nodiscard
+  -modernize-deprecated-headers
+  -modernize-loop-convert
+  -modernize-avoid-bind
+  -modernize-use-override
+  -modernize-use-noexcept
+  -modernize-redundant-void-arg
