@@ -18,7 +18,7 @@ std::string read_stdin() {
 }
 
 CLIParser::CLIParser()
-    : parser("aichat", "OpenAI API Compatible Command Line Chatbot") {
+    : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
     parser.add_flag("d,debug", "Enable debug mode", args.debug).negatable();
     parser.add_flag("h,help", "Show help", args.help);
     parser.add_flag("i,interactive", "Enable interactive mode",
@@ -51,7 +51,7 @@ CLIParser::ParsedArgs& CLIParser::parse(int argc, const char* argv[]) {
 void CLIParser::print_help() { parser.print_usage(); }
 
 void CLIParser::print_version() {
-    std::cout << "openai-cli version 0.1.0" << std::endl;
+    std::cout << "ai version 0.1.0" << std::endl;
 }
 
 OpenAIClient::Config CLIParser::to_client_config(const ParsedArgs& args) {

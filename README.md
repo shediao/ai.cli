@@ -32,32 +32,32 @@ cmake --build build
 
 ```bash
 # Show help information
-aichat --help
+ai --help
 
 # Show version information
-aichat --version
+ai --version
 
 # Send a simple prompt
-aichat "Hello, World!"
+ai "Hello, World!"
 
 # Use a specific model
-aichat "Write a quicksort algorithm" --model gpt-4
+ai "Write a quicksort algorithm" --model gpt-4
 
 # Enable streaming output
-aichat "Tell me a story" --stream
+ai "Tell me a story" --stream
 
 # Use system prompt
-aichat "Write code" --system-prompt "You are a professional C++ programmer"
+ai "Write code" --system-prompt "You are a professional C++ programmer"
 ```
 
 ### Interactive Mode
 
 ```bash
 # Start interactive session
-aichat --interactive
+ai --interactive
 
 # Interactive session with system prompt
-aichat --interactive --system-prompt "You are a friendly AI assistant"
+ai --interactive --system-prompt "You are a friendly AI assistant"
 ```
 
 ### Environment Variables
@@ -66,7 +66,7 @@ You can set the API key using environment variables:
 
 ```bash
 export OPENAI_API_KEY="your-api-key"
-aichat "Hello"
+ai "Hello"
 ```
 
 ### Complete Command Line Options

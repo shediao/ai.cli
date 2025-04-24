@@ -5,7 +5,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
 endif()
 
 project(
-  aichat_cli
+  ai_cli
   VERSION 0.1.0
   LANGUAGES CXX)
 
@@ -39,39 +39,38 @@ FetchContent_MakeAvailable(json)
 find_package(CURL REQUIRED)
 
 # 添加源文件
-add_executable(aichat src/main.cpp src/openai_client.cpp src/cli_parser.cpp)
+add_executable(ai src/main.cpp src/openai_client.cpp src/cli_parser.cpp)
 
 if(APPLE)
-  target_sources(aichat PRIVATE src/clip_macos.mm)
+  target_sources(ai PRIVATE src/clip_macos.mm)
 elseif(WIN32)
-  target_sources(aichat PRIVATE src/clip_win.cpp)
+  target_sources(ai PRIVATE src/clip_win.cpp)
 endif()
 
-set_target_properties(aichat PROPERTIES OUTPUT_NAME "aichat")
+set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 
 # 添加头文件路径
-target_include_directories(aichat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(ai PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if(APPLE)
   target_include_directories(
-    aichat PRIVATE "/opt/homebrew/Cellar/readline/8.2.13/include")
+    ai PRIVATE "/opt/homebrew/Cellar/readline/8.2.13/include")
 
-  target_link_directories(aichat PRIVATE
-                          "/opt/homebrew/Cellar/readline/8.2.13/lib")
+  target_link_directories(ai PRIVATE "/opt/homebrew/Cellar/readline/8.2.13/lib")
 
-  target_compile_definitions(aichat PRIVATE _DARWIN_C_SOURCE)
+  target_compile_definitions(ai PRIVATE _DARWIN_C_SOURCE)
 endif()
 
 # 链接依赖库
 target_link_libraries(
-  aichat PRIVATE argparse::argparse nlohmann_json::nlohmann_json CURL::libcurl
-                 -lreadline)
+  ai PRIVATE argparse::argparse nlohmann_json::nlohmann_json CURL::libcurl
+             -lreadline)
 
 if(APPLE)
-  target_link_libraries(aichat PRIVATE "-framework AppKit")
+  target_link_libraries(ai PRIVATE "-framework AppKit")
 elseif(WIN32)
-  target_link_libraries(aichat PRIVATE "-luser32")
+  target_link_libraries(ai PRIVATE "-luser32")
 endif()
 
 # 安装目标
-install(TARGETS aichat RUNTIME DESTINATION bin)
+install(TARGETS ai RUNTIME DESTINATION bin)
