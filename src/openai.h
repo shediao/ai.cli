@@ -5,21 +5,11 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
+#include "args.h"
+
 class OpenAIClient {
    public:
-    struct Config {
-        std::string api_key;
-        std::string api_url = "https://api.openai.com/v1/chat/completions";
-        std::string model = "gpt-3.5-turbo";
-        std::string proxy;
-        double temperature = 0.1;
-        double top_p = 1.0;
-        bool stream = false;
-        bool debug = false;
-        bool verbose = false;
-    };
-
-    explicit OpenAIClient(const Config& config);
+    explicit OpenAIClient(const AiArgs& args);
     ~OpenAIClient();
 
     // 禁用拷贝

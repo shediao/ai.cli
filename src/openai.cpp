@@ -1,14 +1,17 @@
-#include "openai_client.hpp"
+#include "openai.h"
 
 #include <curl/curl.h>
 #include <curl/easy.h>
 
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
+
+#include "args.h"
 
 class OpenAIClient::Impl {
    public:
-    explicit Impl(const Config& config) : config_(config) {
+    explicit Impl(const AiArgs& args) : args_(args) {
         curl_ = curl_easy_init();
         if (!curl_) {
             throw std::runtime_error("Failed to initialize CURL");
@@ -46,7 +49,7 @@ class OpenAIClient::Impl {
         const std::string& system_prompt, const std::string& user_prompt,
         nlohmann::json const& chat_history,
         const std::function<void(const std::string&)>& stream_callback) {
-        if (config_.debug) {
+        if (args_.debug) {
             std::cout << "System prompt: " << system_prompt << std::endl;
             std::cout << "User prompt: " << user_prompt << std::endl;
         }
@@ -66,15 +69,20 @@ class OpenAIClient::Impl {
             messages.push_back({{"role", "user"}, {"content", user_prompt}});
         }
 
-        nlohmann::json request = {{"model", config_.model},
+        nlohmann::json request = {{"model", args_.chat_args.model},
                                   {"messages", messages},
-                                  {"temperature", config_.temperature},
-                                  {"top_p", config_.top_p},
-                                  {"stream", config_.stream}};
+                                  {"stream", args_.chat_args.stream}};
 
-        std::string url = config_.api_url;
+        if (args_.chat_args.temperature.has_value()) {
+            request["temperature"] = args_.chat_args.temperature.value();
+        }
+        if (args_.chat_args.top_p.has_value()) {
+            request["top_p"] = args_.chat_args.top_p.value();
+        }
+
+        std::string url = args_.chat_args.api_url;
         std::string response_string;
-        if (config_.debug) {
+        if (args_.debug) {
             std::cout << "URL: " << url << std::endl;
             std::cout << "Request: " << request.dump(2) << std::endl;
         }
@@ -85,20 +93,23 @@ class OpenAIClient::Impl {
         struct curl_slist* headers = nullptr;
         headers = curl_slist_append(headers, "Content-Type: application/json");
         headers = curl_slist_append(
-            headers, ("Authorization: Bearer " + config_.api_key).c_str());
+            headers,
+            ("Authorization: Bearer " + args_.chat_args.api_key).c_str());
         curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
 
-        if (!config_.proxy.empty()) {
-            if (config_.debug) {
-                std::cout << "Proxy: " << config_.proxy << std::endl;
+        if (args_.chat_args.proxy.has_value()) {
+            if (args_.debug) {
+                std::cout << "Proxy: " << args_.chat_args.proxy.value()
+                          << std::endl;
             }
-            curl_easy_setopt(curl_, CURLOPT_PROXY, config_.proxy.c_str());
+            curl_easy_setopt(curl_, CURLOPT_PROXY,
+                             args_.chat_args.proxy.value().c_str());
         }
 
         std::string request_body = request.dump();
         curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, request_body.c_str());
 
-        if (config_.stream && stream_callback) {
+        if (args_.chat_args.stream && stream_callback) {
 #if 0
             curl_easy_setopt(curl_, CURLOPT_BUFFERSIZE, 0L);
             curl_easy_setopt(curl_, CURLOPT_FRESH_CONNECT, 1L);
@@ -120,8 +131,8 @@ class OpenAIClient::Impl {
                                      curl_easy_strerror(res));
         }
 
-        if (!config_.stream) {
-            if (config_.debug) {
+        if (!args_.chat_args.stream) {
+            if (args_.debug) {
                 std::cout << "Response: " << response_string << std::endl;
             }
             try {
@@ -148,12 +159,12 @@ class OpenAIClient::Impl {
     }
 
    private:
-    Config config_;
+    const AiArgs& args_;
     CURL* curl_;
 };
 
-OpenAIClient::OpenAIClient(const Config& config)
-    : pimpl(std::make_unique<Impl>(config)) {}
+OpenAIClient::OpenAIClient(const AiArgs& args)
+    : pimpl(std::make_unique<Impl>(args)) {}
 OpenAIClient::~OpenAIClient() = default;
 OpenAIClient::OpenAIClient(OpenAIClient&&) noexcept = default;
 OpenAIClient& OpenAIClient::operator=(OpenAIClient&&) noexcept = default;
