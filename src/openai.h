@@ -5,7 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-#include "args.h"
+#include "./args.h"
 
 class OpenAIClient {
    public:

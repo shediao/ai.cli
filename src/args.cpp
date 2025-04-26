@@ -1,10 +1,10 @@
 #include "args.h"
 
+#include <argparse.hpp>
 #include <cstdlib>
 #include <fstream>
 
-#define ARG_PARSE_DEBUG
-#include "argparse.hpp"
+#include "./utils.h"
 
 namespace {
 static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
@@ -75,9 +75,16 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         }
 
         if (!args.chat_args.interactive && args.chat_args.prompt.empty()) {
-            std::cerr << "Error: Must provide a prompt or use interactive mode."
-                      << std::endl;
-            exit(EXIT_FAILURE);
+            try {
+                args.chat_args.prompt = getUserInputViaEditor();
+            } catch (...) {
+            }
+            if (args.chat_args.prompt.empty()) {
+                std::cerr
+                    << "Error: Must provide a prompt or use interactive mode."
+                    << std::endl;
+                exit(EXIT_FAILURE);
+            }
         }
 
         if (args.chat_args.api_key.empty() && !args.chat_args.api_url.empty()) {

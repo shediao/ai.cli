@@ -1,6 +1,8 @@
-#include "chat.h"
+#include "./chat.h"
 
 #include <curl/curl.h>
+#include <readline/history.h>   // NOLINT
+#include <readline/readline.h>  // NOLINT
 
 #include <algorithm>
 #include <fstream>
@@ -10,10 +12,8 @@
 #include <string>
 #include <vector>
 
-#include "args.h"
-#include "openai.h"
-#include "readline/history.h"   // NOLINT
-#include "readline/readline.h"  // NOLINT
+#include "./args.h"
+#include "./openai.h"
 
 void save_to_clipboard(std::string const& text);
 std::string load_from_clipboard();

@@ -1,8 +1,7 @@
-
 #include <argparse.hpp>
 
-#include "args.h"
-#include "chat.h"
+#include "./args.h"
+#include "./chat.h"
 
 int main(int argc, const char* argv[]) {
     auto& args = AiArgs::instance();

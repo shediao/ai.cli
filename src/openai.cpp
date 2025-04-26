@@ -1,4 +1,4 @@
-#include "openai.h"
+#include "./openai.h"
 
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -7,7 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 
-#include "args.h"
+#include "./args.h"
 
 class OpenAIClient::Impl {
    public:
