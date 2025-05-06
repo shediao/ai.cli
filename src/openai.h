@@ -7,6 +7,11 @@
 
 #include "./args.h"
 
+struct ResponseContent {
+    std::string content;
+    std::string reasoning_content;
+};
+
 class OpenAIClient {
    public:
     explicit OpenAIClient(const AiArgs& args);
@@ -21,11 +26,11 @@ class OpenAIClient {
     OpenAIClient& operator=(OpenAIClient&&) noexcept;
 
     // 发送聊天请求
-    std::string chat(const std::string& system_prompt,
-                     const std::string& user_prompt,
-                     nlohmann::json const& chat_history,
-                     const std::function<void(const std::string&)>&
-                         stream_callback = nullptr) const;
+    ResponseContent chat(const std::string& system_prompt,
+                         const std::string& user_prompt,
+                         nlohmann::json const& chat_history,
+                         const std::function<void(const std::string&)>&
+                             stream_callback = nullptr) const;
 
    private:
     class Impl;

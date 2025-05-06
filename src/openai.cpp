@@ -45,7 +45,7 @@ class OpenAIClient::Impl {
         return size * nmemb;
     }
 
-    std::string chat(
+    ResponseContent chat(
         const std::string& system_prompt, const std::string& user_prompt,
         nlohmann::json const& chat_history,
         const std::function<void(const std::string&)>& stream_callback) {
@@ -54,7 +54,7 @@ class OpenAIClient::Impl {
             std::cout << "User prompt: " << user_prompt << std::endl;
         }
         if (system_prompt.empty() && user_prompt.empty()) {
-            return "";
+            return {};
         }
 
         nlohmann::json messages = nlohmann::json::array();
@@ -143,8 +143,19 @@ class OpenAIClient::Impl {
                     response_json["choices"][0].contains("message") &&
                     response_json["choices"][0]["message"].contains(
                         "content")) {
-                    return response_json["choices"][0]["message"]["content"]
-                        .get<std::string>();
+                    ResponseContent ret;
+                    ret.content =
+                        response_json["choices"][0]["message"]["content"]
+                            .get<std::string>();
+                    if (response_json["choices"][0]["message"].contains(
+                            "reasoning_content")) {
+                        ret.reasoning_content =
+                            response_json["choices"][0]["message"]
+                                         ["reasoning_content"]
+                                             .get<std::string>();
+                        return ret;
+                    }
+                    return ret;
                 } else {
                     auto err = response_json.dump(2);
                     throw std::runtime_error(err);
@@ -153,9 +164,11 @@ class OpenAIClient::Impl {
                 throw std::runtime_error(std::string("JSON parse error: ") +
                                          e.what());
             }
+        } else {
+            // stream
         }
 
-        return "";
+        return {};
     }
 
    private:
@@ -169,7 +182,7 @@ OpenAIClient::~OpenAIClient() = default;
 OpenAIClient::OpenAIClient(OpenAIClient&&) noexcept = default;
 OpenAIClient& OpenAIClient::operator=(OpenAIClient&&) noexcept = default;
 
-std::string OpenAIClient::chat(
+ResponseContent OpenAIClient::chat(
     const std::string& system_prompt, const std::string& user_prompt,
     nlohmann::json const& chat_history,
     const std::function<void(const std::string&)>& stream_callback) const {
