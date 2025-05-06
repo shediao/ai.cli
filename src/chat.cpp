@@ -214,14 +214,7 @@ void interactive_mode(OpenAIClient& client, const std::string& system_prompt,
     }
 }
 
-class CurlGlobalInitGuard {
-   public:
-    CurlGlobalInitGuard() { curl_global_init(CURL_GLOBAL_DEFAULT); }
-    ~CurlGlobalInitGuard() { curl_global_cleanup(); }
-};
-
 int chat(AiArgs const& args) {
-    CurlGlobalInitGuard guard;
     auto& chat_args = args.chat_args;
     try {
         OpenAIClient client(args);

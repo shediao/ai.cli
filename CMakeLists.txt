@@ -39,8 +39,8 @@ FetchContent_MakeAvailable(json)
 find_package(CURL REQUIRED)
 
 # 添加源文件
-add_executable(ai src/main.cpp src/chat.cpp src/args.cpp src/openai.cpp
-                  src/utils.cpp)
+add_executable(ai src/main.cpp src/chat.cpp src/args.cpp src/models.cpp
+                  src/openai.cpp src/utils.cpp)
 
 if(APPLE)
   target_sources(ai PRIVATE src/clip_macos.mm)

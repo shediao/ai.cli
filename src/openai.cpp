@@ -97,13 +97,11 @@ class OpenAIClient::Impl {
             ("Authorization: Bearer " + args_.chat_args.api_key).c_str());
         curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
 
-        if (args_.chat_args.proxy.has_value()) {
+        if (args_.proxy.has_value()) {
             if (args_.debug) {
-                std::cout << "Proxy: " << args_.chat_args.proxy.value()
-                          << std::endl;
+                std::cout << "Proxy: " << args_.proxy.value() << std::endl;
             }
-            curl_easy_setopt(curl_, CURLOPT_PROXY,
-                             args_.chat_args.proxy.value().c_str());
+            curl_easy_setopt(curl_, CURLOPT_PROXY, args_.proxy.value().c_str());
         }
 
         std::string request_body = request.dump();
@@ -171,6 +169,61 @@ class OpenAIClient::Impl {
         return {};
     }
 
+    std::vector<std::string> models() {
+        std::string url = args_.model_args.api_url;
+        std::string response_string;
+        curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
+
+        struct curl_slist* headers = nullptr;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        headers = curl_slist_append(
+            headers,
+            ("Authorization: Bearer " + args_.model_args.api_key).c_str());
+        curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
+
+        if (args_.proxy.has_value()) {
+            if (args_.debug) {
+                std::cout << "Proxy: " << args_.proxy.value() << std::endl;
+            }
+            curl_easy_setopt(curl_, CURLOPT_PROXY, args_.proxy.value().c_str());
+        }
+        if (args_.debug) {
+            std::cout << "URL: " << url << std::endl;
+        }
+
+        curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &response_string);
+
+        CURLcode res = curl_easy_perform(curl_);
+        curl_slist_free_all(headers);
+
+        if (res != CURLE_OK) {
+            throw std::runtime_error(std::string("CURL error: ") +
+                                     curl_easy_strerror(res));
+        }
+        if (args_.debug) {
+            std::cout << "repsonse: " << response_string << std::endl;
+        }
+
+        try {
+            auto response_json = nlohmann::json::parse(response_string);
+            if (response_json.contains("data") &&
+                response_json["data"].is_array()) {
+                std::vector<std::string> models;
+                for (auto obj : response_json["data"]) {
+                    if (obj.contains("id") && obj["id"].is_string()) {
+                        models.push_back(obj["id"]);
+                    }
+                }
+                return models;
+            }
+        } catch (const nlohmann::json::exception& e) {
+            throw std::runtime_error(std::string("JSON parse error: ") +
+                                     e.what());
+        }
+        return {};
+    }
+
    private:
     const AiArgs& args_;
     CURL* curl_;
@@ -189,3 +242,5 @@ ResponseContent OpenAIClient::chat(
     return pimpl->chat(system_prompt, user_prompt, chat_history,
                        stream_callback);
 }
+
+std::vector<std::string> OpenAIClient::models() { return pimpl->models(); }

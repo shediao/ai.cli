@@ -4,6 +4,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 
 #include "./args.h"
 
@@ -31,6 +32,8 @@ class OpenAIClient {
                          nlohmann::json const& chat_history,
                          const std::function<void(const std::string&)>&
                              stream_callback = nullptr) const;
+
+    std::vector<std::string> models();
 
    private:
     class Impl;

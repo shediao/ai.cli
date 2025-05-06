@@ -11,7 +11,6 @@ struct AiArgs {
         std::string api_key;
         std::string api_url;
         std::optional<std::string> system_prompt;
-        std::optional<std::string> proxy;
         std::optional<double> temperature;
         std::optional<double> top_p;
         bool stream{false};
@@ -20,9 +19,16 @@ struct AiArgs {
         bool version{false};
     };
 
+    struct ModelsArgs {
+        std::string api_key;
+        std::string api_url;
+    };
+
     bool help{false};
     bool debug{false};
+    std::optional<std::string> proxy;
     ChatArgs chat_args;
+    ModelsArgs model_args;
 
     argparse::Command& parse(int argc, char* argv[]);
     static AiArgs& instance();
