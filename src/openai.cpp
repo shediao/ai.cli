@@ -170,7 +170,7 @@ class OpenAIClient::Impl {
     }
 
     std::vector<std::string> models() {
-        std::string url = args_.model_args.api_url;
+        std::string url = args_.models_args.api_url;
         std::string response_string;
         curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
 
@@ -178,7 +178,7 @@ class OpenAIClient::Impl {
         headers = curl_slist_append(headers, "Content-Type: application/json");
         headers = curl_slist_append(
             headers,
-            ("Authorization: Bearer " + args_.model_args.api_key).c_str());
+            ("Authorization: Bearer " + args_.models_args.api_key).c_str());
         curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
 
         if (args_.proxy.has_value()) {

@@ -28,7 +28,7 @@ struct AiArgs {
     bool debug{false};
     std::optional<std::string> proxy;
     ChatArgs chat_args;
-    ModelsArgs model_args;
+    ModelsArgs models_args;
 
     argparse::Command& parse(int argc, char* argv[]);
     static AiArgs& instance();

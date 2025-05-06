@@ -10,10 +10,10 @@ namespace {
 static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& models = parser.add_command("models", "list models");
 
-    auto& model_args = args.model_args;
-    models.add_option("k,key", "OpenAI API key", model_args.api_key)
+    auto& models_args = args.models_args;
+    models.add_option("k,key", "OpenAI API key", models_args.api_key)
         .value_help("key");
-    models.add_option("u,url", "OpenAI API Compatible URL", model_args.api_url)
+    models.add_option("u,url", "OpenAI API Compatible URL", models_args.api_url)
         .default_value("https://api.deepseek.com/models");
     ;
 
@@ -23,6 +23,9 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
 
     models.add_alias(
         "gemini", "url",
+        "https://generativelanguage.googleapis.com/v1beta/openai/models");
+    models.add_alias(
+        "google", "url",
         "https://generativelanguage.googleapis.com/v1beta/openai/models");
 
     models.add_alias("deepseek", "url", "https://api.deepseek.com/models");
@@ -34,27 +37,43 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
             models.print_usage();
             exit(EXIT_SUCCESS);
         }
-        if (args.model_args.api_key.empty() &&
-            !args.model_args.api_url.empty()) {
-            auto& url = args.model_args.api_url;
+        if (args.models_args.api_key.empty() &&
+            !args.models_args.api_url.empty()) {
+            auto& url = args.models_args.api_url;
             if (url.find("api.deepseek.com/") != std::string::npos) {
                 if (auto* env = std::getenv("DEEPSEEK_API_KEY");
                     env != nullptr) {
-                    args.model_args.api_key = env;
+                    args.models_args.api_key = env;
                 }
             } else if (url.find("api.openai.com/") != std::string::npos) {
                 if (auto* env = std::getenv("OPENAI_API_KEY"); env != nullptr) {
-                    args.model_args.api_key = env;
+                    args.models_args.api_key = env;
                 }
             } else if (url.find("generativelanguage.googleapis.com/") !=
                        std::string::npos) {
                 if (auto* env = std::getenv("GEMINI_API_KEY"); env != nullptr) {
-                    args.model_args.api_key = env;
+                    args.models_args.api_key = env;
                 }
             } else if (url.find("dashscope.aliyuncs.com/") !=
                        std::string::npos) {
                 if (auto* env = std::getenv("QWEN_API_KEY"); env != nullptr) {
-                    args.model_args.api_key = env;
+                    args.models_args.api_key = env;
+                }
+            }
+        }
+
+        if (!args.proxy.has_value()) {
+            auto& url = args.models_args.api_url;
+            if (url.find("api.openai.com/") != std::string::npos) {
+                if (auto* env = std::getenv("OPENAI_API_PROXY");
+                    env != nullptr) {
+                    args.proxy = env;
+                }
+            } else if (url.find("generativelanguage.googleapis.com/") !=
+                       std::string::npos) {
+                if (auto* env = std::getenv("GEMINI_API_PROXY");
+                    env != nullptr) {
+                    args.proxy = env;
                 }
             }
         }
@@ -89,6 +108,9 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                    "completions");
 
     chat.add_alias("gemini", "url",
+                   "https://generativelanguage.googleapis.com/v1beta/openai/"
+                   "chat/completions");
+    chat.add_alias("google", "url",
                    "https://generativelanguage.googleapis.com/v1beta/openai/"
                    "chat/completions");
 
@@ -159,6 +181,22 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                        std::string::npos) {
                 if (auto* env = std::getenv("QWEN_API_KEY"); env != nullptr) {
                     args.chat_args.api_key = env;
+                }
+            }
+        }
+
+        if (!args.proxy.has_value()) {
+            auto& url = args.chat_args.api_url;
+            if (url.find("api.openai.com/") != std::string::npos) {
+                if (auto* env = std::getenv("OPENAI_API_PROXY");
+                    env != nullptr) {
+                    args.proxy = env;
+                }
+            } else if (url.find("generativelanguage.googleapis.com/") !=
+                       std::string::npos) {
+                if (auto* env = std::getenv("GEMINI_API_PROXY");
+                    env != nullptr) {
+                    args.proxy = env;
                 }
             }
         }
