@@ -14,6 +14,7 @@ static const std::string qwen_base_url =
     "https://dashscope.aliyuncs.com/compatible-mode/v1/";
 static const std::string deepseek_base_url = "https://api.deepseek.com/";
 static const std::string openai_base_url = "https://api.openai.com/v1/";
+static const std::string ollama_base_url = "http://127.0.0.1:11434/v1";
 
 static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& models = parser.add_command("models", "list models");
@@ -24,15 +25,22 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     models.add_option("u,url", "OpenAI API Compatible URL", models_args.api_url)
         .default_value(deepseek_base_url + "models");
     ;
+    models
+        .add_option("base-url", "OpenAI API Compatible URL(<base_url>/models)",
+                    models_args.api_url)
+        .callback([&models_args](std::string const& url) {
+            if (!url.empty()) {
+                models_args.api_url =
+                    url + (url[url.size() - 1] == '/' ? "models" : "/models");
+            }
+        });
 
-    models.add_alias("qwen", "url", qwen_base_url + "models");
-
-    models.add_alias("gemini", "url", gemini_base_url + "models");
-    models.add_alias("google", "url", gemini_base_url + "models");
-
-    models.add_alias("deepseek", "url", deepseek_base_url + "models");
-
-    models.add_alias("openai", "url", openai_base_url + "models");
+    models.add_alias("qwen", "base-url", qwen_base_url);
+    models.add_alias("gemini", "base-url", gemini_base_url);
+    models.add_alias("google", "base-url", gemini_base_url);
+    models.add_alias("deepseek", "base-url", deepseek_base_url);
+    models.add_alias("openai", "base-url", openai_base_url);
+    models.add_alias("ollama", "base-url", ollama_base_url);
 
     models.callback([&args, &models]() -> void {
         if (args.help) {
@@ -92,8 +100,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
 
     chat.add_option("k,key", "OpenAI API key", chat_args.api_key)
         .value_help("key");
-    chat.add_option("m,model", "Model to use", chat_args.model)
-        .default_value("deepseek-chat");
+    chat.add_option("m,model", "Model to use", chat_args.model);
     chat.add_option("p,prompt", "Prompt", chat_args.prompt);
     chat.add_option("s,system-prompt", "System prompt",
                     chat_args.system_prompt);
@@ -102,12 +109,23 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     chat.add_option("top-p", "Model top-p parameter", chat_args.top_p);
     chat.add_option("u,url", "OpenAI API Compatible URL", chat_args.api_url)
         .default_value(deepseek_base_url + "chat/completions");
+    chat.add_option("base-url",
+                    "OpenAI API Compatible URL(<base_url>/chat/completions)",
+                    chat_args.api_url)
+        .callback([&chat_args](std::string const& url) {
+            if (!url.empty()) {
+                chat_args.api_url =
+                    url + (url[url.size() - 1] == '/' ? "chat/completions"
+                                                      : "/chat/completions");
+            }
+        });
 
-    chat.add_alias("qwen", "url", qwen_base_url + "chat/completions");
-    chat.add_alias("gemini", "url", gemini_base_url + "chat/completions");
-    chat.add_alias("google", "url", gemini_base_url + "chat/completions");
-    chat.add_alias("deepseek", "url", deepseek_base_url + "chat/completions");
-    chat.add_alias("openai", "url", openai_base_url + "chat/completions");
+    chat.add_alias("qwen", "base-url", qwen_base_url);
+    chat.add_alias("gemini", "base-url", gemini_base_url);
+    chat.add_alias("google", "base-url", gemini_base_url);
+    chat.add_alias("deepseek", "base-url", deepseek_base_url);
+    chat.add_alias("openai", "base-url", openai_base_url);
+    chat.add_alias("ollama", "base-url", ollama_base_url);
 
     chat.add_positional("prompts", "Prompt", chat_args.prompt);
 
@@ -120,7 +138,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         if (args.chat_args.model.empty()) {
             args.chat_args.model = [](std::string const& url) {
                 if (url == qwen_base_url + "chat/completions") {
-                    return "qwen-max-latest";  // qwen-plus,qwen-turbo
+                    return "qwen-turbo-latest";  // qwen-plus,qwen-turbo
                 } else if (url == gemini_base_url + "chat/completions") {
                     return "gemini-2.0-flash";
                 } else if (url == deepseek_base_url + "chat/completions") {

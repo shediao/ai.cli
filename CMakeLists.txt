@@ -29,6 +29,13 @@ FetchContent_Declare(
   GIT_TAG main)
 FetchContent_MakeAvailable(argparse)
 
+# 添加base64用于嵌入文件
+FetchContent_Declare(
+  base64
+  GIT_REPOSITORY https://github.com/shediao/base64.hpp
+  GIT_TAG main)
+FetchContent_MakeAvailable(base64)
+
 # 添加nlohmann/json用于JSON处理
 FetchContent_Declare(
   json
@@ -64,8 +71,8 @@ endif()
 
 # 链接依赖库
 target_link_libraries(
-  ai PRIVATE argparse::argparse nlohmann_json::nlohmann_json CURL::libcurl
-             -lreadline)
+  ai PRIVATE argparse::argparse base64::base64 nlohmann_json::nlohmann_json
+             CURL::libcurl -lreadline)
 
 if(APPLE)
   target_link_libraries(ai PRIVATE "-framework AppKit")
