@@ -262,10 +262,8 @@ int chat(AiArgs const& args) {
                             "<think>\n" + response.reasoning_content +
                             "\n</think>\n\n" + response.content;
                         save_to_clipboard(merged_content);
-                        std::cout << merged_content << std::endl;
                     } else {
                         save_to_clipboard(response.content);
-                        std::cout << response.content << std::endl;
                     }
                 } else {
                     auto response =
