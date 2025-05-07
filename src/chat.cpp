@@ -40,6 +40,10 @@ std::optional<std::string> get_stream_context(const std::string_view data,
                 return ret;
             }
         }
+        if (j.contains("choices") && j["choices"].is_array() &&
+            j["choices"].size() == 0 && j.contains("usage")) {
+            return "\n\n" + j["usage"].dump();
+        }
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n```\n"
                   << data << "\n```" << std::endl;

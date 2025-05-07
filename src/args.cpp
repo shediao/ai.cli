@@ -22,16 +22,18 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& models_args = args.models_args;
     models.add_option("k,key", "OpenAI API key", models_args.api_key)
         .value_help("key");
-    models.add_option("u,url", "OpenAI API Compatible URL", models_args.api_url)
-        .default_value(deepseek_base_url + "models");
-    ;
+    models.add_option("u,url", "OpenAI API Compatible URL",
+                      models_args.api_url);
     models
         .add_option("base-url", "OpenAI API Compatible URL(<base_url>/models)",
                     models_args.api_url)
-        .callback([&models_args](std::string const& url) {
-            if (!url.empty()) {
+        .default_value(deepseek_base_url)
+        .callback([&models_args](std::string const& base_url) {
+            if (!base_url.empty()) {
                 models_args.api_url =
-                    url + (url[url.size() - 1] == '/' ? "models" : "/models");
+                    base_url + (base_url[base_url.size() - 1] == '/'
+                                    ? "models"
+                                    : "/models");
             }
         });
 
@@ -95,6 +97,9 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                            chat_args.interactive);
     chat.add_flag("stream", "Enable streaming mode", chat_args.stream)
         .negatable();
+    chat.add_flag("stream-include-usage", "print usage in streaming mode",
+                  chat_args.stream_include_usage)
+        .negatable();
     chat.add_flag("v,verbose", "Enable verbose mode", chat_args.verbose);
     chat.add_flag("version", "Show version", chat_args.version);
 
@@ -107,18 +112,21 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     chat.add_option("t,temperature", "Model temperature",
                     chat_args.temperature);
     chat.add_option("top-p", "Model top-p parameter", chat_args.top_p);
-    chat.add_option("u,url", "OpenAI API Compatible URL", chat_args.api_url)
-        .default_value(deepseek_base_url + "chat/completions");
+    chat.add_option("u,url", "OpenAI API Compatible URL", chat_args.api_url);
     chat.add_option("base-url",
                     "OpenAI API Compatible URL(<base_url>/chat/completions)",
                     chat_args.api_url)
-        .callback([&chat_args](std::string const& url) {
-            if (!url.empty()) {
-                chat_args.api_url =
-                    url + (url[url.size() - 1] == '/' ? "chat/completions"
-                                                      : "/chat/completions");
+        .default_value(deepseek_base_url)
+        .callback([&args](std::string const& base_url) {
+            if (!base_url.empty()) {
+                args.chat_args.api_url =
+                    base_url + (base_url[base_url.size() - 1] == '/'
+                                    ? "chat/completions"
+                                    : "/chat/completions");
             }
         });
+
+    chat.add_option("max-tokens", "max tokens", chat_args.max_tokens);
 
     chat.add_alias("qwen", "base-url", qwen_base_url);
     chat.add_alias("gemini", "base-url", gemini_base_url);

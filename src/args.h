@@ -11,9 +11,11 @@ struct AiArgs {
         std::string api_key;
         std::string api_url;
         std::optional<std::string> system_prompt;
+        std::optional<int> max_tokens;
         std::optional<double> temperature;
         std::optional<double> top_p;
         bool stream{false};
+        bool stream_include_usage{false};
         bool interactive{false};
         bool verbose{false};
         bool version{false};

@@ -73,6 +73,15 @@ class OpenAIClient::Impl {
                                   {"messages", messages},
                                   {"stream", args_.chat_args.stream}};
 
+        if (args_.chat_args.stream && args_.chat_args.stream_include_usage) {
+            nlohmann::json obj;
+            obj["include_usage"] = true;
+            request["stream_options"] = obj;
+        }
+        if (args_.chat_args.max_tokens.has_value()) {
+            request["max_tokens"] = args_.chat_args.max_tokens.value();
+        }
+
         if (args_.chat_args.temperature.has_value()) {
             request["temperature"] = args_.chat_args.temperature.value();
         }
