@@ -178,18 +178,23 @@ void interactive_mode(OpenAIClient& client, const std::string& system_prompt,
                                                       unparsed_json, response,
                                                       pre_is_reasoning);
                             });
-                std::cout << std::endl;
                 chat_history.push_back(nlohmann::json::object(
                     {{"role", "user"}, {"content", line}}));
                 chat_history.push_back(nlohmann::json::object(
                     {{"role", "assistant"}, {"content", response.content}}));
                 if (response.reasoning_content.empty()) {
                     save_to_clipboard(response.content);
+                    if (args.debug) {
+                        std::cout << response.content << '\n';
+                    }
                 } else {
                     auto merged_content = "<think>\n" +
                                           response.reasoning_content +
                                           "\n</think>\n\n" + response.content;
                     save_to_clipboard(merged_content);
+                    if (args.debug) {
+                        std::cout << merged_content << '\n';
+                    }
                 }
             } else {
                 auto response = client.chat(system_prompt, line, chat_history);
@@ -255,19 +260,24 @@ int chat(AiArgs const& args) {
                         unparsed_json.find("error") != std::string::npos) {
                         std::cerr << unparsed_json;
                     }
-                    std::cout << std::endl;
                     chat_history.push_back(nlohmann::json::object(
                         {{"role", "user"}, {"content", prompt}}));
                     chat_history.push_back(nlohmann::json::object(
                         {{"role", "assistant"},
                          {"content", response.content}}));
-                    if (!response.reasoning_content.empty()) {
+                    if (response.reasoning_content.empty()) {
+                        save_to_clipboard(response.content);
+                        if (args.debug) {
+                            std::cout << response.content << '\n';
+                        }
+                    } else {
                         auto merged_content =
                             "<think>\n" + response.reasoning_content +
                             "\n</think>\n\n" + response.content;
                         save_to_clipboard(merged_content);
-                    } else {
-                        save_to_clipboard(response.content);
+                        if (args.debug) {
+                            std::cout << merged_content << '\n';
+                        }
                     }
                 } else {
                     auto response =
