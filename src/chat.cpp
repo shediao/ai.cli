@@ -16,6 +16,9 @@
 #include "./openai.h"
 
 void save_to_clipboard(std::string const& text);
+#if defined(__linux__)
+void save_to_clipboard([[maybe_unused]] std::string const& text) {}
+#endif
 std::string load_from_clipboard();
 
 std::optional<std::string> get_stream_context(const std::string_view data,
