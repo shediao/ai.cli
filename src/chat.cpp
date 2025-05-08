@@ -245,7 +245,7 @@ int chat(AiArgs const& args) {
 
                     bool pre_is_reasoning = false;
                     client.chat(chat_args.system_prompt.value_or(""), prompt,
-                                chat_history,
+                                chat_args.files, chat_history,
                                 [&unparsed_json, &response, &args,
                                  &pre_is_reasoning](const std::string& chunk) {
                                     if (args.debug) {
@@ -282,7 +282,7 @@ int chat(AiArgs const& args) {
                 } else {
                     auto response =
                         client.chat(chat_args.system_prompt.value_or(""),
-                                    prompt, chat_history);
+                                    prompt, chat_args.files, chat_history);
                     chat_history.push_back(nlohmann::json::object(
                         {{"role", "user"}, {"content", prompt}}));
                     chat_history.push_back(nlohmann::json::object(

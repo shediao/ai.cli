@@ -127,6 +127,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         });
 
     chat.add_option("max-tokens", "max tokens", chat_args.max_tokens);
+    chat.add_option("f,file", "image file/url", chat_args.files);
 
     chat.add_alias("qwen", "base-url", qwen_base_url);
     chat.add_alias("gemini", "base-url", gemini_base_url);

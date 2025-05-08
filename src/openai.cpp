@@ -4,10 +4,28 @@
 #include <curl/easy.h>
 
 #include <iostream>
+#include <map>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 
 #include "./args.h"
+#include "./base64.h"
+
+namespace {
+
+static std::map<std::string, std::string> memi_map{
+    {"jpg", "image/jpeg"},
+    {"jpeg", "image/jpeg"},
+    {"png", "image/png"},
+    {"gif", "image/gif"},
+    {"bmp", "image/bmp"},
+    {"webp", "image/webp"},
+    {"svg", "image/svg+xml"},  // Scalable Vector Graphics
+    {"tiff", "image/tiff"},
+    {"tif", "image/tiff"},
+    {"ico", "image/vnd.microsoft.icon"}  // Or image/x-icon
+};
+}  // namespace
 
 class OpenAIClient::Impl {
    public:
@@ -47,12 +65,64 @@ class OpenAIClient::Impl {
 
     ResponseContent chat(
         const std::string& system_prompt, const std::string& user_prompt,
-        nlohmann::json const& chat_history,
+        std::vector<std::string> files, nlohmann::json const& chat_history,
         const std::function<void(const std::string&)>& stream_callback) {
         if (args_.debug) {
             std::cout << "System prompt: " << system_prompt << std::endl;
             std::cout << "User prompt: " << user_prompt << std::endl;
+            if (!files.empty()) {
+                std::cout << "Files: " << '\n';
+                for (auto const& f : files) {
+                    std::cout << "  " << f << '\n';
+                }
+            }
         }
+
+        auto is_image_url = [](std::string const& url) {
+            if (!url.starts_with("https://") && !url.starts_with("http://")) {
+                return false;
+            }
+            return true;
+        };
+        auto is_image_file = [](std::string const& f) {
+            auto ext_pos = f.find_last_of('.');
+            if (ext_pos != std::string::npos) {
+                std::string ext = f.substr(ext_pos + 1);
+                if (memi_map.find(ext) == memi_map.end()) {
+                    return false;
+                }
+                if (std::filesystem::exists(f)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        auto get_image_memi = [](std::string const& f) -> std::string {
+            auto ext_pos = f.find_last_of('.');
+            if (ext_pos != std::string::npos) {
+                if (!std::filesystem::exists(f)) {
+                    return "";
+                }
+                std::string ext = f.substr(ext_pos + 1);
+                if (auto it = memi_map.find(ext); it != memi_map.end()) {
+                    return it->second;
+                }
+            }
+            return "";
+        };
+        std::vector<std::string> image_urls;
+        for (auto const& f : files) {
+            if (is_image_url(f)) {
+                image_urls.push_back(f);
+            } else if (is_image_file(f)) {
+                auto memi = get_image_memi(f);
+                if (!memi.empty()) {
+                    auto base64 = base64_encode(f);
+                    image_urls.push_back("data:" + memi + ";base64," + base64);
+                }
+            }
+        }
+
         if (system_prompt.empty() && user_prompt.empty()) {
             return {};
         }
@@ -66,7 +136,20 @@ class OpenAIClient::Impl {
             messages.push_back(message);
         }
         if (!user_prompt.empty()) {
-            messages.push_back({{"role", "user"}, {"content", user_prompt}});
+            if (image_urls.empty()) {
+                messages.push_back(
+                    {{"role", "user"}, {"content", user_prompt}});
+            } else {
+                nlohmann::json content = nlohmann::json::array();
+                for (auto const& image_url : image_urls) {
+                    auto kv = nlohmann::json::object();
+                    kv["url"] = image_url;
+                    content.push_back(
+                        {{"type", "image_url"}, {"image_url", kv}});
+                }
+                content.push_back({{"type", "text"}, {"text", user_prompt}});
+                messages.push_back({{"role", "user"}, {"content", content}});
+            }
         }
 
         nlohmann::json request = {{"model", args_.chat_args.model},
@@ -177,6 +260,13 @@ class OpenAIClient::Impl {
 
         return {};
     }
+    ResponseContent chat(
+        const std::string& system_prompt, const std::string& user_prompt,
+        nlohmann::json const& chat_history,
+        const std::function<void(const std::string&)>& stream_callback) {
+        return chat(system_prompt, user_prompt, {}, chat_history,
+                    stream_callback);
+    }
 
     std::vector<std::string> models() {
         std::string url = args_.models_args.api_url;
@@ -249,6 +339,14 @@ ResponseContent OpenAIClient::chat(
     nlohmann::json const& chat_history,
     const std::function<void(const std::string&)>& stream_callback) const {
     return pimpl->chat(system_prompt, user_prompt, chat_history,
+                       stream_callback);
+}
+
+ResponseContent OpenAIClient::chat(
+    const std::string& system_prompt, const std::string& user_prompt,
+    std::vector<std::string> files, nlohmann::json const& chat_history,
+    const std::function<void(const std::string&)>& stream_callback) const {
+    return pimpl->chat(system_prompt, user_prompt, files, chat_history,
                        stream_callback);
 }
 

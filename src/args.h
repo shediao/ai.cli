@@ -14,6 +14,7 @@ struct AiArgs {
         std::optional<int> max_tokens;
         std::optional<double> temperature;
         std::optional<double> top_p;
+        std::vector<std::string> files;
         bool stream{false};
         bool stream_include_usage{false};
         bool interactive{false};
