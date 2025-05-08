@@ -172,6 +172,11 @@ class OpenAIClient::Impl {
             request["top_p"] = args_.chat_args.top_p.value();
         }
 
+        if (args_.chat_args.reasoning_effort.has_value()) {
+            request["reasoning_effort"] =
+                args_.chat_args.reasoning_effort.value();
+        }
+
         std::string url = args_.chat_args.api_url;
         std::string response_string;
         if (args_.debug) {
