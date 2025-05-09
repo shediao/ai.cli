@@ -2,6 +2,7 @@
 
 #include <cstdio>   // For std::remove
 #include <cstdlib>  // For system()
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -15,6 +16,63 @@
 #endif
 
 #include "./utils.h"
+
+TempFile::TempFile(std::string const &prefix, std::string const &postfix)
+    : path_{getTempFilePath(prefix, postfix)} {}
+TempFile::TempFile() : TempFile("", "") {}
+TempFile::~TempFile() {
+    if (!path_.empty() && std::filesystem::exists(path_)) {
+        std::filesystem::remove(path_);
+    }
+}
+std::string const &TempFile::path() const { return path_; }
+std::optional<std::string> TempFile::content() const {
+    if (std::ifstream file(path_); file.is_open()) {
+        std::string file_content{std::istreambuf_iterator<char>(file),
+                                 std::istreambuf_iterator<char>()};
+        file.close();
+        return file_content;
+    }
+    return std::nullopt;
+}
+
+std::string getTempFilePath(std::string const &prefix,
+                            std::string const &postfix) {
+    std::string temp_file_path;
+
+#ifdef _WIN32
+    char temp_dir[MAX_PATH];
+    if (GetTempPathA(MAX_PATH, temp_dir) == 0) {
+        throw std::runtime_error("Failed to get temporary directory.");
+    }
+
+    char temp_file[MAX_PATH];
+    if (GetTempFileNameA(temp_dir, prefix.c_str(), 0, temp_file) == 0) {
+        throw std::runtime_error("Failed to create temporary file.");
+    }
+    temp_file_path = temp_file;
+    if (!postfix.empty()) {
+        temp_file_path += postfix;
+    }
+
+#else
+    std::string template_str = "/tmp/";
+    if (!prefix.empty()) {
+        template_str += prefix;
+    }
+    template_str += "XXXXXX";
+    if (!postfix.empty()) {
+        template_str += postfix;
+    }
+    int fd = mkstemp(template_str.data());
+    if (fd == -1) {
+        throw std::runtime_error("Failed to create temporary file.");
+    }
+    close(fd);
+    temp_file_path = template_str;
+#endif
+    return temp_file_path;
+}
 
 std::string getUserInputViaEditor() {
     // 1. Determine the editor to use
@@ -49,61 +107,26 @@ std::string getUserInputViaEditor() {
     }
 #endif
     // 2. Create a temporary file
-    std::string temp_file_path;
-
-#ifdef _WIN32
-    char temp_dir[MAX_PATH];
-    if (GetTempPathA(MAX_PATH, temp_dir) == 0) {
-        throw std::runtime_error("Failed to get temporary directory.");
-    }
-
-    char temp_file[MAX_PATH];
-    if (GetTempFileNameA(temp_dir, "edit", 0, temp_file) == 0) {
-        throw std::runtime_error("Failed to create temporary file.");
-    }
-    temp_file_path = temp_file;
-
-#else
-    char template_[] = "/tmp/edit.XXXXXX";
-    int fd = mkstemp(template_);
-    if (fd == -1) {
-        throw std::runtime_error("Failed to create temporary file.");
-    }
-    close(fd);
-    temp_file_path = template_;
-#endif
+    TempFile tempfile("prompt.", ".md");
+    std::string temp_file_path = tempfile.path();
 
     // 3. Open the editor with the temporary file
     std::string command =
-        editor + " \"" + temp_file_path + "\"";  // Wrap path in quotes
+        editor + " \"" + tempfile.path() + "\"";  // Wrap path in quotes
 
     int result = std::system(command.c_str());
 
     // Handle errors from system call (editor not found, etc.)
     if (result != 0) {
-        std::remove(temp_file_path.c_str());  // Cleanup if command fails.
         throw std::runtime_error(
             "Failed to execute editor: " + editor +
             ", system return code: " + std::to_string(result));
     }
 
     // 4. Read the content of the temporary file
-    std::string user_input;
-    if (std::ifstream file(temp_file_path); file.is_open()) {
-        std::copy(std::istreambuf_iterator<char>(file),
-                  std::istreambuf_iterator<char>(),
-                  std::back_inserter(user_input));
-        file.close();
-    } else {
-        std::remove(
-            temp_file_path.c_str());  // Cleanup if file cannot be opened
-        throw std::runtime_error("Failed to open temporary file for reading.");
-    }
+    auto user_input = tempfile.content();
 
-    // 5. Remove the temporary file
-    std::remove(temp_file_path.c_str());  // Remove temporary file
-
-    return user_input;
+    return user_input.value_or("");
 }
 
 // 回调函数，用于处理从 libcurl 接收到的数据

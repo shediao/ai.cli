@@ -170,17 +170,17 @@ void interactive_mode(OpenAIClient& client, const std::string& system_prompt,
                 std::stringstream response_stream;
                 ResponseContent response;
                 bool pre_is_reasoning = false;
-                client.chat(system_prompt, line, chat_history,
-                            [&args, &unparsed_json, &response,
-                             &pre_is_reasoning](const std::string& chunk) {
-                                if (args.debug) {
-                                    std::cout << chunk;
-                                    return;
-                                }
-                                process_stream_output(chunk, std::cout,
-                                                      unparsed_json, response,
-                                                      pre_is_reasoning);
-                            });
+                client.chat(
+                    system_prompt, line, chat_history,
+                    [&args, &unparsed_json, &response, &pre_is_reasoning,
+                     &response_stream](const std::string& chunk) {
+                        if (args.debug) {
+                            std::cout << chunk;
+                        }
+                        process_stream_output(
+                            chunk, args.debug ? response_stream : std::cout,
+                            unparsed_json, response, pre_is_reasoning);
+                    });
                 chat_history.push_back(nlohmann::json::object(
                     {{"role", "user"}, {"content", line}}));
                 chat_history.push_back(nlohmann::json::object(
@@ -247,18 +247,18 @@ int chat(AiArgs const& args) {
                     ResponseContent response;
 
                     bool pre_is_reasoning = false;
-                    client.chat(chat_args.system_prompt.value_or(""), prompt,
-                                chat_args.files, chat_history,
-                                [&unparsed_json, &response, &args,
-                                 &pre_is_reasoning](const std::string& chunk) {
-                                    if (args.debug) {
-                                        std::cout << "DEBUG: " << chunk;
-                                        return;
-                                    }
-                                    process_stream_output(
-                                        chunk, std::cout, unparsed_json,
-                                        response, pre_is_reasoning);
-                                });
+                    client.chat(
+                        chat_args.system_prompt.value_or(""), prompt,
+                        chat_args.files, chat_history,
+                        [&unparsed_json, &response, &args, &pre_is_reasoning,
+                         &response_stream](const std::string& chunk) {
+                            if (args.debug) {
+                                std::cout << chunk;
+                            }
+                            process_stream_output(
+                                chunk, args.debug ? response_stream : std::cout,
+                                unparsed_json, response, pre_is_reasoning);
+                        });
                     if (!unparsed_json.empty() &&
                         unparsed_json.find("error") != std::string::npos) {
                         std::cerr << unparsed_json;

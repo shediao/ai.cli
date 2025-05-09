@@ -68,7 +68,9 @@ class OpenAIClient::Impl {
         std::vector<std::string> files, nlohmann::json const& chat_history,
         const std::function<void(const std::string&)>& stream_callback) {
         if (args_.debug) {
-            std::cout << "System prompt: " << system_prompt << std::endl;
+            if (!system_prompt.empty()) {
+                std::cout << "System prompt: " << system_prompt << std::endl;
+            }
             std::cout << "User prompt: " << user_prompt << std::endl;
             if (!files.empty()) {
                 std::cout << "Files: " << '\n';
