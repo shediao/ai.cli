@@ -14,7 +14,45 @@ static const std::string qwen_base_url =
     "https://dashscope.aliyuncs.com/compatible-mode/v1/";
 static const std::string deepseek_base_url = "https://api.deepseek.com/";
 static const std::string openai_base_url = "https://api.openai.com/v1/";
+static const std::string moonshot_base_url = "https://api.moonshot.cn/v1";
 static const std::string ollama_base_url = "http://127.0.0.1:11434/v1";
+
+static std::optional<std::string> getProxyFromEnvironment(
+    std::string const& url) {
+    static std::map<std::string, std::string> url_proxy{
+        {openai_base_url, "OPENAI_API_PROXY"},
+        {gemini_base_url, "GEMINI_API_PROXY"}};
+    auto it = std::find_if(
+        url_proxy.begin(), url_proxy.end(), [&url](auto const& entry) {
+            return url.find(entry.first) != std::string::npos;
+        });
+    if (it != url_proxy.end()) {
+        if (auto* env = std::getenv(it->second.c_str())) {
+            return env;
+        }
+    }
+    return std::nullopt;
+}
+
+static std::optional<std::string> getApiKeyFromEnvironment(
+    std::string const& url) {
+    static std::map<std::string, std::string> url_key{
+        {deepseek_base_url, "DEEPSEEK_API_KEY"},
+        {openai_base_url, "OPENAI_API_KEY"},
+        {gemini_base_url, "GEMINI_API_KEY"},
+        {qwen_base_url, "QWEN_API_KEY"},
+        {moonshot_base_url, "MOONSHOT_API_KEY"}};
+    auto it =
+        std::find_if(url_key.begin(), url_key.end(), [&url](auto const& entry) {
+            return url.find(entry.first) != std::string::npos;
+        });
+    if (it != url_key.end()) {
+        if (auto* env = std::getenv(it->second.c_str())) {
+            return env;
+        }
+    }
+    return std::nullopt;
+}
 
 static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& models = parser.add_command("models", "list models");
@@ -42,6 +80,7 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     models.add_alias("google", "base-url", gemini_base_url);
     models.add_alias("deepseek", "base-url", deepseek_base_url);
     models.add_alias("openai", "base-url", openai_base_url);
+    models.add_alias("moonshot", "base-url", moonshot_base_url);
     models.add_alias("ollama", "base-url", ollama_base_url);
 
     models.callback([&args, &models]() -> void {
@@ -51,39 +90,16 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
         }
         if (args.models_args.api_key.empty() &&
             !args.models_args.api_url.empty()) {
-            auto& url = args.models_args.api_url;
-            if (url.find(deepseek_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("DEEPSEEK_API_KEY");
-                    env != nullptr) {
-                    args.models_args.api_key = env;
-                }
-            } else if (url.find(openai_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("OPENAI_API_KEY"); env != nullptr) {
-                    args.models_args.api_key = env;
-                }
-            } else if (url.find(gemini_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("GEMINI_API_KEY"); env != nullptr) {
-                    args.models_args.api_key = env;
-                }
-            } else if (url.find(qwen_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("QWEN_API_KEY"); env != nullptr) {
-                    args.models_args.api_key = env;
-                }
+            auto key = getApiKeyFromEnvironment(args.models_args.api_url);
+            if (key.has_value()) {
+                args.models_args.api_key = key.value();
             }
         }
 
         if (!args.proxy.has_value()) {
-            auto& url = args.models_args.api_url;
-            if (url.find(openai_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("OPENAI_API_PROXY");
-                    env != nullptr) {
-                    args.proxy = env;
-                }
-            } else if (url.find(gemini_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("GEMINI_API_PROXY");
-                    env != nullptr) {
-                    args.proxy = env;
-                }
+            auto proxy = getProxyFromEnvironment(args.models_args.api_url);
+            if (proxy.has_value()) {
+                args.proxy = proxy.value();
             }
         }
     });
@@ -137,6 +153,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     chat.add_alias("google", "base-url", gemini_base_url);
     chat.add_alias("deepseek", "base-url", deepseek_base_url);
     chat.add_alias("openai", "base-url", openai_base_url);
+    chat.add_alias("moonshot", "base-url", moonshot_base_url);
     chat.add_alias("ollama", "base-url", ollama_base_url);
 
     chat.add_positional("prompts", "Prompt", chat_args.prompt);
@@ -179,38 +196,17 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         }
 
         if (args.chat_args.api_key.empty() && !args.chat_args.api_url.empty()) {
-            auto& url = args.chat_args.api_url;
-            if (url.find(deepseek_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("DEEPSEEK_API_KEY");
-                    env != nullptr) {
-                    args.chat_args.api_key = env;
-                }
-            } else if (url.find(openai_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("OPENAI_API_KEY"); env != nullptr) {
-                    args.chat_args.api_key = env;
-                }
-            } else if (url.find(gemini_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("GEMINI_API_KEY"); env != nullptr) {
-                    args.chat_args.api_key = env;
-                }
-            } else if (url.find(qwen_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("QWEN_API_KEY"); env != nullptr) {
-                    args.chat_args.api_key = env;
-                }
+            auto key = getApiKeyFromEnvironment(args.chat_args.api_url);
+            if (key.has_value()) {
+                args.chat_args.api_key = key.value();
             }
         }
 
         if (!args.proxy.has_value()) {
-            auto& url = args.chat_args.api_url;
-            if (url.find(openai_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("OPENAI_API_PROXY");
-                    env != nullptr) {
-                    args.proxy = env;
-                }
-            } else if (url.find(gemini_base_url) != std::string::npos) {
-                if (auto* env = std::getenv("GEMINI_API_PROXY");
-                    env != nullptr) {
-                    args.proxy = env;
+            if (!args.proxy.has_value()) {
+                auto proxy = getProxyFromEnvironment(args.chat_args.api_url);
+                if (proxy.has_value()) {
+                    args.proxy = proxy.value();
                 }
             }
         }
