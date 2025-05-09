@@ -54,6 +54,19 @@ static std::optional<std::string> getApiKeyFromEnvironment(
     return std::nullopt;
 }
 
+std::optional<std::string> getDefaultModelForUrl(std::string const& url) {
+    if (url == qwen_base_url + "chat/completions") {
+        return "qwen-turbo-latest";  // qwen-plus,qwen-turbo
+    } else if (url == gemini_base_url + "chat/completions") {
+        return "gemini-2.0-flash";
+    } else if (url == deepseek_base_url + "chat/completions") {
+        return "deepseek-chat";  // deepseek-reasoner
+    } else if (url == moonshot_base_url + "chat/completions") {
+        return "moonshot-v1-auto";
+    }
+    return std::nullopt;
+}
+
 static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& models = parser.add_command("models", "list models");
 
@@ -88,16 +101,16 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
             models.print_usage();
             exit(EXIT_SUCCESS);
         }
-        if (args.models_args.api_key.empty() &&
-            !args.models_args.api_url.empty()) {
-            auto key = getApiKeyFromEnvironment(args.models_args.api_url);
+        auto& models_args = args.models_args;
+        if (models_args.api_key.empty() && !models_args.api_url.empty()) {
+            auto key = getApiKeyFromEnvironment(models_args.api_url);
             if (key.has_value()) {
-                args.models_args.api_key = key.value();
+                models_args.api_key = key.value();
             }
         }
 
         if (!args.proxy.has_value()) {
-            auto proxy = getProxyFromEnvironment(args.models_args.api_url);
+            auto proxy = getProxyFromEnvironment(models_args.api_url);
             if (proxy.has_value()) {
                 args.proxy = proxy.value();
             }
@@ -163,31 +176,26 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
             chat.print_usage();
             exit(EXIT_SUCCESS);
         }
+        auto& chat_args = args.chat_args;
 
-        if (args.chat_args.model.empty()) {
-            args.chat_args.model = [](std::string const& url) {
-                if (url == qwen_base_url + "chat/completions") {
-                    return "qwen-turbo-latest";  // qwen-plus,qwen-turbo
-                } else if (url == gemini_base_url + "chat/completions") {
-                    return "gemini-2.0-flash";
-                } else if (url == deepseek_base_url + "chat/completions") {
-                    return "deepseek-chat";  // deepseek-reasoner
-                }
-                return "";
-            }(args.chat_args.api_url);
+        if (chat_args.model.empty()) {
+            auto model = getDefaultModelForUrl(chat_args.api_url);
+            if (model.has_value()) {
+                chat_args.model = model.value();
+            }
         }
 
-        if (args.chat_args.model.empty()) {
+        if (chat_args.model.empty()) {
             std::cerr << "Error: Must provide an ai model." << std::endl;
             exit(EXIT_FAILURE);
         }
 
-        if (!args.chat_args.interactive && args.chat_args.prompt.empty()) {
+        if (!chat_args.interactive && chat_args.prompt.empty()) {
             try {
-                args.chat_args.prompt = getUserInputViaEditor();
+                chat_args.prompt = getUserInputViaEditor();
             } catch (...) {
             }
-            if (args.chat_args.prompt.empty()) {
+            if (chat_args.prompt.empty()) {
                 std::cerr
                     << "Error: Must provide a prompt or use interactive mode."
                     << std::endl;
@@ -195,37 +203,36 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
             }
         }
 
-        if (args.chat_args.api_key.empty() && !args.chat_args.api_url.empty()) {
-            auto key = getApiKeyFromEnvironment(args.chat_args.api_url);
+        if (chat_args.api_key.empty() && !chat_args.api_url.empty()) {
+            auto key = getApiKeyFromEnvironment(chat_args.api_url);
             if (key.has_value()) {
-                args.chat_args.api_key = key.value();
+                chat_args.api_key = key.value();
             }
         }
 
         if (!args.proxy.has_value()) {
             if (!args.proxy.has_value()) {
-                auto proxy = getProxyFromEnvironment(args.chat_args.api_url);
+                auto proxy = getProxyFromEnvironment(chat_args.api_url);
                 if (proxy.has_value()) {
                     args.proxy = proxy.value();
                 }
             }
         }
 
-        if (args.chat_args.prompt == "-") {
-            args.chat_args.prompt =
+        if (chat_args.prompt == "-") {
+            chat_args.prompt =
                 std::string{std::istreambuf_iterator<char>(std::cin),
                             std::istreambuf_iterator<char>()};
-        } else if (args.chat_args.prompt.starts_with("@")) {
-            std::string file_name = args.chat_args.prompt.substr(1);
+        } else if (chat_args.prompt.starts_with("@")) {
+            std::string file_name = chat_args.prompt.substr(1);
             std::ifstream file(file_name);
             if (!file) {
                 std::cerr << "Error: Cannot open file: " << file_name
                           << std::endl;
                 exit(EXIT_FAILURE);
             }
-            args.chat_args.prompt =
-                std::string{std::istreambuf_iterator<char>(file),
-                            std::istreambuf_iterator<char>()};
+            chat_args.prompt = std::string{std::istreambuf_iterator<char>(file),
+                                           std::istreambuf_iterator<char>()};
         }
     });
 }
