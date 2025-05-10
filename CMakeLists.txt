@@ -53,6 +53,7 @@ add_executable(
   src/args.cpp
   src/models.cpp
   src/openai.cpp
+  src/stream.cpp
   src/utils.cpp
   src/base64.cpp)
 
