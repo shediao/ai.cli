@@ -65,7 +65,7 @@ class OpenAIClient::Impl {
 
     ResponseContent chat(
         const std::string& system_prompt, const std::string& user_prompt,
-        std::vector<std::string> files, nlohmann::json const& chat_history,
+        std::vector<std::string> files, nlohmann::json& chat_history,
         const std::function<void(const std::string&)>& stream_callback) {
         if (args_.debug) {
             if (!system_prompt.empty()) {
@@ -133,8 +133,16 @@ class OpenAIClient::Impl {
             }
         }
 
-        if (system_prompt.empty() && user_prompt.empty()) {
-            return {};
+        if (user_prompt.empty()) {
+            // 当user prompt没有的时候判断历史最后一条是否为用户prompt
+            if (chat_history.size() == 0) {
+                return {};
+            }
+            if (auto& j = *(chat_history.end() - 1);
+                !j.contains("role") ||
+                !(j["role"].get<std::string>() == "user")) {
+                return {};
+            }
         }
 
         nlohmann::json messages = nlohmann::json::array();
@@ -143,6 +151,11 @@ class OpenAIClient::Impl {
                 {{"role", "system"}, {"content", system_prompt}});
         }
         for (const auto& message : chat_history) {
+            if (!system_prompt.empty() && message.contains("role") &&
+                "system" == message["role"].get<std::string>()) {
+                // 已经提供了system prompt情况下会排除history中的system prompt
+                continue;
+            }
             messages.push_back(message);
         }
         if (!user_prompt.empty()) {
@@ -165,6 +178,9 @@ class OpenAIClient::Impl {
         nlohmann::json request = {{"model", args_.chat_args.model},
                                   {"messages", messages},
                                   {"stream", args_.chat_args.stream}};
+
+        // 当前对话成为新的历史内容
+        chat_history = messages;
 
         if (args_.chat_args.stream && args_.chat_args.stream_include_usage) {
             nlohmann::json obj;
@@ -277,7 +293,7 @@ class OpenAIClient::Impl {
     }
     ResponseContent chat(
         const std::string& system_prompt, const std::string& user_prompt,
-        nlohmann::json const& chat_history,
+        nlohmann::json& chat_history,
         const std::function<void(const std::string&)>& stream_callback) {
         return chat(system_prompt, user_prompt, {}, chat_history,
                     stream_callback);
@@ -351,7 +367,7 @@ OpenAIClient& OpenAIClient::operator=(OpenAIClient&&) noexcept = default;
 
 ResponseContent OpenAIClient::chat(
     const std::string& system_prompt, const std::string& user_prompt,
-    nlohmann::json const& chat_history,
+    nlohmann::json& chat_history,
     const std::function<void(const std::string&)>& stream_callback) const {
     return pimpl->chat(system_prompt, user_prompt, chat_history,
                        stream_callback);
@@ -359,7 +375,7 @@ ResponseContent OpenAIClient::chat(
 
 ResponseContent OpenAIClient::chat(
     const std::string& system_prompt, const std::string& user_prompt,
-    std::vector<std::string> files, nlohmann::json const& chat_history,
+    std::vector<std::string> files, nlohmann::json& chat_history,
     const std::function<void(const std::string&)>& stream_callback) const {
     return pimpl->chat(system_prompt, user_prompt, files, chat_history,
                        stream_callback);

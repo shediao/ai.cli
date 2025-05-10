@@ -53,8 +53,6 @@ int chat(AiArgs const& args) {
                     }
                 }
                 chat_history.push_back(nlohmann::json::object(
-                    {{"role", "user"}, {"content", prompt}}));
-                chat_history.push_back(nlohmann::json::object(
                     {{"role", "assistant"}, {"content", stream.content()}}));
                 if (stream.reasoning_content().empty()) {
                     save_to_clipboard(stream.content());
@@ -74,8 +72,6 @@ int chat(AiArgs const& args) {
                 auto response =
                     client.chat(chat_args.system_prompt.value_or(""), prompt,
                                 chat_args.files, chat_history);
-                chat_history.push_back(nlohmann::json::object(
-                    {{"role", "user"}, {"content", prompt}}));
                 chat_history.push_back(nlohmann::json::object(
                     {{"role", "assistant"}, {"content", response.content}}));
 
