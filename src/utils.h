@@ -1,5 +1,6 @@
 #ifndef __AI_CLI_UTILS_H__
 #define __AI_CLI_UTILS_H__
+#include <optional>
 #include <string>
 
 class TempFile {
