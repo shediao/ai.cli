@@ -1,9 +1,5 @@
 #include "./chat.h"
 
-#include <curl/curl.h>
-#include <readline/history.h>   // NOLINT
-#include <readline/readline.h>  // NOLINT
-
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -120,59 +116,27 @@ void process_stream_output(const std::string& chunk, std::ostream& os,
     }
 }
 
-std::string get_chat_title(OpenAIClient& client,
-                           nlohmann::json const& chat_history) {
-    std::string get_tiltle_system_prompt =
-        "你是一个AI聊天内容总结助手，请根据用户提供的聊天内容和可选的AI的回复内"
-        "容生成一个标题，标题应该简洁明了，不超过25个字。";
-    auto title = client.chat(get_tiltle_system_prompt, "", chat_history);
-    return title.content;
-}
+int chat(AiArgs const& args) {
+    auto& chat_args = args.chat_args;
+    try {
+        OpenAIClient client(args);
 
-void interactive_mode(OpenAIClient& client, const std::string& system_prompt,
-                      std::string const& prompt, AiArgs const& args) {
-    std::cout << "Entering interactive mode. Type 'exit' or 'quit' to exit."
-              << std::endl;
-    std::cout << "System prompt: "
-              << (system_prompt.empty() ? "not set" : system_prompt)
-              << std::endl;
-
-    rl_initialize();
-    rl_variable_bind("editing-mode", "vi");
-    nlohmann::json chat_history = nlohmann::json::array();
-
-    std::vector<std::string> exit_commands = {"exit", "quit", ":q"};
-    bool first_line = true;
-    while (true) {
-        std::string line;
-        if (first_line && !prompt.empty()) {
-            line = prompt;
-            first_line = false;
-        } else {
-            auto line_ptr = std::unique_ptr<char>(readline("Me> "));
-            if (!line_ptr ||
-                std::find(exit_commands.begin(), exit_commands.end(),
-                          line_ptr.get()) != exit_commands.end()) {
-                break;
-            }
-            line = line_ptr.get();
-        }
-        if (line.empty()) {
-            continue;
-        }
-        add_history(line.c_str());
+        std::string prompt = chat_args.prompt;
 
         try {
-            if (args.chat_args.stream) {
+            nlohmann::json chat_history = nlohmann::json::array();
+            if (chat_args.stream) {
                 setbuf(stdout, nullptr);
                 std::cout.rdbuf()->pubsetbuf(nullptr, 0);
                 std::string unparsed_json;
                 std::stringstream response_stream;
                 ResponseContent response;
+
                 bool pre_is_reasoning = false;
                 client.chat(
-                    system_prompt, line, chat_history,
-                    [&args, &unparsed_json, &response, &pre_is_reasoning,
+                    chat_args.system_prompt.value_or(""), prompt,
+                    chat_args.files, chat_history,
+                    [&unparsed_json, &response, &args, &pre_is_reasoning,
                      &response_stream](const std::string& chunk) {
                         if (args.debug) {
                             std::cout << chunk;
@@ -181,8 +145,12 @@ void interactive_mode(OpenAIClient& client, const std::string& system_prompt,
                             chunk, args.debug ? response_stream : std::cout,
                             unparsed_json, response, pre_is_reasoning);
                     });
+                if (!unparsed_json.empty() &&
+                    unparsed_json.find("error") != std::string::npos) {
+                    std::cerr << unparsed_json;
+                }
                 chat_history.push_back(nlohmann::json::object(
-                    {{"role", "user"}, {"content", line}}));
+                    {{"role", "user"}, {"content", prompt}}));
                 chat_history.push_back(nlohmann::json::object(
                     {{"role", "assistant"}, {"content", response.content}}));
                 if (response.reasoning_content.empty()) {
@@ -200,113 +168,28 @@ void interactive_mode(OpenAIClient& client, const std::string& system_prompt,
                     }
                 }
             } else {
-                auto response = client.chat(system_prompt, line, chat_history);
+                auto response =
+                    client.chat(chat_args.system_prompt.value_or(""), prompt,
+                                chat_args.files, chat_history);
                 chat_history.push_back(nlohmann::json::object(
-                    {{"role", "user"}, {"content", line}}));
+                    {{"role", "user"}, {"content", prompt}}));
                 chat_history.push_back(nlohmann::json::object(
                     {{"role", "assistant"}, {"content", response.content}}));
+
                 if (!response.reasoning_content.empty()) {
                     auto merged_content = "<think>\n" +
                                           response.reasoning_content +
                                           "\n</think>\n\n" + response.content;
                     save_to_clipboard(merged_content);
-                    std::cout << "\nAI> " << merged_content << std::endl;
+                    std::cout << merged_content << std::endl;
                 } else {
                     save_to_clipboard(response.content);
-                    std::cout << "\nAI> " << response.content << std::endl;
+                    std::cout << response.content << std::endl;
                 }
-            }
-            if (args.debug) {
-                std::cout << "Chat history: " << chat_history.dump(2)
-                          << std::endl;
             }
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << std::endl;
-        }
-    }
-}
-
-int chat(AiArgs const& args) {
-    auto& chat_args = args.chat_args;
-    try {
-        OpenAIClient client(args);
-
-        std::string prompt = chat_args.prompt;
-
-        if (chat_args.interactive) {
-            interactive_mode(client, chat_args.system_prompt.value_or(""),
-                             prompt, args);
-        } else {
-            try {
-                nlohmann::json chat_history = nlohmann::json::array();
-                if (chat_args.stream) {
-                    setbuf(stdout, nullptr);
-                    std::cout.rdbuf()->pubsetbuf(nullptr, 0);
-                    std::string unparsed_json;
-                    std::stringstream response_stream;
-                    ResponseContent response;
-
-                    bool pre_is_reasoning = false;
-                    client.chat(
-                        chat_args.system_prompt.value_or(""), prompt,
-                        chat_args.files, chat_history,
-                        [&unparsed_json, &response, &args, &pre_is_reasoning,
-                         &response_stream](const std::string& chunk) {
-                            if (args.debug) {
-                                std::cout << chunk;
-                            }
-                            process_stream_output(
-                                chunk, args.debug ? response_stream : std::cout,
-                                unparsed_json, response, pre_is_reasoning);
-                        });
-                    if (!unparsed_json.empty() &&
-                        unparsed_json.find("error") != std::string::npos) {
-                        std::cerr << unparsed_json;
-                    }
-                    chat_history.push_back(nlohmann::json::object(
-                        {{"role", "user"}, {"content", prompt}}));
-                    chat_history.push_back(nlohmann::json::object(
-                        {{"role", "assistant"},
-                         {"content", response.content}}));
-                    if (response.reasoning_content.empty()) {
-                        save_to_clipboard(response.content);
-                        if (args.debug) {
-                            std::cout << response.content << '\n';
-                        }
-                    } else {
-                        auto merged_content =
-                            "<think>\n" + response.reasoning_content +
-                            "\n</think>\n\n" + response.content;
-                        save_to_clipboard(merged_content);
-                        if (args.debug) {
-                            std::cout << merged_content << '\n';
-                        }
-                    }
-                } else {
-                    auto response =
-                        client.chat(chat_args.system_prompt.value_or(""),
-                                    prompt, chat_args.files, chat_history);
-                    chat_history.push_back(nlohmann::json::object(
-                        {{"role", "user"}, {"content", prompt}}));
-                    chat_history.push_back(nlohmann::json::object(
-                        {{"role", "assistant"},
-                         {"content", response.content}}));
-
-                    if (!response.reasoning_content.empty()) {
-                        auto merged_content =
-                            "<think>\n" + response.reasoning_content +
-                            "\n</think>\n\n" + response.content;
-                        save_to_clipboard(merged_content);
-                        std::cout << merged_content << std::endl;
-                    } else {
-                        save_to_clipboard(response.content);
-                        std::cout << response.content << std::endl;
-                    }
-                }
-            } catch (const std::exception& e) {
-                std::cerr << "Error: " << e.what() << std::endl;
-                return 1;
-            }
+            return 1;
         }
 
         return 0;

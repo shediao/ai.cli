@@ -18,7 +18,6 @@ struct AiArgs {
         std::vector<std::string> files;
         bool stream{false};
         bool stream_include_usage{false};
-        bool interactive{false};
         bool verbose{false};
         bool version{false};
     };

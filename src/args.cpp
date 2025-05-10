@@ -120,10 +120,6 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
 static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& chat = parser.add_command("chat", "ai chatbot");
     auto& chat_args = args.chat_args;
-    chat.add_flag("i,interactive", "Enable interactive mode",
-                  chat_args.interactive);
-    chat.add_negative_flag("I", "Disable interactive mode",
-                           chat_args.interactive);
     chat.add_flag("stream", "Enable streaming mode", chat_args.stream)
         .negatable();
     chat.add_flag("stream-include-usage", "print usage in streaming mode",
@@ -190,15 +186,13 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
             exit(EXIT_FAILURE);
         }
 
-        if (!chat_args.interactive && chat_args.prompt.empty()) {
+        if (chat_args.prompt.empty()) {
             try {
                 chat_args.prompt = getUserInputViaEditor();
             } catch (...) {
             }
             if (chat_args.prompt.empty()) {
-                std::cerr
-                    << "Error: Must provide a prompt or use interactive mode."
-                    << std::endl;
+                std::cerr << "Error: Must provide a prompt." << std::endl;
                 exit(EXIT_FAILURE);
             }
         }

@@ -67,19 +67,9 @@ set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 # 添加头文件路径
 target_include_directories(ai PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-if(APPLE)
-  target_include_directories(
-    ai PRIVATE "/opt/homebrew/Cellar/readline/8.2.13/include")
-
-  target_link_directories(ai PRIVATE "/opt/homebrew/Cellar/readline/8.2.13/lib")
-
-  target_compile_definitions(ai PRIVATE _DARWIN_C_SOURCE)
-endif()
-
 # 链接依赖库
-target_link_libraries(
-  ai PRIVATE argparse::argparse base64::base64 nlohmann_json::nlohmann_json
-             CURL::libcurl -lreadline)
+target_link_libraries(ai PRIVATE argparse::argparse base64::base64
+                                 nlohmann_json::nlohmann_json CURL::libcurl)
 
 if(APPLE)
   target_link_libraries(ai PRIVATE "-framework AppKit")
