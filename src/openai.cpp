@@ -10,9 +10,9 @@
 
 #include "./args.h"
 #include "./base64.h"
+#include "./utils.h"
 
 namespace {
-
 static std::map<std::string, std::string> memi_map{
     {"jpg", "image/jpeg"},
     {"jpeg", "image/jpeg"},
@@ -115,7 +115,15 @@ class OpenAIClient::Impl {
         std::vector<std::string> image_urls;
         for (auto const& f : files) {
             if (is_image_url(f)) {
-                image_urls.push_back(f);
+                std::string memi;
+                TempFile img;
+                auto download_sucessful = download_image(f, img.path(), memi);
+                if (download_sucessful && !memi.empty()) {
+                    auto base64 = base64_encode(img.path());
+                    image_urls.push_back("data:" + memi + ";base64," + base64);
+                } else {
+                    std::cerr << "download failed: " << f << '\n';
+                }
             } else if (is_image_file(f)) {
                 auto memi = get_image_memi(f);
                 if (!memi.empty()) {
