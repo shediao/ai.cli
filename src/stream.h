@@ -19,6 +19,8 @@ class StreamOperator {
     auto const& data_lines() const { return data_lines_; }
     std::vector<char> const& response_data() const { return response_data_; }
 
+    bool is_debug{false};
+
    private:
     std::optional<std::string> getLine();
 

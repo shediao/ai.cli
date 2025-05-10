@@ -10,6 +10,7 @@
 
 #include "./args.h"
 #include "./base64.h"
+#include "./stream.h"
 #include "./utils.h"
 
 namespace {
@@ -54,19 +55,17 @@ class OpenAIClient::Impl {
         if (size * nmemb == 0) {
             return 0;
         }
-        auto* callback =
-            static_cast<std::function<void(const std::string&)>*>(userdata);
-        if (callback && *callback) {
-            std::string chunk(ptr, size * nmemb);
-            (*callback)(chunk);
+        StreamOperator* stream = static_cast<StreamOperator*>(userdata);
+        if (stream) {
+            stream->parse({ptr, size * nmemb});
         }
         return size * nmemb;
     }
 
-    ResponseContent chat(
-        const std::string& system_prompt, const std::string& user_prompt,
-        std::vector<std::string> files, nlohmann::json& chat_history,
-        const std::function<void(const std::string&)>& stream_callback) {
+    ResponseContent chat(const std::string& system_prompt,
+                         const std::string& user_prompt,
+                         std::vector<std::string> files,
+                         nlohmann::json& chat_history) {
         if (args_.debug) {
             if (!system_prompt.empty()) {
                 std::cout << "System prompt: " << system_prompt << std::endl;
@@ -230,7 +229,10 @@ class OpenAIClient::Impl {
         std::string request_body = request.dump();
         curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, request_body.c_str());
 
-        if (args_.chat_args.stream && stream_callback) {
+        std::stringstream eat;
+        StreamOperator stream{args_.debug ? eat : std::cout};
+        stream.is_debug = args_.debug;
+        if (args_.chat_args.stream) {
 #if 0
             curl_easy_setopt(curl_, CURLOPT_BUFFERSIZE, 0L);
             curl_easy_setopt(curl_, CURLOPT_FRESH_CONNECT, 1L);
@@ -238,7 +240,7 @@ class OpenAIClient::Impl {
 #endif
             curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION,
                              stream_callback_wrapper);
-            curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &stream_callback);
+            curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &stream);
         } else {
             curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
             curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &response_string);
@@ -286,17 +288,32 @@ class OpenAIClient::Impl {
                                          e.what());
             }
         } else {
-            // stream
+            if (!stream.parse_done()) {
+                if (stream.data_lines().empty()) {
+                    try {
+                        auto x = nlohmann::json::parse(stream.response_data());
+                        // TODO:
+                        std::cerr << x.dump() << '\n';
+                    } catch (...) {
+                        std::cerr
+                            << std::string_view{stream.response_data().data(),
+                                                stream.response_data().size()}
+                            << '\n';
+                    }
+                }
+            }
+            ResponseContent ret;
+            ret.content = stream.content();
+            ret.reasoning_content = stream.reasoning_content();
+            return ret;
         }
 
         return {};
     }
-    ResponseContent chat(
-        const std::string& system_prompt, const std::string& user_prompt,
-        nlohmann::json& chat_history,
-        const std::function<void(const std::string&)>& stream_callback) {
-        return chat(system_prompt, user_prompt, {}, chat_history,
-                    stream_callback);
+    ResponseContent chat(const std::string& system_prompt,
+                         const std::string& user_prompt,
+                         nlohmann::json& chat_history) {
+        return chat(system_prompt, user_prompt, {}, chat_history);
     }
 
     std::vector<std::string> models() {
@@ -365,20 +382,17 @@ OpenAIClient::~OpenAIClient() = default;
 OpenAIClient::OpenAIClient(OpenAIClient&&) noexcept = default;
 OpenAIClient& OpenAIClient::operator=(OpenAIClient&&) noexcept = default;
 
-ResponseContent OpenAIClient::chat(
-    const std::string& system_prompt, const std::string& user_prompt,
-    nlohmann::json& chat_history,
-    const std::function<void(const std::string&)>& stream_callback) const {
-    return pimpl->chat(system_prompt, user_prompt, chat_history,
-                       stream_callback);
+ResponseContent OpenAIClient::chat(const std::string& system_prompt,
+                                   const std::string& user_prompt,
+                                   nlohmann::json& chat_history) const {
+    return pimpl->chat(system_prompt, user_prompt, chat_history);
 }
 
-ResponseContent OpenAIClient::chat(
-    const std::string& system_prompt, const std::string& user_prompt,
-    std::vector<std::string> files, nlohmann::json& chat_history,
-    const std::function<void(const std::string&)>& stream_callback) const {
-    return pimpl->chat(system_prompt, user_prompt, files, chat_history,
-                       stream_callback);
+ResponseContent OpenAIClient::chat(const std::string& system_prompt,
+                                   const std::string& user_prompt,
+                                   std::vector<std::string> files,
+                                   nlohmann::json& chat_history) const {
+    return pimpl->chat(system_prompt, user_prompt, files, chat_history);
 }
 
 std::vector<std::string> OpenAIClient::models() { return pimpl->models(); }

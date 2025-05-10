@@ -57,6 +57,9 @@ std::optional<std::string> StreamOperator::getLine() {
 }
 
 void StreamOperator::parse(std::string_view chunk) {
+    if (is_debug) {
+        std::cout << chunk;
+    }
     response_data_.insert(response_data_.end(), begin(chunk), end(chunk));
     while (true) {
         auto line = getLine();
