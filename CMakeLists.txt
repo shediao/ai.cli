@@ -60,6 +60,8 @@ if(APPLE)
   target_sources(ai PRIVATE src/clip_macos.mm)
 elseif(WIN32)
   target_sources(ai PRIVATE src/clip_win.cpp)
+elseif(LINUX)
+  target_sources(ai PRIVATE src/clip_linux.cpp)
 endif()
 
 set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
