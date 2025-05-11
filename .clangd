@@ -2,4 +2,6 @@
 Diagnostics:
   UnusedIncludes: None
 CompileFlags:
-  CompilationDatabase: build/Debug
+  CompilationDatabase: build
+Index:
+  Background: true
