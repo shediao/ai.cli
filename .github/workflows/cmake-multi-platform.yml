@@ -50,6 +50,34 @@ jobs:
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
+      # -------------------------------------------------------------------------
+      # Install curl (libcurl development files)
+      # -------------------------------------------------------------------------
+      - name: Install libcurl (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libcurl4-gnutls-dev
+
+      - name: Install libcurl (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install curl # Homebrew usually installs development headers too
+
+      - name: Install libcurl (Windows using vcpkg)
+        if: runner.os == 'Windows'
+        uses: lukka/run-vcpkg@v11 # This action helps manage vcpkg
+        with:
+          # Option 1: If you have a vcpkg.json manifest in your repo root
+          # vcpkgJsonGlob: 'vcpkg.json' # The action will install dependencies from this file
+
+          # Option 2: Explicitly install curl if not using vcpkg.json for this
+          #           (or if vcpkg.json doesn't list curl)
+          vcpkgTriplet: x64-windows # Or x86-windows, x64-windows-static etc.
+          vcpkgArguments: 'curl'    # Package to install
+          # For vcpkg caching (optional but recommended for speed)
+          # vcpkgGitCommitId: 'put_a_specific_commit_hash_here_for_vcpkg_repo'
+
       - name: Configure CMake
         # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
         # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
