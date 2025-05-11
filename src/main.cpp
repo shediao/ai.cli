@@ -1,4 +1,5 @@
 #include <argparse.hpp>
+#include <cstdlib>
 
 #include "./args.h"
 #include "./chat.h"
@@ -11,15 +12,15 @@ class CurlGlobalInitGuard {
     ~CurlGlobalInitGuard() { curl_global_cleanup(); }
 };
 
-int main(int argc, const char* argv[]) {
+int main(int argc, char* argv[]) {
     CurlGlobalInitGuard guard;
     auto& args = AiArgs::instance();
 
-    auto& cmd = args.parse(argc, (char**)argv);
+    auto& cmd = args.parse(argc, argv);
     if (cmd.command() == "chat") {
-        chat(args);
+        return chat(args);
     } else if (cmd.command() == "models") {
-        models(args);
+        return models(args);
     }
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
 }

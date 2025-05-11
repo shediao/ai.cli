@@ -67,6 +67,16 @@ std::optional<std::string> getDefaultModelForUrl(std::string const& url) {
     return std::nullopt;
 }
 
+static void add_alias_options(argparse::Command& command) {
+    command.add_alias("qwen", "base-url", qwen_base_url);
+    command.add_alias("gemini", "base-url", gemini_base_url);
+    command.add_alias("google", "base-url", gemini_base_url);
+    command.add_alias("deepseek", "base-url", deepseek_base_url);
+    command.add_alias("openai", "base-url", openai_base_url);
+    command.add_alias("moonshot", "base-url", moonshot_base_url);
+    command.add_alias("ollama", "base-url", ollama_base_url);
+}
+
 static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& models = parser.add_command("models", "list models");
 
@@ -87,14 +97,7 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
                                     : "/models");
             }
         });
-
-    models.add_alias("qwen", "base-url", qwen_base_url);
-    models.add_alias("gemini", "base-url", gemini_base_url);
-    models.add_alias("google", "base-url", gemini_base_url);
-    models.add_alias("deepseek", "base-url", deepseek_base_url);
-    models.add_alias("openai", "base-url", openai_base_url);
-    models.add_alias("moonshot", "base-url", moonshot_base_url);
-    models.add_alias("ollama", "base-url", ollama_base_url);
+    add_alias_options(models);
 
     models.callback([&args, &models]() -> void {
         if (args.help) {
@@ -117,6 +120,7 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
         }
     });
 }
+
 static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& chat = parser.add_command("chat", "ai chatbot");
     auto& chat_args = args.chat_args;
@@ -157,13 +161,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                     chat_args.reasoning_effort)
         .choices({"low", "medium", "high"});
 
-    chat.add_alias("qwen", "base-url", qwen_base_url);
-    chat.add_alias("gemini", "base-url", gemini_base_url);
-    chat.add_alias("google", "base-url", gemini_base_url);
-    chat.add_alias("deepseek", "base-url", deepseek_base_url);
-    chat.add_alias("openai", "base-url", openai_base_url);
-    chat.add_alias("moonshot", "base-url", moonshot_base_url);
-    chat.add_alias("ollama", "base-url", ollama_base_url);
+    add_alias_options(chat);
 
     chat.add_positional("prompts", "Prompt", chat_args.prompt);
 
