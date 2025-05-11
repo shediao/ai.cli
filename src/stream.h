@@ -2,6 +2,7 @@
 #define __AI_CLI_STREAM_H__
 
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
