@@ -8,7 +8,6 @@ struct AiArgs {
     struct ChatArgs {
         std::string prompt;
         std::string model;
-        std::string api_key;
         std::string api_url;
         std::optional<std::string> system_prompt;
         std::optional<int> max_tokens;
@@ -18,18 +17,16 @@ struct AiArgs {
         std::vector<std::string> files;
         bool stream{false};
         bool stream_include_usage{false};
-        bool verbose{false};
-        bool version{false};
     };
 
     struct ModelsArgs {
-        std::string api_key;
         std::string api_url;
     };
 
     bool help{false};
     bool debug{false};
     std::optional<std::string> proxy;
+    std::string api_key;
     ChatArgs chat_args;
     ModelsArgs models_args;
 

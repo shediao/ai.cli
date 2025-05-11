@@ -81,8 +81,6 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& models = parser.add_command("models", "list models");
 
     auto& models_args = args.models_args;
-    models.add_option("k,key", "OpenAI API key", models_args.api_key)
-        .value_help("key");
     models.add_option("u,url", "OpenAI API Compatible URL",
                       models_args.api_url);
     models
@@ -105,10 +103,10 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
             exit(EXIT_SUCCESS);
         }
         auto& models_args = args.models_args;
-        if (models_args.api_key.empty() && !models_args.api_url.empty()) {
+        if (args.api_key.empty() && !models_args.api_url.empty()) {
             auto key = getApiKeyFromEnvironment(models_args.api_url);
             if (key.has_value()) {
-                models_args.api_key = key.value();
+                args.api_key = key.value();
             }
         }
 
@@ -129,11 +127,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     chat.add_flag("stream-include-usage", "print usage in streaming mode",
                   chat_args.stream_include_usage)
         .negatable();
-    chat.add_flag("v,verbose", "Enable verbose mode", chat_args.verbose);
-    chat.add_flag("version", "Show version", chat_args.version);
 
-    chat.add_option("k,key", "OpenAI API key", chat_args.api_key)
-        .value_help("key");
     chat.add_option("m,model", "Model to use", chat_args.model);
     chat.add_option("p,prompt", "Prompt", chat_args.prompt);
     chat.add_option("s,system-prompt", "System prompt",
@@ -195,10 +189,10 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
             }
         }
 
-        if (chat_args.api_key.empty() && !chat_args.api_url.empty()) {
+        if (args.api_key.empty() && !chat_args.api_url.empty()) {
             auto key = getApiKeyFromEnvironment(chat_args.api_url);
             if (key.has_value()) {
-                chat_args.api_key = key.value();
+                args.api_key = key.value();
             }
         }
 
@@ -249,7 +243,8 @@ argparse::Command& AiArgs::parse(int argc, char* argv[]) {
 AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
     parser.add_flag("h,help", "show this help info", help);
     parser.add_flag("d,debug", "Enable debug mode", debug).negatable();
-    parser.add_option("proxy", "Use proxy", proxy);
+    parser.add_option("proxy", "Use proxy(curl)", proxy).value_help("PROXY");
+    parser.add_option("k,key", "API key", api_key).value_help("key");
     parser.callback([this]() {
         if (help) {
             parser.print_usage();

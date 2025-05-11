@@ -214,9 +214,10 @@ class OpenAIClient::Impl {
 
         struct curl_slist* headers = nullptr;
         headers = curl_slist_append(headers, "Content-Type: application/json");
-        headers = curl_slist_append(
-            headers,
-            ("Authorization: Bearer " + args_.chat_args.api_key).c_str());
+        if (!args_.api_key.empty()) {
+            headers = curl_slist_append(
+                headers, ("Authorization: Bearer " + args_.api_key).c_str());
+        }
         curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
 
         if (args_.proxy.has_value()) {
@@ -323,9 +324,10 @@ class OpenAIClient::Impl {
 
         struct curl_slist* headers = nullptr;
         headers = curl_slist_append(headers, "Content-Type: application/json");
-        headers = curl_slist_append(
-            headers,
-            ("Authorization: Bearer " + args_.models_args.api_key).c_str());
+        if (!args_.api_key.empty()) {
+            headers = curl_slist_append(
+                headers, ("Authorization: Bearer " + args_.api_key).c_str());
+        }
         curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
 
         if (args_.proxy.has_value()) {
