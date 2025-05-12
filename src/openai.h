@@ -15,7 +15,7 @@ struct ResponseContent {
 
 class OpenAIClient {
    public:
-    explicit OpenAIClient(const AiArgs& args);
+    explicit OpenAIClient();
     ~OpenAIClient();
 
     // 禁用拷贝

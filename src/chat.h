@@ -2,5 +2,5 @@
 #define __AI_CLI_CHAT_H__
 
 #include "./args.h"
-int chat(AiArgs const& args);
+int chat();
 #endif  // __AI_CLI_CHAT_H__

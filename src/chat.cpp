@@ -13,10 +13,11 @@
 #include "./openai.h"
 #include "./stream.h"
 
-int chat(AiArgs const& args) {
+int chat() {
+    AiArgs const& args = AiArgs::instance();
     auto& chat_args = args.chat_args;
     try {
-        OpenAIClient client(args);
+        OpenAIClient client;
 
         nlohmann::json chat_history = nlohmann::json::array();
 

@@ -58,7 +58,7 @@ static std::string get_image_memi(std::string const& f) {
 
 class OpenAIClient::Impl {
    public:
-    explicit Impl(const AiArgs& args) : args_(args) {
+    explicit Impl() {
         curl_ = curl_easy_init();
         if (!curl_) {
             throw std::runtime_error("Failed to initialize CURL");
@@ -93,6 +93,7 @@ class OpenAIClient::Impl {
     ResponseContent chat(const std::string& system_prompt,
                          const std::vector<std::string>& user_prompts,
                          nlohmann::json& chat_history) {
+        const AiArgs& args_ = AiArgs::instance();
         std::vector<std::string> files;
         std::string user_prompt;
         std::vector<std::string> image_exts{".png", ".jpg", ".jpeg", ".webp",
@@ -336,6 +337,7 @@ class OpenAIClient::Impl {
     }
 
     std::vector<std::string> models() {
+        const AiArgs& args_ = AiArgs::instance();
         std::string url = args_.models_args.api_url;
         std::string response_string;
         curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
@@ -393,12 +395,10 @@ class OpenAIClient::Impl {
     }
 
    private:
-    const AiArgs& args_;
     CURL* curl_;
 };
 
-OpenAIClient::OpenAIClient(const AiArgs& args)
-    : pimpl(std::make_unique<Impl>(args)) {}
+OpenAIClient::OpenAIClient() : pimpl(std::make_unique<Impl>()) {}
 OpenAIClient::~OpenAIClient() = default;
 OpenAIClient::OpenAIClient(OpenAIClient&&) noexcept = default;
 OpenAIClient& OpenAIClient::operator=(OpenAIClient&&) noexcept = default;

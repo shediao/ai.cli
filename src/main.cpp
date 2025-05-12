@@ -18,9 +18,9 @@ int main(int argc, char* argv[]) {
 
     auto& cmd = args.parse(argc, argv);
     if (cmd.command() == "chat") {
-        return chat(args);
+        return chat();
     } else if (cmd.command() == "models") {
-        return models(args);
+        return models();
     }
     return EXIT_FAILURE;
 }

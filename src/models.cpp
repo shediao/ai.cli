@@ -4,9 +4,9 @@
 #include "./args.h"
 #include "./openai.h"
 
-int models(AiArgs const& args) {
+int models() {
     try {
-        OpenAIClient client(args);
+        OpenAIClient client;
         auto models = client.models();
         for (auto& model : models) {
             std::cout << model << '\n';
