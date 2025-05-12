@@ -20,5 +20,6 @@ std::string getTempFilePath(std::string const &prefix,
 std::string getUserInputViaEditor();
 bool download_image(std::string const &image_url, std::string const &image_path,
                     std::string &memi_type);
+std::string getMEMI(std::string const &url);
 
 #endif  // __AI_CLI_UTILS_H__

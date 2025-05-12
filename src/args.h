@@ -6,7 +6,7 @@
 
 struct AiArgs {
     struct ChatArgs {
-        std::string prompt;
+        std::vector<std::string> prompts;
         std::string model;
         std::string api_url;
         std::optional<std::string> system_prompt;
@@ -14,7 +14,6 @@ struct AiArgs {
         std::optional<double> temperature;
         std::optional<double> top_p;
         std::optional<std::string> reasoning_effort;
-        std::vector<std::string> files;
         bool stream{false};
         bool stream_include_usage{false};
     };

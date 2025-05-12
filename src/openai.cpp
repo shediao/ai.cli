@@ -3,6 +3,7 @@
 #include <curl/curl.h>
 #include <curl/easy.h>
 
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -26,6 +27,33 @@ static std::map<std::string, std::string> memi_map{
     {"tif", "image/tiff"},
     {"ico", "image/vnd.microsoft.icon"}  // Or image/x-icon
 };
+static bool is_image_file(std::string const& f) {
+    auto ext_pos = f.find_last_of('.');
+    if (ext_pos != std::string::npos) {
+        std::string ext = f.substr(ext_pos + 1);
+        if (memi_map.find(ext) == memi_map.end()) {
+            return false;
+        }
+        if (std::filesystem::exists(f)) {
+            return true;
+        }
+    }
+    return false;
+}
+static std::string get_image_memi(std::string const& f) {
+    auto ext_pos = f.find_last_of('.');
+    if (ext_pos != std::string::npos) {
+        if (!std::filesystem::exists(f)) {
+            return "";
+        }
+        std::string ext = f.substr(ext_pos + 1);
+        if (auto it = memi_map.find(ext); it != memi_map.end()) {
+            return it->second;
+        }
+    }
+    return "";
+}
+
 }  // namespace
 
 class OpenAIClient::Impl {
@@ -63,20 +91,41 @@ class OpenAIClient::Impl {
     }
 
     ResponseContent chat(const std::string& system_prompt,
-                         const std::string& user_prompt,
-                         std::vector<std::string> files,
+                         const std::vector<std::string>& user_prompts,
                          nlohmann::json& chat_history) {
-        if (args_.debug) {
-            if (!system_prompt.empty()) {
-                std::cout << "System prompt: " << system_prompt << std::endl;
+        std::vector<std::string> files;
+        std::string user_prompt;
+        std::vector<std::string> image_exts{".png", ".jpg", ".jpeg", ".webp",
+                                            ".bmp"};
+        for (auto const& prompt : user_prompts) {
+            if (std::any_of(begin(image_exts), end(image_exts),
+                            [&prompt](auto const& ext) {
+                                return prompt.ends_with(ext);
+                            })) {
+                files.push_back(prompt);
+                continue;
             }
-            std::cout << "User prompt: " << user_prompt << std::endl;
-            if (!files.empty()) {
-                std::cout << "Files: " << '\n';
-                for (auto const& f : files) {
-                    std::cout << "  " << f << '\n';
+            if (prompt.starts_with("https://") ||
+                prompt.starts_with("http://")) {
+                auto memi = getMEMI(prompt);
+                if (memi.starts_with("image/")) {
+                    files.push_back(prompt);
+                    continue;
                 }
             }
+            if (!user_prompt.empty()) {
+                user_prompt += "\n";
+            }
+            user_prompt += prompt;
+        }
+
+        if (args_.debug) {
+            if (!files.empty()) {
+                for (auto const& f : files) {
+                    std::cout << "[](" << f << ")\n";
+                }
+            }
+            std::cout << "User prompt: '" << user_prompt << "'\n";
         }
 
         auto is_image_url = [](std::string const& url) {
@@ -84,32 +133,6 @@ class OpenAIClient::Impl {
                 return false;
             }
             return true;
-        };
-        auto is_image_file = [](std::string const& f) {
-            auto ext_pos = f.find_last_of('.');
-            if (ext_pos != std::string::npos) {
-                std::string ext = f.substr(ext_pos + 1);
-                if (memi_map.find(ext) == memi_map.end()) {
-                    return false;
-                }
-                if (std::filesystem::exists(f)) {
-                    return true;
-                }
-            }
-            return false;
-        };
-        auto get_image_memi = [](std::string const& f) -> std::string {
-            auto ext_pos = f.find_last_of('.');
-            if (ext_pos != std::string::npos) {
-                if (!std::filesystem::exists(f)) {
-                    return "";
-                }
-                std::string ext = f.substr(ext_pos + 1);
-                if (auto it = memi_map.find(ext); it != memi_map.end()) {
-                    return it->second;
-                }
-            }
-            return "";
         };
         std::vector<std::string> image_urls;
         for (auto const& f : files) {
@@ -311,11 +334,6 @@ class OpenAIClient::Impl {
 
         return {};
     }
-    ResponseContent chat(const std::string& system_prompt,
-                         const std::string& user_prompt,
-                         nlohmann::json& chat_history) {
-        return chat(system_prompt, user_prompt, {}, chat_history);
-    }
 
     std::vector<std::string> models() {
         std::string url = args_.models_args.api_url;
@@ -386,16 +404,9 @@ OpenAIClient::OpenAIClient(OpenAIClient&&) noexcept = default;
 OpenAIClient& OpenAIClient::operator=(OpenAIClient&&) noexcept = default;
 
 ResponseContent OpenAIClient::chat(const std::string& system_prompt,
-                                   const std::string& user_prompt,
+                                   const std::vector<std::string>& user_prompts,
                                    nlohmann::json& chat_history) const {
-    return pimpl->chat(system_prompt, user_prompt, chat_history);
-}
-
-ResponseContent OpenAIClient::chat(const std::string& system_prompt,
-                                   const std::string& user_prompt,
-                                   std::vector<std::string> files,
-                                   nlohmann::json& chat_history) const {
-    return pimpl->chat(system_prompt, user_prompt, files, chat_history);
+    return pimpl->chat(system_prompt, user_prompts, chat_history);
 }
 
 std::vector<std::string> OpenAIClient::models() { return pimpl->models(); }

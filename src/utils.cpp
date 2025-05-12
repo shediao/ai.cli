@@ -15,6 +15,7 @@
 #include <unistd.h>  // For access
 #endif
 
+#include "./args.h"
 #include "./utils.h"
 
 TempFile::TempFile(std::string const &prefix, std::string const &postfix)
@@ -193,9 +194,14 @@ bool download_image(std::string const &image_url, std::string const &image_path,
     curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
 
     // (可选) 设置超时
-    curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, 30000L);  // 30 秒总超时
+    curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, 10000L);  // 30 秒总超时
     curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS,
-                     10000L);  // 10 秒连接超时
+                     3000L);  // 3 秒连接超时
+
+    if (auto &args = AiArgs::instance(); args.proxy.has_value()) {
+        curl_easy_setopt(curl_handle, CURLOPT_PROXY,
+                         args.proxy.value().c_str());
+    }
 
     // (可选) 详细输出，用于调试
     // curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1L);
@@ -256,4 +262,139 @@ bool download_image(std::string const &image_url, std::string const &image_path,
     curl_easy_cleanup(curl_handle);
 
     return true;
+}
+
+// Helper function to trim leading/trailing whitespace
+static std::string trim(const std::string &str) {
+    size_t first = str.find_first_not_of(" \t\n\r\f\v");
+    if (std::string::npos == first) {
+        return str;
+    }
+    size_t last = str.find_last_not_of(" \t\n\r\f\v");
+    return str.substr(first, (last - first + 1));
+}
+
+// Callback function to process received headers
+// It specifically looks for the Content-Type header
+static size_t header_callback(char *buffer, size_t size, size_t nitems,
+                              void *userdata) {
+    size_t total_size = size * nitems;
+    std::string header_line(buffer, total_size);
+    std::string *content_type_ptr = static_cast<std::string *>(userdata);
+
+    // Convert header name to lowercase for case-insensitive comparison
+    std::string header_name;
+    size_t colon_pos = header_line.find(':');
+    if (colon_pos != std::string::npos) {
+        header_name = header_line.substr(0, colon_pos);
+        std::transform(header_name.begin(), header_name.end(),
+                       header_name.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        if (header_name == "content-type") {
+            std::string value = header_line.substr(colon_pos + 1);
+            // Trim whitespace and potential extra info (like charset)
+            value = trim(value);
+            // Sometimes content-type includes charset, e.g., "image/jpeg;
+            // charset=utf-8"
+            // We only want the MIME type part.
+            size_t semi_colon_pos = value.find(';');
+            if (semi_colon_pos != std::string::npos) {
+                value = value.substr(0, semi_colon_pos);
+                value = trim(
+                    value);  // Trim again after potentially removing charset
+            }
+            *content_type_ptr = value;
+            // std::cout << "Debug: Found Content-Type: " << *content_type_ptr
+            // << std::endl; // Optional debug
+        }
+    }
+
+    // Must return total_size to indicate all data was processed
+    return total_size;
+}
+
+/**
+ * @brief Gets the MIME type (Content-Type header) of a resource at a URL using
+ * libcurl.
+ *
+ * @param url The URL of the resource (e.g., an image).
+ * @return The MIME type string (e.g., "image/jpeg", "image/png") if found,
+ *         or an empty string if the Content-Type header is not found or an
+ * error occurs.
+ */
+std::string getMEMI(std::string const &url) {
+    CURL *curl = nullptr;
+    CURLcode res = CURLE_OK;
+    std::string content_type;  // This will store the result
+
+    // Initialize CURL easy handle
+    curl = curl_easy_init();
+    if (!curl) {
+        std::cerr << "Error: curl_easy_init() failed" << std::endl;
+        return "";  // Return empty on init failure
+    }
+
+    // Set the URL
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+    // Perform a HEAD request (we only need headers, not the body)
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+
+    // Follow redirects (important for many URLs)
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+    // Set the header callback function to process headers
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
+
+    // Pass the address of our content_type string to the callback
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &content_type);
+
+    // Set a timeout (e.g., 10 seconds)
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 10000L);  // 30 秒总超时
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS,
+                     3000L);  // 3 秒连接超时
+
+    if (auto &args = AiArgs::instance(); args.proxy.has_value()) {
+        curl_easy_setopt(curl, CURLOPT_PROXY, args.proxy.value().c_str());
+    }
+
+    // For HTTPS: Verify peer and host (recommended for security)
+    // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L); // Default is 1L
+    // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L); // Default is 2L
+    // If you have certificate issues in testing, you MIGHT temporarily disable
+    // these but this is NOT recommended for production: curl_easy_setopt(curl,
+    // CURLOPT_SSL_VERIFYPEER, 0L); curl_easy_setopt(curl,
+    // CURLOPT_SSL_VERIFYHOST, 0L);
+
+    // Perform the request
+    res = curl_easy_perform(curl);
+
+    // Check for errors during the request
+    if (res != CURLE_OK) {
+        std::cerr << "Error: curl_easy_perform() failed for URL '" << url
+                  << "': " << curl_easy_strerror(res) << std::endl;
+        content_type.clear();  // Ensure empty string on error
+    } else {
+        // Check HTTP response code (optional but good)
+        long http_code = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        if (http_code >= 400) {
+            std::cerr << "Warning: HTTP error " << http_code << " for URL '"
+                      << url << "'" << std::endl;
+            // Depending on requirements, you might want to clear content_type
+            // here too content_type.clear();
+        }
+        // If content_type is still empty after a successful request,
+        // it means the server didn't send a Content-Type header.
+        if (content_type.empty() && http_code < 400) {
+            std::cerr << "Warning: No Content-Type header found for URL '"
+                      << url << "'" << std::endl;
+        }
+    }
+
+    // Cleanup CURL easy handle
+    curl_easy_cleanup(curl);
+
+    return content_type;
 }

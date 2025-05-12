@@ -28,11 +28,7 @@ class OpenAIClient {
 
     // 发送聊天请求
     ResponseContent chat(const std::string& system_prompt,
-                         const std::string& user_prompt,
-                         nlohmann::json& chat_history) const;
-    ResponseContent chat(const std::string& system_prompt,
-                         const std::string& user_prompt,
-                         const std::vector<std::string> files,
+                         const std::vector<std::string>& user_prompts,
                          nlohmann::json& chat_history) const;
 
     std::vector<std::string> models();

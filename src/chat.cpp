@@ -18,12 +18,11 @@ int chat(AiArgs const& args) {
     try {
         OpenAIClient client(args);
 
-        std::string prompt = chat_args.prompt;
         nlohmann::json chat_history = nlohmann::json::array();
 
         try {
             auto response = client.chat(chat_args.system_prompt.value_or(""),
-                                        prompt, chat_args.files, chat_history);
+                                        chat_args.prompts, chat_history);
             chat_history.push_back(nlohmann::json::object(
                 {{"role", "assistant"}, {"content", response.content}}));
 

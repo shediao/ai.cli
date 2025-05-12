@@ -4,6 +4,13 @@
 #include <cstdlib>
 #include <fstream>
 
+#if defined(_WIN32) || defined(_Win64)
+#include <io.h>
+#include <stdio.h>
+#elif defined(__linux__) || defined(__APPLE__)
+#include <unistd.h>
+#endif
+
 #include "./utils.h"
 
 namespace {
@@ -119,6 +126,15 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     });
 }
 
+bool stdin_is_atty() {
+#if defined(_WIN32) || defined(_Win64)
+    return _isatty(_fileno(stdin));
+#elif defined(__linux__) || defined(__APPLE__)
+    return isatty(STDIN_FILENO);
+#endif
+    return false;
+}
+
 static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& chat = parser.add_command("chat", "ai chatbot");
     auto& chat_args = args.chat_args;
@@ -129,7 +145,6 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         .negatable();
 
     chat.add_option("m,model", "Model to use", chat_args.model);
-    chat.add_option("p,prompt", "Prompt", chat_args.prompt);
     chat.add_option("s,system-prompt", "System prompt",
                     chat_args.system_prompt);
     chat.add_option("t,temperature", "Model temperature",
@@ -150,14 +165,13 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         });
 
     chat.add_option("max-tokens", "max tokens", chat_args.max_tokens);
-    chat.add_option("f,file", "image file/url", chat_args.files);
     chat.add_option("reasoning-effort", "reasoning effort",
                     chat_args.reasoning_effort)
         .choices({"low", "medium", "high"});
 
     add_alias_options(chat);
 
-    chat.add_positional("prompts", "Prompt", chat_args.prompt);
+    chat.add_positional("prompts", "user prompts", chat_args.prompts);
 
     chat.callback([&args, &chat]() -> void {
         if (args.help) {
@@ -178,15 +192,17 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
             exit(EXIT_FAILURE);
         }
 
-        if (chat_args.prompt.empty()) {
+        if (chat_args.prompts.empty() && stdin_is_atty()) {
             try {
-                chat_args.prompt = getUserInputViaEditor();
+                if (auto prompt = getUserInputViaEditor(); !prompt.empty()) {
+                    chat_args.prompts.push_back(prompt);
+                }
             } catch (...) {
             }
-            if (chat_args.prompt.empty()) {
-                std::cerr << "Error: Must provide a prompt." << std::endl;
-                exit(EXIT_FAILURE);
-            }
+        }
+        if (chat_args.prompts.empty()) {
+            std::cerr << "Error: Must provide a prompt." << std::endl;
+            exit(EXIT_FAILURE);
         }
 
         if (args.api_key.empty() && !chat_args.api_url.empty()) {
@@ -203,22 +219,6 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                     args.proxy = proxy.value();
                 }
             }
-        }
-
-        if (chat_args.prompt == "-") {
-            chat_args.prompt =
-                std::string{std::istreambuf_iterator<char>(std::cin),
-                            std::istreambuf_iterator<char>()};
-        } else if (chat_args.prompt.starts_with("@")) {
-            std::string file_name = chat_args.prompt.substr(1);
-            std::ifstream file(file_name);
-            if (!file) {
-                std::cerr << "Error: Cannot open file: " << file_name
-                          << std::endl;
-                exit(EXIT_FAILURE);
-            }
-            chat_args.prompt = std::string{std::istreambuf_iterator<char>(file),
-                                           std::istreambuf_iterator<char>()};
         }
     });
 }
