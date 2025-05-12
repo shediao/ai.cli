@@ -137,9 +137,9 @@ class OpenAIClient::Impl {
             if (chat_history.size() == 0) {
                 return {};
             }
-            if (auto& j = *(chat_history.end() - 1);
-                !j.contains("role") ||
-                !(j["role"].get<std::string>() == "user")) {
+            if (auto& last_message = chat_history.back();
+                !last_message.contains("role") ||
+                !(last_message["role"].get<std::string>() == "user")) {
                 return {};
             }
         }
@@ -281,12 +281,12 @@ class OpenAIClient::Impl {
                     }
                     return ret;
                 } else {
+                    // TODO: error
                     auto err = response_json.dump(2);
                     throw std::runtime_error(err);
                 }
             } catch (const nlohmann::json::exception& e) {
-                throw std::runtime_error(std::string("JSON parse error: ") +
-                                         e.what());
+                throw std::runtime_error(response_string);
             }
         } else {
             if (!stream.parse_done()) {
@@ -365,10 +365,11 @@ class OpenAIClient::Impl {
                     }
                 }
                 return models;
+            } else {
+                std::cout << response_string << '\n';
             }
         } catch (const nlohmann::json::exception& e) {
-            throw std::runtime_error(std::string("JSON parse error: ") +
-                                     e.what());
+            throw std::runtime_error(response_string);
         }
         return {};
     }
