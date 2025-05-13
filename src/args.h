@@ -2,6 +2,7 @@
 #define __AI_CLI_ARGS_H__
 #include <argparse.hpp>
 #include <optional>
+#include <set>
 #include <string>
 
 struct AiArgs {
@@ -16,6 +17,7 @@ struct AiArgs {
         std::optional<std::string> reasoning_effort;
         bool stream{false};
         bool stream_include_usage{false};
+        std::set<std::string> tools;
     };
 
     struct ModelsArgs {

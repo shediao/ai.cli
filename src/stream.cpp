@@ -4,63 +4,43 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
+#include "openai.h"
+
 constexpr std::string_view data_prefix = "data: ";
 constexpr std::string_view done_prefix = "[DONE]";
 
-StreamOperator::StreamOperator(std::ostream& out) : out_{out} {}
+StreamOperator::StreamOperator(std::ostream& out) : out_{out} {
+    response_.choices_.push_back(ResponseContent::Choice{});
+}
 StreamOperator::StreamOperator() : StreamOperator(std::cout) {}
 
-std::optional<std::string> get_stream_context(
-    const nlohmann::json& j, bool& is_in_reasoning_parse_data) {
-    if (j.contains("choices") && j["choices"].is_array() &&
-        j["choices"].size() > 0 && j["choices"][0].contains("delta")) {
-        auto& delta = j["choices"][0]["delta"];
-        if (delta.contains("content") && delta["content"].is_string()) {
-            auto content = delta["content"].get<std::string>();
-            auto ret = is_in_reasoning_parse_data
-                           ? ("\n</thinking>\n" + content)
-                           : content;
-            is_in_reasoning_parse_data = false;
-            return ret;
-        } else if (delta.contains("reasoning_content") &&
-                   delta["reasoning_content"].is_string()) {
-            auto content = delta["reasoning_content"].get<std::string>();
-            auto ret = is_in_reasoning_parse_data
-                           ? content
-                           : ("\n<thinking>\n" + content);
-            is_in_reasoning_parse_data = true;
-            return ret;
-        }
-    }
-    if (j.contains("choices") && j["choices"].is_array() &&
-        j["choices"].size() == 0 && j.contains("usage")) {
-        return "\n\n" + j["usage"].dump();
-    }
-    return std::nullopt;
-}
-
 std::optional<std::string> StreamOperator::getLine() {
-    auto begin =
-        std::find_if(response_data_.begin() + parse_index_,
-                     response_data_.end(), [](char c) { return c != '\n'; });
-    if (begin == response_data_.end()) {
+    auto begin = std::find_if(response_.response_body_.begin() + parse_index_,
+                              response_.response_body_.end(),
+                              [](char c) { return c != '\n'; });
+    if (begin == response_.response_body_.end()) {
         return std::nullopt;
     }
-    auto newline_iter = std::find(begin, response_data_.end(), '\n');
-    if (newline_iter == response_data_.end()) {
+    auto newline_iter = std::find(begin, response_.response_body_.end(), '\n');
+    if (newline_iter == response_.response_body_.end()) {
         return std::nullopt;
     }
 
-    parse_index_ = newline_iter - response_data_.begin() + 1;
+    parse_index_ = newline_iter - response_.response_body_.begin() + 1;
     std::string ret{begin, newline_iter};
     return ret;
 }
 
+/*
+ * data:
+ * {"choices":[{"delta":{"role":"assistant","tool_calls":[{"function":{"arguments":"{\"path\":\"src/main.cpp\"}","name":"read_file"},"id":"","type":"function"}]},"finish_reason":"tool_calls","index":0}],"created":1747103222,"model":"gemini-2.5-pro-exp-03-25","object":"chat.completion.chunk"}
+ * */
 void StreamOperator::parse(std::string_view chunk) {
     if (is_debug) {
         std::cout << chunk;
     }
-    response_data_.insert(response_data_.end(), begin(chunk), end(chunk));
+    response_.response_body_.insert(response_.response_body_.end(),
+                                    begin(chunk), end(chunk));
     while (true) {
         auto line = getLine();
         if (!line.has_value()) {
@@ -75,7 +55,6 @@ void StreamOperator::parse(std::string_view chunk) {
         }
         // If line starts with "data: "
         auto data = line.value().substr(data_prefix.size());
-        data_lines_.push_back(data);
         if (data.starts_with(done_prefix)) {
             // If line starts with "[DONE]", stream ends
             is_parse_done_ = true;
@@ -84,16 +63,109 @@ void StreamOperator::parse(std::string_view chunk) {
 
         try {
             nlohmann::json data_json = nlohmann::json::parse(data);
-            if (auto context =
-                    get_stream_context(data_json, is_in_reasoning_parse_data_);
-                context) {
-                out_ << *context;
-                if (is_in_reasoning_parse_data_) {
-                    reasoning_content_ += *context;
-                } else {
-                    content_ += *context;
+            if (data_json.contains("choices")) {
+                if (auto& choices_json = data_json["choices"];
+                    choices_json.is_array() && !choices_json.empty()) {
+                    auto& first_choice_json = choices_json[0];
+                    auto& delta_json = first_choice_json["delta"];
+
+                    ResponseContent::Choice& choice = response_.choices_.back();
+                    if (delta_json.contains("role") &&
+                        delta_json["role"].is_string()) {
+                        choice.message_.role =
+                            delta_json["role"].get<std::string>();
+                    }
+                    if (delta_json.contains("content") &&
+                        delta_json["content"].is_string()) {
+                        auto constent_str =
+                            delta_json["content"].get<std::string>();
+                        if (choice.message_.reasoning_content.has_value() &&
+                            !choice.message_.content.has_value()) {
+                            out_ << "</thinking>" << '\n';
+                        }
+                        out_ << constent_str;
+
+                        if (choice.message_.content.has_value()) {
+                            choice.message_.content.value() += constent_str;
+                        } else {
+                            choice.message_.content = constent_str;
+                        }
+                    }
+                    if (delta_json.contains("reasoning_content") &&
+                        delta_json["reasoning_content"].is_string()) {
+                        auto reasoning_content_str =
+                            delta_json["reasoning_content"].get<std::string>();
+                        if (!choice.message_.content.has_value() &&
+                            !choice.message_.reasoning_content.has_value()) {
+                            out_ << "<thinking>" << '\n';
+                        }
+                        out_ << reasoning_content_str;
+                        if (choice.message_.reasoning_content.has_value()) {
+                            choice.message_.reasoning_content.value() +=
+                                reasoning_content_str;
+                        } else {
+                            choice.message_.reasoning_content =
+                                reasoning_content_str;
+                        }
+                    }
+                    if (delta_json.contains("tool_calls") &&
+                        delta_json["tool_calls"].is_array() &&
+                        !delta_json["tool_calls"].empty()) {
+                        auto const& tool_calls_json = delta_json["tool_calls"];
+
+                        if (tool_calls_json.is_array() &&
+                            !tool_calls_json.empty()) {
+                            auto const& first_tool_call = tool_calls_json[0];
+                            if (first_tool_call.contains("type") &&
+                                first_tool_call["type"].is_string() &&
+                                first_tool_call["type"].get<std::string>() ==
+                                    "function" &&
+                                first_tool_call.contains("function") &&
+                                first_tool_call["function"].is_object() &&
+                                first_tool_call["function"].contains("name")) {
+                                choice.message_.tool_calls = tool_calls_json;
+                            } else if (choice.message_.tool_calls.has_value() &&
+                                       first_tool_call.contains("function") &&
+                                       first_tool_call["function"]
+                                           .is_object() &&
+                                       first_tool_call["function"].contains(
+                                           "arguments")) {
+                                auto arguments =
+                                    choice.message_.tool_calls
+                                        .value()[0]["function"]["arguments"]
+                                        .get<std::string>() +
+                                    first_tool_call["function"]["arguments"]
+                                        .get<std::string>();
+                                choice.message_.tool_calls
+                                    .value()[0]["function"]["arguments"] =
+                                    arguments;
+                            }
+                        }
+                    }
+                    if (first_choice_json.contains("finish_reason") &&
+                        first_choice_json["finish_reason"].is_string()) {
+                        choice.finish_reason_ =
+                            first_choice_json["finish_reason"]
+                                .get<std::string>();
+                    }
+                    if (first_choice_json.contains("usage")) {
+                        auto& usage_json = first_choice_json["usage"];
+                        auto get_int_value = [&usage_json](const char* key) {
+                            return usage_json[key].is_string()
+                                       ? std::stoi(
+                                             usage_json[key].get<std::string>())
+                                       : usage_json[key].get<int>();
+                        };
+                        response_.usage_.completion_tokens_ =
+                            get_int_value("completion_tokens");
+                        response_.usage_.prompt_tokens_ =
+                            get_int_value("prompt_tokens");
+                        response_.usage_.total_tokens_ =
+                            get_int_value("total_tokens");
+                    }
                 }
             }
+            data_jsons_.push_back(data_json);
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << "\n```\n"
                       << data << "\n```" << std::endl;

@@ -54,6 +54,8 @@ add_executable(
   src/models.cpp
   src/openai.cpp
   src/stream.cpp
+  src/tools/filesystem.cpp
+  src/tools_call.cpp
   src/utils.cpp
   src/base64.cpp)
 

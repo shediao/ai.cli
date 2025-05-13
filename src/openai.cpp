@@ -12,6 +12,8 @@
 #include "./args.h"
 #include "./base64.h"
 #include "./stream.h"
+#include "./tools/filesystem.h"
+#include "./tools_call.h"
 #include "./utils.h"
 
 namespace {
@@ -225,6 +227,23 @@ class OpenAIClient::Impl {
             request["reasoning_effort"] =
                 args_.chat_args.reasoning_effort.value();
         }
+        if (args_.chat_args.tools.contains("filesystem")) {
+            auto tools = nlohmann::json::parse(get_filesystem_tools());
+
+            if (true) {
+                auto tools_for_deepseek = nlohmann::json::array();
+                for (auto tool : tools) {
+                    auto t = nlohmann::json::object();
+                    t["type"] = "function";
+                    tool.erase("type");
+                    t["function"] = tool;
+                    tools_for_deepseek.push_back(t);
+                }
+                request["tools"] = tools_for_deepseek;
+            } else {
+                request["tools"] = tools;
+            }
+        }
 
         std::string url = args_.chat_args.api_url;
         std::string response_string;
@@ -280,41 +299,76 @@ class OpenAIClient::Impl {
         }
 
         if (!args_.chat_args.stream) {
+            ResponseContent ret;
+            ret.response_body_ = response_string;
             if (args_.debug) {
                 std::cout << "Response: " << response_string << std::endl;
             }
             try {
                 auto response_json = nlohmann::json::parse(response_string);
-                if (response_json.contains("choices") &&
-                    response_json["choices"].is_array() &&
-                    response_json["choices"].size() > 0 &&
-                    response_json["choices"][0].contains("message") &&
-                    response_json["choices"][0]["message"].contains(
-                        "content")) {
-                    ResponseContent ret;
-                    ret.content =
-                        response_json["choices"][0]["message"]["content"]
-                            .get<std::string>();
-                    if (response_json["choices"][0]["message"].contains(
-                            "reasoning_content")) {
-                        ret.reasoning_content =
-                            response_json["choices"][0]["message"]
-                                         ["reasoning_content"]
-                                             .get<std::string>();
-                        return ret;
+                if (response_json.contains("choices")) {
+                    auto& choices_json = response_json["choices"];
+                    if (choices_json.is_array()) {
+                        for (auto& choice_json : choices_json) {
+                            ResponseContent::Choice choice;
+                            if (choice_json.contains("finish_reason") &&
+                                choice_json["finish_reason"].is_string()) {
+                                choice.finish_reason_ =
+                                    choice_json["finish_reason"]
+                                        .get<std::string>();
+                            }
+                            if (choice_json.contains("message")) {
+                                auto& message_json = choice_json["message"];
+                                if (message_json.contains("content") &&
+                                    message_json["content"].is_string()) {
+                                    choice.message_.content =
+                                        message_json["content"]
+                                            .get<std::string>();
+                                }
+                                if (message_json.contains(
+                                        "reasoning_content") &&
+                                    message_json["reasoning_content"]
+                                        .is_string()) {
+                                    choice.message_.reasoning_content =
+                                        message_json["reasoning_content"]
+                                            .get<std::string>();
+                                }
+                                if (message_json.contains("role") &&
+                                    message_json["role"].is_string()) {
+                                    choice.message_.role =
+                                        message_json["role"].get<std::string>();
+                                }
+                                if (message_json.contains("tool_calls") &&
+                                    message_json["tool_calls"].is_array()) {
+                                    choice.message_.tool_calls =
+                                        message_json["tool_calls"];
+                                }
+                            }
+                            ret.choices_.push_back(std::move(choice));
+                        }
                     }
-                    return ret;
-                } else {
-                    // TODO: error
-                    auto err = response_json.dump(2);
-                    throw std::runtime_error(err);
                 }
+                if (response_json.contains("usage")) {
+                    auto& usage_json = response_json["usage"];
+                    auto get_int_value = [&usage_json](const char* key) {
+                        return usage_json[key].is_string()
+                                   ? std::stoi(
+                                         usage_json[key].get<std::string>())
+                                   : usage_json[key].get<int>();
+                    };
+                    ret.usage_.completion_tokens_ =
+                        get_int_value("completion_tokens");
+                    ret.usage_.prompt_tokens_ = get_int_value("prompt_tokens");
+                    ret.usage_.total_tokens_ = get_int_value("total_tokens");
+                }
+                return ret;
             } catch (const nlohmann::json::exception& e) {
+                std::cerr << e.what() << '\n';
                 throw std::runtime_error(response_string);
             }
         } else {
             if (!stream.parse_done()) {
-                if (stream.data_lines().empty()) {
+                if (stream.data_jsons().empty()) {
                     try {
                         auto x = nlohmann::json::parse(stream.response_data());
                         // TODO:
@@ -327,10 +381,7 @@ class OpenAIClient::Impl {
                     }
                 }
             }
-            ResponseContent ret;
-            ret.content = stream.content();
-            ret.reasoning_content = stream.reasoning_content();
-            return ret;
+            return stream.response_content();
         }
 
         return {};

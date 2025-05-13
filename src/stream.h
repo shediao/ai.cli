@@ -7,6 +7,9 @@
 #include <string_view>
 #include <vector>
 
+#include "./openai.h"
+#include "nlohmann/json.hpp"
+
 class StreamOperator {
    public:
     StreamOperator();
@@ -15,10 +18,20 @@ class StreamOperator {
     void parse(std::string_view chunk);
 
     bool parse_done() const;
-    std::string const& content() const { return content_; }
-    std::string const& reasoning_content() const { return reasoning_content_; }
-    auto const& data_lines() const { return data_lines_; }
-    std::vector<char> const& response_data() const { return response_data_; }
+    std::string content() const {
+        return response_.choices_[0].message_.content.value_or("");
+    }
+    std::string reasoning_content() const {
+        return response_.choices_[0].message_.reasoning_content.value_or("");
+    }
+    auto const& data_jsons() const { return data_jsons_; }
+    std::string const& response_data() const {
+        return response_.response_body_;
+    }
+
+    ResponseContent& response_content() {
+      return response_;
+    }
 
     bool is_debug{false};
 
@@ -27,14 +40,12 @@ class StreamOperator {
 
    private:
     std::ostream& out_{std::cout};
-    std::vector<char> response_data_{};
 
-    std::string content_;
-    std::string reasoning_content_;
-    std::vector<std::string> data_lines_{};
+    std::vector<nlohmann::json> data_jsons_{};
+
+    ResponseContent response_;
 
     size_t parse_index_{0};
-    bool is_in_reasoning_parse_data_{false};
     bool is_parse_done_{false};
 };
 

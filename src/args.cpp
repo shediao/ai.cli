@@ -169,6 +169,9 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                     chat_args.reasoning_effort)
         .choices({"low", "medium", "high"});
 
+    chat.add_option("tools", "tools call", chat_args.tools)
+        .allowed({"filesystem"});
+
     add_alias_options(chat);
 
     chat.add_positional("prompts", "user prompts", chat_args.prompts);
