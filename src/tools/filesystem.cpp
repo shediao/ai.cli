@@ -145,7 +145,7 @@ static std::string filesystem_tools = R"(
                 }
             },
             "required": [
-                "path",
+                "source",
                 "distination"
             ]
         }

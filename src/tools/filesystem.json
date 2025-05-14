@@ -132,7 +132,7 @@
                 }
             },
             "required": [
-                "path",
+                "source",
                 "distination"
             ]
         }
