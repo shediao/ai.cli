@@ -124,6 +124,10 @@ void StreamOperator::parse(std::string_view chunk) {
                                 first_tool_call["function"].is_object() &&
                                 first_tool_call["function"].contains("name")) {
                                 choice.message_.tool_calls = tool_calls_json;
+                                message_ = delta_json;
+                                if (!message_.contains("role")) {
+                                    message_["role"] = "assistant";
+                                }
                             } else if (choice.message_.tool_calls.has_value() &&
                                        first_tool_call.contains("function") &&
                                        first_tool_call["function"]
@@ -139,6 +143,8 @@ void StreamOperator::parse(std::string_view chunk) {
                                 choice.message_.tool_calls
                                     .value()[0]["function"]["arguments"] =
                                     arguments;
+                                message_["tool_calls"][0]["function"]
+                                        ["arguments"] = arguments;
                             }
                         }
                     }
@@ -147,6 +153,8 @@ void StreamOperator::parse(std::string_view chunk) {
                         choice.finish_reason_ =
                             first_choice_json["finish_reason"]
                                 .get<std::string>();
+                        if (choice.finish_reason_ == "tool_calls") {
+                        }
                     }
                     if (first_choice_json.contains("usage")) {
                         auto& usage_json = first_choice_json["usage"];

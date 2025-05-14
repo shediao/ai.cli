@@ -41,7 +41,9 @@ int chat() {
                               << '\n';
                 }
 
-                if (content.has_value()) {
+                if (content.has_value() &&
+                    !(finish_reason.has_value() &&
+                      finish_reason.value() == "tool_calls")) {
                     chat_history.push_back(nlohmann::json::object(
                         {{"role", "assistant"}, {"content", content.value()}}));
                 }
@@ -73,7 +75,11 @@ int chat() {
                                 function["name"].get<std::string>(), arguments);
                             if (ret.has_value()) {
                                 chat_history.push_back(nlohmann::json::object(
-                                    {{"role", "user"},
+                                    {{"role", "tool"},
+                                     {"tool_call_id",
+                                      tool["id"].get<std::string>()},
+                                     {"name", tool["function"]["name"]
+                                                  .get<std::string>()},
                                      {"content", ret.value()}}));
                             }
                         }

@@ -100,6 +100,10 @@ class OpenAIClient::Impl {
         std::string user_prompt;
         std::vector<std::string> image_exts{".png", ".jpg", ".jpeg", ".webp",
                                             ".bmp"};
+        if (args_.debug) {
+            std::cout << "\n======(history)\n"
+                      << chat_history.dump(2) << "\n======\n";
+        }
         for (auto const& prompt : user_prompts) {
             if (std::any_of(begin(image_exts), end(image_exts),
                             [&prompt](auto const& ext) {
@@ -165,7 +169,8 @@ class OpenAIClient::Impl {
             }
             if (auto& last_message = chat_history.back();
                 !last_message.contains("role") ||
-                !(last_message["role"].get<std::string>() == "user")) {
+                !(last_message["role"].get<std::string>() == "user" ||
+                  last_message["role"].get<std::string>() == "tool")) {
                 return {};
             }
         }
@@ -343,6 +348,9 @@ class OpenAIClient::Impl {
                                     choice.message_.tool_calls =
                                         message_json["tool_calls"];
                                 }
+                                if (choice.finish_reason_ == "tool_calls") {
+                                    chat_history.push_back(message_json);
+                                }
                             }
                             ret.choices_.push_back(std::move(choice));
                         }
@@ -381,7 +389,11 @@ class OpenAIClient::Impl {
                     }
                 }
             }
-            return stream.response_content();
+            auto& ret = stream.response_content();
+            if (ret.finish_reason() == "tool_calls") {
+                chat_history.push_back(stream.message());
+            }
+            return ret;
         }
 
         return {};

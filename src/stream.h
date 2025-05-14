@@ -29,9 +29,9 @@ class StreamOperator {
         return response_.response_body_;
     }
 
-    ResponseContent& response_content() {
-      return response_;
-    }
+    nlohmann::json const& message() { return message_; }
+
+    ResponseContent& response_content() { return response_; }
 
     bool is_debug{false};
 
@@ -44,6 +44,7 @@ class StreamOperator {
     std::vector<nlohmann::json> data_jsons_{};
 
     ResponseContent response_;
+    nlohmann::json message_;
 
     size_t parse_index_{0};
     bool is_parse_done_{false};
