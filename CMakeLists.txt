@@ -45,6 +45,53 @@ FetchContent_MakeAvailable(json)
 # 添加libcurl用于HTTP请求
 find_package(CURL REQUIRED)
 
+set(GENERATOR_SCRIPT
+    ${CMAKE_CURRENT_LIST_DIR}/cmake/generate_string_header.cmake)
+# ARGS: INPUT_FILE_PATH: 绝对路径或相对于CMAKE_CURRENT_SOURCE_DIR的路径
+# OUTPUT_HEADER_REL_PATH: 生成的头文件相对于CMAKE_CURRENT_BINARY_DIR的路径 CPP_VAR_NAME:
+# 在C++代码中使用的变量名 CPP_NAMESPACE (optional): C++ 命名空间
+function(embed_text_file_as_string INPUT_FILE_PATH OUTPUT_HEADER_REL_PATH
+         CPP_VAR_NAME)
+  get_filename_component(ABS_INPUT_FILE ${INPUT_FILE_PATH} ABSOLUTE)
+  set(ABS_OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_HEADER_REL_PATH}")
+
+  # 确保输出目录存在
+  get_filename_component(OUTPUT_DIR ${ABS_OUTPUT_HEADER} DIRECTORY)
+  file(MAKE_DIRECTORY ${OUTPUT_DIR})
+
+  set(NAMESPACE_ARG "")
+  if(ARGC GREATER 3) # 检查是否有第四个参数 (namespace)
+    set(NAMESPACE_ARG ${ARGV[3]})
+  endif()
+
+  add_custom_command(
+    OUTPUT ${ABS_OUTPUT_HEADER}
+    COMMAND
+      ${CMAKE_COMMAND} -P ${GENERATOR_SCRIPT} "${ABS_INPUT_FILE}"
+      "${ABS_OUTPUT_HEADER}" "${CPP_VAR_NAME}" "${NAMESPACE_ARG}" # 可以是空字符串
+    DEPENDS ${ABS_INPUT_FILE} ${GENERATOR_SCRIPT}
+    COMMENT
+      "Generating ${OUTPUT_HEADER_REL_PATH} for ${CPP_VAR_NAME} from ${INPUT_FILE_PATH}"
+    VERBATIM # 确保命令中的特殊字符被正确处理
+  )
+
+  # 创建一个自定义目标，以便其他目标可以依赖它 使用唯一的名称，例如基于变量名
+  string(MAKE_C_IDENTIFIER "GenTarget_${CPP_VAR_NAME}" SAFE_TARGET_NAME)
+  add_custom_target(${SAFE_TARGET_NAME} ALL DEPENDS ${ABS_OUTPUT_HEADER})
+
+  # 将生成头文件的目录添加到函数的调用者作用域，以便用于 include_directories
+  set(${CPP_VAR_NAME}_GENERATED_INCLUDE_DIR
+      ${OUTPUT_DIR}
+      PARENT_SCOPE)
+  set(${CPP_VAR_NAME}_GENERATED_TARGET_NAME
+      ${SAFE_TARGET_NAME}
+      PARENT_SCOPE)
+endfunction()
+
+embed_text_file_as_string(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/filesystem.json"
+  "generated_headers/filesystem_tools_json.h" "filesystem_tools_json_str")
+
 # 添加源文件
 add_executable(
   ai
@@ -70,7 +117,9 @@ endif()
 set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 
 # 添加头文件路径
-target_include_directories(ai PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(
+  ai PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+             ${filesystem_tools_json_str_GENERATED_INCLUDE_DIR})
 
 # 链接依赖库
 target_link_libraries(ai PRIVATE argparse::argparse base64::base64
@@ -81,6 +130,8 @@ if(APPLE)
 elseif(WIN32)
   target_link_libraries(ai PRIVATE "-luser32")
 endif()
+
+add_dependencies(ai ${filesystem_tools_json_str_GENERATED_TARGET_NAME})
 
 # 安装目标
 install(TARGETS ai RUNTIME DESTINATION bin)
