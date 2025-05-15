@@ -1,6 +1,6 @@
 #ifndef __AI_CLI_ARGS_H__
 #define __AI_CLI_ARGS_H__
-#include <argparse.hpp>
+#include <argparse/argparse.hpp>
 #include <optional>
 #include <set>
 #include <string>

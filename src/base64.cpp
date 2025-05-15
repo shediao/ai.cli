@@ -1,9 +1,8 @@
 
 #include "./base64.h"
 
+#include <base64/base64.hpp>
 #include <fstream>
-
-#include "base64.hpp"
 
 std::string base64_encode(std::string const& input_file) {
     std::ifstream input{input_file};
