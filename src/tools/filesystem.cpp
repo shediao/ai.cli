@@ -1,15 +1,18 @@
 
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
+#include <subprocess/subprocess.hpp>
 
 #include "../args.h"
 #include "../tools_call.h"
+#include "../utils.h"
 #include "filesystem_tools_json.h"
-#include "nlohmann/json.hpp"
 
 std::optional<std::string> read_file(nlohmann::json const& args) {
     if (AiArgs::instance().debug) {
@@ -147,12 +150,35 @@ std::optional<std::string> edit_file(nlohmann::json const& args) {
             search_lable = search_lable2;
         }
 
-        std::ofstream out(path);
-        if (out.is_open()) {
+        std::vector<char> diff_str;
+        {
+            TempFile temp("", std::filesystem::path(path).filename().string());
+
+            if (std::ofstream ftemp(temp.path()); ftemp.is_open()) {
+                ftemp.write(file_content.data(), file_content.size());
+                ftemp.flush();
+            }
+            using namespace process::named_arguments;
+            process::run({"diff", "-U0", "--color=never", path, temp.path()},
+                         std_out > diff_str);
+            if (0 == process::run({"which", "delta"}, std_out > devnull,
+                                  std_err > devnull)) {
+                process::run({"delta", path, temp.path()});
+            } else {
+                process::run(
+                    {"diff", "-U0", "--color=always", path, temp.path()});
+            }
+        }
+
+        if (std::ofstream out(path); out.is_open()) {
             out.write(file_content.data(), file_content.size());
             out.flush();
         }
-        return "edit_file 已经成功修改文件 " + path;
+        if (diff_str.empty()) {
+            return "Successfully edited file " + path;
+        } else {
+            return std::string{begin(diff_str), end(diff_str)};
+        }
     }
     return std::nullopt;
 }

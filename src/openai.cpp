@@ -254,7 +254,7 @@ class OpenAIClient::Impl {
         std::string response_string;
         if (args_.debug) {
             std::cout << "URL: " << url << std::endl;
-            std::cout << "Request: " << request.dump(2) << std::endl;
+            // std::cout << "Request: " << request.dump(2) << std::endl;
         }
 
         curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());

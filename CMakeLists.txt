@@ -36,6 +36,12 @@ FetchContent_Declare(
   GIT_TAG main)
 FetchContent_MakeAvailable(base64)
 
+FetchContent_Declare(
+  subprocess
+  GIT_REPOSITORY https://github.com/shediao/subprocess.hpp
+  GIT_TAG main)
+FetchContent_MakeAvailable(subprocess)
+
 # 添加nlohmann/json用于JSON处理
 FetchContent_Declare(
   json
@@ -122,8 +128,9 @@ target_include_directories(
              ${filesystem_tools_json_str_GENERATED_INCLUDE_DIR})
 
 # 链接依赖库
-target_link_libraries(ai PRIVATE argparse::argparse base64::base64
-                                 nlohmann_json::nlohmann_json CURL::libcurl)
+target_link_libraries(
+  ai PRIVATE argparse::argparse base64::base64 subprocess::subprocess
+             nlohmann_json::nlohmann_json CURL::libcurl)
 
 if(APPLE)
   target_link_libraries(ai PRIVATE "-framework AppKit")
