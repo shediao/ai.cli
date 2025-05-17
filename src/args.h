@@ -18,6 +18,7 @@ struct AiArgs {
         bool stream{false};
         bool stream_include_usage{false};
         std::set<std::string> tools;
+        bool continue_with_last_history{false};
     };
 
     struct ModelsArgs {

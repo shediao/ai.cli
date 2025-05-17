@@ -88,8 +88,8 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& models = parser.add_command("models", "list models");
 
     auto& models_args = args.models_args;
-    models.add_option("u,url", "OpenAI API Compatible URL",
-                      models_args.api_url);
+    models.add_option("u,url", "OpenAI API Compatible URL", models_args.api_url)
+        .hidden();
     models
         .add_option("base-url", "OpenAI API Compatible URL(<base_url>/models)",
                     models_args.api_url)
@@ -144,13 +144,17 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                   chat_args.stream_include_usage)
         .negatable();
 
+    chat.add_flag("C", "continue with last history",
+                  chat_args.continue_with_last_history);
+
     chat.add_option("m,model", "Model to use", chat_args.model);
     chat.add_option("s,system-prompt", "System prompt",
                     chat_args.system_prompt);
     chat.add_option("t,temperature", "Model temperature",
                     chat_args.temperature);
     chat.add_option("top-p", "Model top-p parameter", chat_args.top_p);
-    chat.add_option("u,url", "OpenAI API Compatible URL", chat_args.api_url);
+    chat.add_option("u,url", "OpenAI API Compatible URL", chat_args.api_url)
+        .hidden();
     chat.add_option("base-url",
                     "OpenAI API Compatible URL(<base_url>/chat/completions)",
                     chat_args.api_url)

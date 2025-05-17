@@ -1,8 +1,10 @@
 #include "./chat.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
@@ -21,6 +23,22 @@ int chat() {
         OpenAIClient client;
 
         nlohmann::json chat_history = nlohmann::json::array();
+        if (chat_args.continue_with_last_history &&
+            std::filesystem::exists("ai-history.json")) {
+            std::ifstream history_file{"ai-history.json"};
+            if (history_file.is_open()) {
+                std::string history_content{
+                    std::istreambuf_iterator<char>(history_file),
+                    std::istreambuf_iterator<char>()};
+                try {
+                    auto j = nlohmann::json::parse(history_content);
+                    if (j.is_array()) {
+                        chat_history = j;
+                    }
+                } catch (...) {
+                }
+            }
+        }
 
         try {
             std::string system_prompt = chat_args.system_prompt.value_or("");
@@ -94,6 +112,17 @@ int chat() {
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << std::endl;
             return 1;
+        }
+
+        if (chat_history.is_array() && !chat_history.empty()) {
+            std::ofstream history_file("ai-history.json");
+            if (history_file.is_open()) {
+                std::string history_content = chat_history.dump();
+                history_file.write(history_content.data(),
+                                   history_content.size());
+                history_file.flush();
+                history_file.close();
+            }
         }
 
         return 0;
