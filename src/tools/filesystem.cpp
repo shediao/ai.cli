@@ -163,7 +163,7 @@ std::optional<std::string> edit_file(nlohmann::json const& args) {
                          std_out > diff_str);
             if (0 == process::run({"which", "delta"}, std_out > devnull,
                                   std_err > devnull)) {
-                process::run({"delta", path, temp.path()});
+                process::run({"delta", "--paging=never", path, temp.path()});
             } else {
                 process::run(
                     {"diff", "-U0", "--color=always", path, temp.path()});
