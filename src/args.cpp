@@ -250,7 +250,7 @@ argparse::Command& AiArgs::parse(int argc, char* argv[]) {
 AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
     parser.add_flag("h,help", "show this help info", help);
     parser.add_flag("d,debug", "Enable debug mode", debug).negatable();
-    parser.add_option("proxy", "Use proxy(curl)", proxy).value_help("PROXY");
+    parser.add_option("x,proxy", "Use proxy(curl)", proxy).value_help("PROXY");
     parser.add_option("k,key", "API key", api_key).value_help("key");
     parser.callback([this]() {
         if (help) {
