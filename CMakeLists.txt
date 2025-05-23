@@ -36,20 +36,20 @@ include(FetchContent)
 FetchContent_Declare(
   argparse
   GIT_REPOSITORY https://github.com/shediao/argparse.hpp
-  GIT_TAG main)
+  GIT_TAG v0.0.5)
 FetchContent_MakeAvailable(argparse)
 
 # 添加base64用于嵌入文件
 FetchContent_Declare(
   base64
   GIT_REPOSITORY https://github.com/shediao/base64.hpp
-  GIT_TAG main)
+  GIT_TAG v0.0.1)
 FetchContent_MakeAvailable(base64)
 
 FetchContent_Declare(
   subprocess
   GIT_REPOSITORY https://github.com/shediao/subprocess.hpp
-  GIT_TAG main)
+  GIT_TAG v0.0.1)
 FetchContent_MakeAvailable(subprocess)
 
 # 添加nlohmann/json用于JSON处理
