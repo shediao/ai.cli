@@ -15,6 +15,8 @@
 #include <unistd.h>  // For access
 #endif
 
+#include <subprocess/subprocess.hpp>
+
 #include "./args.h"
 #include "./utils.h"
 
@@ -52,24 +54,40 @@ std::string getTempFilePath(std::string const &prefix,
         throw std::runtime_error("Failed to create temporary file.");
     }
     temp_file_path = temp_file;
+    DeleteFileA(temp_file);
     if (!postfix.empty()) {
         temp_file_path += postfix;
     }
 
 #else
-    std::string template_str = "/tmp/";
+    std::string temp_dir = []() -> std::string {
+        char *tmpdir = getenv("TMPDIR");
+        if (tmpdir != nullptr) {
+            return std::string(tmpdir);
+        } else {
+            return "/tmp";
+        }
+    }();
+    std::string template_str = temp_dir;
+    if (!template_str.ends_with('/')) {
+        template_str.push_back('/');
+    }
     if (!prefix.empty()) {
         template_str += prefix;
     }
     template_str += "XXXXXX";
+    [[maybe_unused]] int suffix_len = 0;
     if (!postfix.empty()) {
         template_str += postfix;
+        suffix_len = postfix.length();
     }
-    int fd = mkstemp(template_str.data());
+    // int fd = mkstemp(template_str.data());
+    int fd = mkstemps(template_str.data(), suffix_len);
     if (fd == -1) {
         throw std::runtime_error("Failed to create temporary file.");
     }
     close(fd);
+    ::remove(template_str.c_str());
     temp_file_path = template_str;
 #endif
     return temp_file_path;
@@ -115,7 +133,7 @@ std::string getUserInputViaEditor() {
     std::string command =
         editor + " \"" + tempfile.path() + "\"";  // Wrap path in quotes
 
-    int result = std::system(command.c_str());
+    int result = process::run(editor, tempfile.path());
 
     // Handle errors from system call (editor not found, etc.)
     if (result != 0) {

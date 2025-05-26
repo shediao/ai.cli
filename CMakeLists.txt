@@ -49,7 +49,7 @@ FetchContent_MakeAvailable(base64)
 FetchContent_Declare(
   subprocess
   GIT_REPOSITORY https://github.com/shediao/subprocess.hpp
-  GIT_TAG v0.0.1)
+  GIT_TAG v0.0.2)
 FetchContent_MakeAvailable(subprocess)
 
 # 添加nlohmann/json用于JSON处理
