@@ -52,12 +52,6 @@ FetchContent_Declare(
   GIT_TAG v0.0.2)
 FetchContent_MakeAvailable(subprocess)
 
-# 添加nlohmann/json用于JSON处理
-FetchContent_Declare(
-  json
-  URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
-FetchContent_MakeAvailable(json)
-
 # 添加libcurl用于HTTP请求
 find_package(CURL REQUIRED)
 
@@ -134,13 +128,14 @@ set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 
 # 添加头文件路径
 target_include_directories(
-  ai PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
-             ${filesystem_tools_json_str_GENERATED_INCLUDE_DIR})
+  ai
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+          ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include
+          ${filesystem_tools_json_str_GENERATED_INCLUDE_DIR})
 
 # 链接依赖库
-target_link_libraries(
-  ai PRIVATE argparse::argparse base64::base64 subprocess::subprocess
-             nlohmann_json::nlohmann_json CURL::libcurl)
+target_link_libraries(ai PRIVATE argparse::argparse base64::base64
+                                 subprocess::subprocess CURL::libcurl)
 
 if(APPLE)
   target_link_libraries(ai PRIVATE "-framework AppKit")
