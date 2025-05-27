@@ -104,11 +104,7 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
         });
     add_alias_options(models);
 
-    models.callback([&args, &models]() -> void {
-        if (args.help) {
-            models.print_usage();
-            exit(EXIT_SUCCESS);
-        }
+    models.callback([&args]() -> void {
         auto& models_args = args.models_args;
         if (args.api_key.empty() && !models_args.api_url.empty()) {
             auto key = getApiKeyFromEnvironment(models_args.api_url);
@@ -180,11 +176,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
 
     chat.add_positional("prompts", "user prompts", chat_args.prompts);
 
-    chat.callback([&args, &chat]() -> void {
-        if (args.help) {
-            chat.print_usage();
-            exit(EXIT_SUCCESS);
-        }
+    chat.callback([&args]() -> void {
         auto& chat_args = args.chat_args;
 
         if (chat_args.model.empty()) {
@@ -248,16 +240,9 @@ argparse::Command& AiArgs::parse(int argc, char* argv[]) {
 }
 
 AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
-    parser.add_flag("h,help", "show this help info", help);
     parser.add_flag("d,debug", "Enable debug mode", debug).negatable();
     parser.add_option("x,proxy", "Use proxy(curl)", proxy).value_help("PROXY");
     parser.add_option("k,key", "API key", api_key).value_help("key");
-    parser.callback([this]() {
-        if (help) {
-            parser.print_usage();
-            exit(EXIT_SUCCESS);
-        }
-    });
     bind_chat_args(parser, *this);
     bind_model_args(parser, *this);
 }
