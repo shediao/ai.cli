@@ -1,174 +1,174 @@
 [
-    {
-        "type": "function",
-        "name": "read_file",
-        "description": "Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "path"
-            ]
+  {
+    "type": "function",
+    "name": "read_file",
+    "description": "Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
         }
-    },
-    {
-        "type": "function",
-        "name": "read_multiple_files",
-        "description": "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "paths": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            },
-            "required": [
-                "paths"
-            ]
-        }
-    },
-    {
-        "type": "function",
-        "name": "write_file",
-        "description": "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                },
-                "content": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "path",
-                "content"
-            ]
-        }
-    },
-    {
-        "type": "function",
-        "name": "edit_file",
-        "description": "Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string",
-                    "description": "The path of the file to modify"
-                },
-                "diff": {
-                    "type": "string",
-                    "description": "One or more SEARCH/REPLACE blocks following this exact format:\n```\n<<<<<<< SEARCH\n[exact content to find]\n=======\n[new content to replace with]\n>>>>>>> REPLACE\n```\nCritical rules:\n1. SEARCH content must match the associated file section to find EXACTLY:\n * Match character-for-character including whitespace, indentation, line endings\n * Include all comments, docstrings, etc.\n 2. SEARCH/REPLACE blocks will ONLY replace the first match occurrence.\n * Including multiple unique SEARCH/REPLACE blocks if you need to make multiple changes.\n * Include *just* enough lines in each SEARCH section to uniquely match each set of lines that need to change.\n * When using multiple SEARCH/REPLACE blocks, list them in the order they appear in the file.\n 3. Keep SEARCH/REPLACE blocks concise:\n * Break large SEARCH/REPLACE blocks into a series of smaller blocks that each change a small portion of the file.\n * Include just the changing lines, and a few surrounding lines if needed for uniqueness.\n * Do not include long runs of unchanging lines in SEARCH/REPLACE blocks.\n * Each line must be complete. Never truncate lines mid-way through as this can cause matching failures.\n 4. Special operations:\n * To move code: Use two SEARCH/REPLACE blocks (one to delete from original + one to insert at new location)\n * To delete code: Use empty REPLACE section\n5. Delimiters '<<<<<<< SEARCH', '=======', '>>>>>>> REPLACE' need to be on separate lines"
-                }
-            }
-        }
-    },
-    {
-        "type": "function",
-        "name": "create_directory",
-        "description": "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "path"
-            ]
-        }
-    },
-    {
-        "name": "list_directory",
-        "description": "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "path"
-            ]
-        }
-    },
-    {
-        "name": "directory_tree",
-        "description": "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "path"
-            ]
-        }
-    },
-    {
-        "name": "move_file",
-        "description": "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "source": {
-                    "type": "string"
-                },
-                "distination": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "source",
-                "distination"
-            ]
-        }
-    },
-    {
-        "name": "search_files",
-        "description": "Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                },
-                "pattern": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "path",
-                "pattern"
-            ]
-        }
-    },
-    {
-        "name": "get_file_info",
-        "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "path": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "path"
-            ]
-        }
+      },
+      "required": [
+        "path"
+      ]
     }
+  },
+  {
+    "type": "function",
+    "name": "read_multiple_files",
+    "description": "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "paths"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "name": "write_file",
+    "description": "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "content"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "name": "edit_file",
+    "description": "Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The path of the file to modify"
+        },
+        "diff": {
+          "type": "string",
+          "description": "One or more SEARCH/REPLACE blocks following this exact format:\n```\n<<<<<<< SEARCH\n[exact content to find]\n=======\n[new content to replace with]\n>>>>>>> REPLACE\n```\nCritical rules:\n1. SEARCH content must match the associated file section to find EXACTLY:\n * Match character-for-character including whitespace, indentation, line endings\n * Include all comments, docstrings, etc.\n 2. SEARCH/REPLACE blocks will ONLY replace the first match occurrence.\n * Including multiple unique SEARCH/REPLACE blocks if you need to make multiple changes.\n * Include *just* enough lines in each SEARCH section to uniquely match each set of lines that need to change.\n * When using multiple SEARCH/REPLACE blocks, list them in the order they appear in the file.\n 3. Keep SEARCH/REPLACE blocks concise:\n * Break large SEARCH/REPLACE blocks into a series of smaller blocks that each change a small portion of the file.\n * Include just the changing lines, and a few surrounding lines if needed for uniqueness.\n * Do not include long runs of unchanging lines in SEARCH/REPLACE blocks.\n * Each line must be complete. Never truncate lines mid-way through as this can cause matching failures.\n 4. Special operations:\n * To move code: Use two SEARCH/REPLACE blocks (one to delete from original + one to insert at new location)\n * To delete code: Use empty REPLACE section\n5. Delimiters '<<<<<<< SEARCH', '=======', '>>>>>>> REPLACE' need to be on separate lines"
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "name": "create_directory",
+    "description": "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    }
+  },
+  {
+    "name": "list_directory",
+    "description": "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    }
+  },
+  {
+    "name": "directory_tree",
+    "description": "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    }
+  },
+  {
+    "name": "move_file",
+    "description": "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "distination": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "distination"
+      ]
+    }
+  },
+  {
+    "name": "search_files",
+    "description": "Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "pattern": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "pattern"
+      ]
+    }
+  },
+  {
+    "name": "get_file_info",
+    "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ]
+    }
+  }
 ]

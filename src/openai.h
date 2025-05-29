@@ -40,80 +40,80 @@
 // }
 
 class ResponseContent {
-    friend class OpenAIClient;
-    friend class StreamOperator;
+  friend class OpenAIClient;
+  friend class StreamOperator;
 
-   public:
-    struct Choice {
-        struct Message {
-            std::string role;
-            std::optional<std::string> content;
-            std::optional<std::string> reasoning_content;
-            std::optional<nlohmann::basic_json<>> tool_calls;
-        };
-        std::string finish_reason_;
-        Message message_;
+ public:
+  struct Choice {
+    struct Message {
+      std::string role;
+      std::optional<std::string> content;
+      std::optional<std::string> reasoning_content;
+      std::optional<nlohmann::basic_json<>> tool_calls;
     };
-    struct Usage {
-        int completion_tokens_{0};
-        int prompt_tokens_{0};
-        int total_tokens_{0};
-    };
+    std::string finish_reason_;
+    Message message_;
+  };
+  struct Usage {
+    int completion_tokens_{0};
+    int prompt_tokens_{0};
+    int total_tokens_{0};
+  };
 
-   public:
-    std::optional<std::string> content() {
-        if (!choices_.empty()) {
-            return choices_[0].message_.content;
-        }
-        return std::nullopt;
+ public:
+  std::optional<std::string> content() {
+    if (!choices_.empty()) {
+      return choices_[0].message_.content;
     }
-    std::optional<std::string> reasoning_content() {
-        if (!choices_.empty()) {
-            return choices_[0].message_.reasoning_content;
-        }
-        return std::nullopt;
+    return std::nullopt;
+  }
+  std::optional<std::string> reasoning_content() {
+    if (!choices_.empty()) {
+      return choices_[0].message_.reasoning_content;
     }
-    std::optional<std::string> finish_reason() {
-        if (!choices_.empty()) {
-            return choices_[0].finish_reason_;
-        }
-        return std::nullopt;
+    return std::nullopt;
+  }
+  std::optional<std::string> finish_reason() {
+    if (!choices_.empty()) {
+      return choices_[0].finish_reason_;
     }
-    std::optional<nlohmann::basic_json<>> tool_calls() {
-        if (!choices_.empty()) {
-            return choices_[0].message_.tool_calls;
-        }
-        return std::nullopt;
+    return std::nullopt;
+  }
+  std::optional<nlohmann::basic_json<>> tool_calls() {
+    if (!choices_.empty()) {
+      return choices_[0].message_.tool_calls;
     }
+    return std::nullopt;
+  }
 
-   private:
-    std::vector<Choice> choices_;
-    Usage usage_;
-    std::string response_body_;
-    std::string response_header_;
+ private:
+  std::vector<Choice> choices_;
+  Usage usage_;
+  std::string response_body_;
+  std::string response_header_;
 };
 
 class OpenAIClient {
-   public:
-    explicit OpenAIClient();
-    ~OpenAIClient();
+ public:
+  explicit OpenAIClient();
+  ~OpenAIClient();
 
-    // 禁用拷贝
-    OpenAIClient(const OpenAIClient&) = delete;
-    OpenAIClient& operator=(const OpenAIClient&) = delete;
+  // 禁用拷贝
+  OpenAIClient(const OpenAIClient&) = delete;
+  OpenAIClient& operator=(const OpenAIClient&) = delete;
 
-    // 启用移动
-    OpenAIClient(OpenAIClient&&) noexcept;
-    OpenAIClient& operator=(OpenAIClient&&) noexcept;
+  // 启用移动
+  OpenAIClient(OpenAIClient&&) noexcept;
+  OpenAIClient& operator=(OpenAIClient&&) noexcept;
 
-    // 发送聊天请求
-    ResponseContent chat(const std::string& system_prompt,
-                         const std::vector<std::string>& user_prompts,
-                         nlohmann::json& chat_history) const;
+  // 发送聊天请求
+  ResponseContent chat(const std::string& system_prompt,
+                       const std::vector<std::string>& user_prompts,
+                       nlohmann::json& chat_history) const;
 
-    std::vector<std::string> models();
+  std::vector<std::string> models();
 
-   private:
-    class Impl;
-    std::unique_ptr<Impl> pimpl;
+ private:
+  class Impl;
+  std::unique_ptr<Impl> pimpl;
 };
