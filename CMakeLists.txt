@@ -7,7 +7,7 @@ endif()
 project(
   ai_cli
   VERSION 0.1.0
-  LANGUAGES CXX)
+  LANGUAGES C CXX)
 
 # Set default build type to Debug if not specified
 if(NOT CMAKE_BUILD_TYPE)
@@ -108,6 +108,10 @@ embed_text_file_as_string(
   "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/filesystem.json"
   "generated_headers/filesystem_tools_json.h" "filesystem_tools_json_str")
 
+add_library(sqlite3 STATIC third_party/sqlite3/sqlite3.c)
+target_include_directories(sqlite3
+                           PUBLIC ${CMAKE_CURRENT_LIST_DIR}/third_party/sqlite3)
+
 # 添加源文件
 add_executable(
   ai
@@ -137,11 +141,12 @@ target_include_directories(
   ai
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
           ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include
+          ${CMAKE_CURRENT_SOURCE_DIR}/third_party/sqlite3
           ${filesystem_tools_json_str_GENERATED_INCLUDE_DIR})
 
 # 链接依赖库
 target_link_libraries(ai PRIVATE argparse::argparse base64::base64
-                                 subprocess::subprocess CURL::libcurl)
+                                 subprocess::subprocess CURL::libcurl sqlite3)
 
 if(APPLE)
   target_link_libraries(ai PRIVATE "-framework AppKit")
