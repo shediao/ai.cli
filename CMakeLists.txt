@@ -128,6 +128,8 @@ elseif(WIN32)
   target_sources(ai PRIVATE src/clip_win.cpp)
 elseif(LINUX)
   target_sources(ai PRIVATE src/clip_linux.cpp)
+else()
+  target_sources(ai PRIVATE src/clip_other.cpp)
 endif()
 
 set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
