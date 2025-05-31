@@ -36,9 +36,6 @@ TEST(StreamResponse, Test2) {
         std::uniform_int_distribution<> distrib(0, 100);
         return distrib(gen);
       }();
-      if (random_number < 0) {
-        continue;
-      }
       if (random_number > response_str.size()) {
         random_number = response_str.size();
       }
