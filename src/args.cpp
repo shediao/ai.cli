@@ -1,5 +1,6 @@
 #include "args.h"
 
+#include <algorithm>
 #include <argparse/argparse.hpp>
 #include <cstdlib>
 #include <fstream>
@@ -187,6 +188,14 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       std::cerr << "Error: Must provide an ai model." << std::endl;
       exit(EXIT_FAILURE);
     }
+
+    // read from stdin
+    if (auto it =
+            std::find(begin(chat_args.prompts), end(chat_args.prompts), "-");
+        it != end(chat_args.prompts)) {
+      *it = std::string(std::istreambuf_iterator<char>(std::cin),
+                        std::istreambuf_iterator<char>{});
+    };
 
     if (chat_args.prompts.empty() && stdin_is_atty()) {
       try {

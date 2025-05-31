@@ -10,7 +10,7 @@
 std::optional<std::string> call_tool(std::string const& name,
                                      nlohmann::json const& args);
 
-bool regist_tools_call(
+bool regist_tool_calls(
     std::string const& name,
     std::function<std::optional<std::string>(nlohmann::json const& args)>);
 

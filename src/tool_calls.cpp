@@ -1,4 +1,4 @@
-#include "./tools_call.h"
+#include "./tool_calls.h"
 
 auto& get_all_tools() {
   static std::map<std::string, std::function<std::optional<std::string>(
@@ -16,7 +16,7 @@ std::optional<std::string> call_tool(std::string const& name,
   return std::nullopt;
 }
 
-bool regist_tools_call(
+bool regist_tool_calls(
     std::string const& name,
     std::function<std::optional<std::string>(nlohmann::json const& args)>
         func) {

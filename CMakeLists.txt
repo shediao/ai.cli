@@ -29,6 +29,12 @@ set(CMAKE_CXX_FLAGS_DEBUG
     "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls"
 )
 
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+  option(AICLI_BUILD_TESTS "Set to ON to build tests" ON)
+else()
+  option(AICLI_BUILD_TESTS "Set to OFF to build tests" OFF)
+endif()
+
 # 添加FetchContent支持
 include(FetchContent)
 
@@ -110,9 +116,9 @@ add_executable(
   src/args.cpp
   src/models.cpp
   src/openai.cpp
-  src/stream.cpp
+  src/response.cpp
   src/tools/filesystem.cpp
-  src/tools_call.cpp
+  src/tool_calls.cpp
   src/utils.cpp
   src/base64.cpp)
 
@@ -144,6 +150,11 @@ elseif(WIN32)
 endif()
 
 add_dependencies(ai ${filesystem_tools_json_str_GENERATED_TARGET_NAME})
+
+if(AICLI_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()
 
 # 安装目标
 install(TARGETS ai RUNTIME DESTINATION bin)

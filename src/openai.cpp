@@ -7,13 +7,14 @@
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <stdexcept>
 
 #include "./args.h"
 #include "./base64.h"
-#include "./stream.h"
+#include "./response.h"
+#include "./tool_calls.h"
 #include "./tools/filesystem.h"
-#include "./tools_call.h"
 #include "./utils.h"
 
 namespace {
@@ -80,21 +81,10 @@ class OpenAIClient::Impl {
     return size * nmemb;
   }
 
-  static size_t stream_callback_wrapper(char* ptr, size_t size, size_t nmemb,
-                                        void* userdata) {
-    if (size * nmemb == 0) {
-      return 0;
-    }
-    StreamOperator* stream = static_cast<StreamOperator*>(userdata);
-    if (stream) {
-      stream->parse({ptr, size * nmemb});
-    }
-    return size * nmemb;
-  }
-
-  ResponseContent chat(const std::string& system_prompt,
-                       const std::vector<std::string>& user_prompts,
-                       nlohmann::json& chat_history) {
+  std::optional<ai::openai::Response> chat(
+      const std::string& system_prompt,
+      const std::vector<std::string>& user_prompts,
+      nlohmann::json& chat_history) {
     const AiArgs& args_ = AiArgs::instance();
     std::vector<std::string> files;
     std::string user_prompt;
@@ -163,13 +153,13 @@ class OpenAIClient::Impl {
     if (user_prompt.empty()) {
       // 当user prompt没有的时候判断历史最后一条是否为用户prompt
       if (chat_history.size() == 0) {
-        return {};
+        return std::nullopt;
       }
       if (auto& last_message = chat_history.back();
           !last_message.contains("role") ||
           !(last_message["role"].get<std::string>() == "user" ||
             last_message["role"].get<std::string>() == "tool")) {
-        return {};
+        return std::nullopt;
       }
     }
 
@@ -248,7 +238,7 @@ class OpenAIClient::Impl {
     std::string response_string;
     if (args_.debug) {
       std::cout << "URL: " << url << std::endl;
-      // std::cout << "Request: " << request.dump(2) << std::endl;
+      std::cout << "Request: " << request.dump(2) << std::endl;
     }
 
     curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
@@ -273,16 +263,18 @@ class OpenAIClient::Impl {
     curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, request_body.c_str());
 
     std::stringstream eat;
-    StreamOperator stream{args_.debug ? eat : std::cout};
-    stream.is_debug = args_.debug;
+
+    ai::openai::StreamResponse stream_response(args_.debug ? eat : std::cout);
+
     if (args_.chat_args.stream) {
 #if 0
             curl_easy_setopt(curl_, CURLOPT_BUFFERSIZE, 0L);
             curl_easy_setopt(curl_, CURLOPT_FRESH_CONNECT, 1L);
             curl_easy_setopt(curl_, CURLOPT_FORBID_REUSE, 1L);
 #endif
-      curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, stream_callback_wrapper);
-      curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &stream);
+      curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION,
+                       ai::openai::StreamResponse::parse);
+      curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &stream_response);
     } else {
       curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
       curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &response_string);
@@ -296,91 +288,32 @@ class OpenAIClient::Impl {
                                curl_easy_strerror(res));
     }
 
-    if (!args_.chat_args.stream) {
-      ResponseContent ret;
-      ret.response_body_ = response_string;
-      if (args_.debug) {
-        std::cout << "Response: " << response_string << std::endl;
-      }
-      try {
-        auto response_json = nlohmann::json::parse(response_string);
-        if (response_json.contains("choices")) {
-          auto& choices_json = response_json["choices"];
-          if (choices_json.is_array()) {
-            for (auto& choice_json : choices_json) {
-              ResponseContent::Choice choice;
-              if (choice_json.contains("finish_reason") &&
-                  choice_json["finish_reason"].is_string()) {
-                choice.finish_reason_ =
-                    choice_json["finish_reason"].get<std::string>();
-              }
-              if (choice_json.contains("message")) {
-                auto& message_json = choice_json["message"];
-                if (message_json.contains("content") &&
-                    message_json["content"].is_string()) {
-                  choice.message_.content =
-                      message_json["content"].get<std::string>();
-                }
-                if (message_json.contains("reasoning_content") &&
-                    message_json["reasoning_content"].is_string()) {
-                  choice.message_.reasoning_content =
-                      message_json["reasoning_content"].get<std::string>();
-                }
-                if (message_json.contains("role") &&
-                    message_json["role"].is_string()) {
-                  choice.message_.role =
-                      message_json["role"].get<std::string>();
-                }
-                if (message_json.contains("tool_calls") &&
-                    message_json["tool_calls"].is_array()) {
-                  choice.message_.tool_calls = message_json["tool_calls"];
-                }
-                if (choice.finish_reason_ == "tool_calls") {
-                  chat_history.push_back(message_json);
-                }
-              }
-              ret.choices_.push_back(std::move(choice));
-            }
-          }
-        }
-        if (response_json.contains("usage")) {
-          auto& usage_json = response_json["usage"];
-          auto get_int_value = [&usage_json](const char* key) {
-            return usage_json[key].is_string()
-                       ? std::stoi(usage_json[key].get<std::string>())
-                       : usage_json[key].get<int>();
-          };
-          ret.usage_.completion_tokens_ = get_int_value("completion_tokens");
-          ret.usage_.prompt_tokens_ = get_int_value("prompt_tokens");
-          ret.usage_.total_tokens_ = get_int_value("total_tokens");
-        }
-        return ret;
-      } catch (const nlohmann::json::exception& e) {
-        std::cerr << e.what() << '\n';
-        throw std::runtime_error(response_string);
-      }
+    if (args_.chat_args.stream) {
+      std::cout << "response: " << "\n";
     } else {
-      if (!stream.parse_done()) {
-        if (stream.data_jsons().empty()) {
-          try {
-            auto x = nlohmann::json::parse(stream.response_data());
-            // TODO:
-            std::cerr << x.dump() << '\n';
-          } catch (...) {
-            std::cerr << std::string_view{stream.response_data().data(),
-                                          stream.response_data().size()}
-                      << '\n';
-          }
-        }
-      }
-      auto& ret = stream.response_content();
-      if (ret.finish_reason() == "tool_calls") {
-        chat_history.push_back(stream.message());
-      }
-      return ret;
+      std::cout << "response: " << response_string << "\n";
     }
 
-    return {};
+    auto response = args_.chat_args.stream
+                        ? stream_response.toResponse()
+                        : ai::openai::Response::from_string(response_string);
+
+    if (!response.choices().empty()) {
+      auto& choice = response.choices().front();
+      auto message = json::object();
+      message["role"] = choice.message.role;
+      if (choice.finish_reason == "tool_calls") {
+        message["tool_calls"] = *choice.message.tool_calls_json;
+        chat_history.push_back(message);
+      } else {
+        if (!choice.message.content.empty()) {
+          message["content"] = choice.message.content;
+          chat_history.push_back(message);
+        }
+      }
+    }
+
+    return response;
   }
 
   std::vector<std::string> models() {
@@ -449,9 +382,10 @@ OpenAIClient::~OpenAIClient() = default;
 OpenAIClient::OpenAIClient(OpenAIClient&&) noexcept = default;
 OpenAIClient& OpenAIClient::operator=(OpenAIClient&&) noexcept = default;
 
-ResponseContent OpenAIClient::chat(const std::string& system_prompt,
-                                   const std::vector<std::string>& user_prompts,
-                                   nlohmann::json& chat_history) const {
+std::optional<ai::openai::Response> OpenAIClient::chat(
+    const std::string& system_prompt,
+    const std::vector<std::string>& user_prompts,
+    nlohmann::json& chat_history) const {
   return pimpl->chat(system_prompt, user_prompts, chat_history);
 }
 

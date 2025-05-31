@@ -11,7 +11,7 @@
 #include <subprocess/subprocess.hpp>
 
 #include "../args.h"
-#include "../tools_call.h"
+#include "../tool_calls.h"
 #include "../utils.h"
 #include "filesystem_tools_json.h"
 
@@ -298,12 +298,12 @@ const std::string_view get_filesystem_tools() {
 }
 
 void regist_filesystem_tools() {
-  regist_tools_call("read_file", read_file);
-  regist_tools_call("read_multiple_files", read_multiple_files);
-  regist_tools_call("write_file", write_file);
-  regist_tools_call("edit_file", edit_file);
-  regist_tools_call("create_directory", create_directory);
-  regist_tools_call("list_directory", list_directory);
-  regist_tools_call("directory_tree", directory_tree);
-  regist_tools_call("move_file", move_file);
+  regist_tool_calls("read_file", read_file);
+  regist_tool_calls("read_multiple_files", read_multiple_files);
+  regist_tool_calls("write_file", write_file);
+  regist_tool_calls("edit_file", edit_file);
+  regist_tool_calls("create_directory", create_directory);
+  regist_tool_calls("list_directory", list_directory);
+  regist_tool_calls("directory_tree", directory_tree);
+  regist_tool_calls("move_file", move_file);
 }

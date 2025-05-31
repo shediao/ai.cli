@@ -13,8 +13,7 @@
 #include "./args.h"
 #include "./clip.h"
 #include "./openai.h"
-#include "./stream.h"
-#include "./tools_call.h"
+#include "./tool_calls.h"
 
 int chat() {
   AiArgs const& args = AiArgs::instance();
@@ -45,41 +44,40 @@ int chat() {
       auto user_prompt = chat_args.prompts;
       while (true) {
         auto response = client.chat(system_prompt, user_prompt, chat_history);
-        auto reasoning_content = response.reasoning_content();
-        auto content = response.content();
-        auto tool_calls = response.tool_calls();
-        auto finish_reason = response.finish_reason();
-
-        if (args.debug && tool_calls.has_value()) {
-          std::cout << tool_calls.value().dump(2) << '\n';
+        if (!response.has_value()) {
+          return 1;
         }
-        if (args.debug && finish_reason.has_value()) {
-          std::cout << "finish_reason: " << finish_reason.value() << '\n';
+        auto& reasoning_content =
+            response.value().choices().back().message.reasoning_content;
+        auto& content = response.value().choices().back().message.content;
+        auto& tool_calls =
+            response.value().choices().back().message.tool_calls_json;
+        auto finish_reason = response.value().choices().back().finish_reason;
+
+        if (args.debug && tool_calls) {
+          std::cout << tool_calls->dump(2) << '\n';
+        }
+        if (args.debug && !finish_reason.empty()) {
+          std::cout << "finish_reason: " << finish_reason << '\n';
         }
 
-        if (content.has_value() && !(finish_reason.has_value() &&
-                                     finish_reason.value() == "tool_calls")) {
-          chat_history.push_back(nlohmann::json::object(
-              {{"role", "assistant"}, {"content", content.value()}}));
-        }
-
-        if (reasoning_content.has_value()) {
-          auto merged_content = "<think>\n" + reasoning_content.value() +
-                                "\n</think>\n\n" + content.value_or("");
+        if (!reasoning_content.empty()) {
+          auto merged_content =
+              "<think>\n" + reasoning_content + "\n</think>\n\n" + content;
           save_to_clipboard(merged_content);
           if (!args.chat_args.stream || args.debug) {
             std::cout << merged_content << std::endl;
           }
         } else {
-          if (content.has_value()) {
-            save_to_clipboard(content.value());
+          if (!content.empty()) {
+            save_to_clipboard(content);
             if (!args.chat_args.stream || args.debug) {
-              std::cout << content.value() << std::endl;
+              std::cout << content << std::endl;
             }
           }
         }
-        if (tool_calls.has_value() && tool_calls.value().size() > 0) {
-          for (auto const& tool : tool_calls.value()) {
+        if (tool_calls && tool_calls->size() > 0) {
+          for (auto const& tool : *tool_calls) {
             if (tool.contains("function") && tool["function"].is_object()) {
               auto function = tool["function"];
               auto arguments = nlohmann::json::parse(
@@ -96,8 +94,7 @@ int chat() {
             }
           }
         }
-        if (!finish_reason.has_value() ||
-            finish_reason.value() != "tool_calls") {
+        if (finish_reason != "tool_calls") {
           break;
         }
         user_prompt.clear();
