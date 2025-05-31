@@ -51,6 +51,7 @@ TEST(AiCliTest, Response2) {
     "model": "moonshot-v1-8k",
     "choices": [
         {
+            "index": 0,
             "finish_reason": "tool_calls",
             "message": {
                 "content": "",

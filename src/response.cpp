@@ -65,7 +65,13 @@ Response Response::from_json(json const& response_json) {
     if (response_json.contains("choices") &&
         response_json["choices"].is_array()) {
       for (auto const& choice_json : response_json["choices"]) {
-        Choice current_choice;
+        size_t index = choice_json["index"].get<int>();
+        if (index + 1 > response.choices_.size()) {
+          response.choices_.resize(index + 1);
+        }
+        Choice& current_choice = response.choices_[index];
+        current_choice.index = index;
+
         get_string("finish_reason", choice_json, current_choice.finish_reason);
         if (is_object("message", choice_json)) {
           auto msg_json = choice_json["message"];
@@ -76,8 +82,8 @@ Response Response::from_json(json const& response_json) {
           if (is_array("tool_calls", msg_json)) {
             current_choice.message.tool_calls_json.reset(
                 new json(msg_json["tool_calls"]));
-            Function current_func;
             for (auto const& tool_call_item : msg_json["tool_calls"]) {
+              Function current_func;
               get_string("id", tool_call_item, current_func.id);
               if (is_object("function", tool_call_item)) {
                 get_string("name", tool_call_item["function"],
@@ -89,7 +95,6 @@ Response Response::from_json(json const& response_json) {
             }
           }
         }
-        response.choices_.push_back(std::move(current_choice));
       }
     }
   } catch (json::parse_error const& e) {

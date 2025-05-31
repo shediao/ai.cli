@@ -165,7 +165,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
   chat.add_option("max-tokens", "max tokens", chat_args.max_tokens);
   chat.add_option("reasoning-effort", "reasoning effort",
                   chat_args.reasoning_effort)
-      .choices({"low", "medium", "high"});
+      .choices({"low", "medium", "high", "none"});
 
   chat.add_option("tools", "tools call", chat_args.tools)
       .allowed({"filesystem"});
