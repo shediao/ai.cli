@@ -81,8 +81,8 @@ std::string getTempFilePath(std::string const &prefix,
     template_str += postfix;
     suffix_len = postfix.length();
   }
-  int fd = mkstemp(template_str.data());
-  // int fd = mkstemps(template_str.data(), suffix_len);
+  // int fd = mkstemp(template_str.data());
+  int fd = mkstemps(template_str.data(), suffix_len);
   if (fd == -1) {
     throw std::runtime_error("Failed to create temporary file.");
   }
