@@ -1,0 +1,57 @@
+name: CMake on MSYS2
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  msys2-ucrt64:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+
+      matrix:
+        msystem: [MSYS, UCRT64, MINGW64]
+        build_type: [Release,Debug]
+        c_compiler: [gcc, clang]
+        include:
+          - os: windows-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+          - os: windows-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{matrix.msystem}}
+          update: true
+          install: git gcc clang cmake ninja curl mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-curl mingw-w64-x86_64-gcc mingw-w64-x86_64-clang mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja mingw-w64-x86_64-curl
+      - name: Set reusable strings
+        id: strings
+        run: |
+          echo "build-output-dir=$(cygpath -u '${{ github.workspace }}')/build" >> "$GITHUB_OUTPUT"
+          echo "source-dir=$(cygpath -u '${{ github.workspace }}')" >> "$GITHUB_OUTPUT"
+          which bash cmake ninja gcc g++ clang clang++
+          cat "$GITHUB_OUTPUT"
+
+      - name: Configure CMake
+        run: >
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DAICLI_BUILD_TESTS=ON
+          -G Ninja
+          -S ${{ steps.strings.outputs.source-dir }}
+
+      - name: Build
+        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+
+      - name: Test
+        run: ctest --test-dir ${{ steps.strings.outputs.build-output-dir }} --build-config ${{ matrix.build_type }} --rerun-failed --output-on-failure
