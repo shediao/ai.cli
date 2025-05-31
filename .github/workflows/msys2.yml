@@ -6,7 +6,7 @@ on:
     branches: ["main"]
 
 jobs:
-  msys2-ucrt64:
+  msys2:
     runs-on: windows-latest
     strategy:
       fail-fast: false
