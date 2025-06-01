@@ -11,14 +11,13 @@
 #include <subprocess/subprocess.hpp>
 
 #include "../args.h"
+#include "../logging.h"
 #include "../tool_calls.h"
 #include "../utils.h"
 #include "filesystem_tools_json.h"
 
 std::optional<std::string> read_file(nlohmann::json const& args) {
-  if (AiArgs::instance().debug) {
-    std::cout << "call read_file(" << args.dump() << ")\n";
-  }
+  LOG(INFO) << "call read_file(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
     std::ifstream in(path);
@@ -32,9 +31,7 @@ std::optional<std::string> read_file(nlohmann::json const& args) {
 }
 
 std::optional<std::string> read_multiple_files(nlohmann::json const& args) {
-  if (AiArgs::instance().debug) {
-    std::cout << "call read_multiple_files(" << args.dump() << ")\n";
-  }
+  LOG(INFO) << "call read_multiple_files(" << args.dump() << ")";
   if (args.is_object() && args.contains("paths") && args["paths"].is_array()) {
     std::vector<std::string> paths;
     for (auto const& p : args["paths"]) {
@@ -66,9 +63,7 @@ std::optional<std::string> read_multiple_files(nlohmann::json const& args) {
 }
 
 std::optional<std::string> write_file(nlohmann::json const& args) {
-  if (AiArgs::instance().debug) {
-    std::cout << "call write_file(" << args.dump() << ")\n";
-  }
+  LOG(INFO) << "call write_file(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string() &&
       args.contains("content") && args["content"].is_string()) {
     std::string path = args["path"].get<std::string>();
@@ -101,9 +96,7 @@ std::pair<size_t, std::string_view> find_by_lables(
 }
 
 std::optional<std::string> edit_file(nlohmann::json const& args) {
-  if (AiArgs::instance().debug) {
-    std::cout << "call edit_file(" << args.dump() << ")\n";
-  }
+  LOG(INFO) << "call edit_file(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string() &&
       args.contains("diff") && args["diff"].is_string()) {
     std::string path = args["path"].get<std::string>();
@@ -187,9 +180,7 @@ std::optional<std::string> edit_file(nlohmann::json const& args) {
 }
 
 std::optional<std::string> create_directory(nlohmann::json const& args) {
-  if (AiArgs::instance().debug) {
-    std::cout << "call create_directory(" << args.dump() << ")\n";
-  }
+  LOG(INFO) << "call create_directory(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
     std::error_code err;
@@ -204,9 +195,7 @@ std::optional<std::string> create_directory(nlohmann::json const& args) {
 }
 
 std::optional<std::string> list_directory(nlohmann::json const& args) {
-  if (AiArgs::instance().debug) {
-    std::cout << "call list_directory(" << args.dump() << ")\n";
-  }
+  LOG(INFO) << "call list_directory(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
     std::error_code err;
@@ -257,9 +246,7 @@ nlohmann::json buildTree(std::filesystem::path const& path) {
 }
 
 std::optional<std::string> directory_tree(nlohmann::json const& args) {
-  if (AiArgs::instance().debug) {
-    std::cout << "call directory_tree(" << args.dump() << ")\n";
-  }
+  LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
     std::error_code err;
@@ -273,9 +260,7 @@ std::optional<std::string> directory_tree(nlohmann::json const& args) {
 }
 
 std::optional<std::string> move_file(nlohmann::json const& args) {
-  if (AiArgs::instance().debug) {
-    std::cout << "call directory_tree(" << args.dump() << ")\n";
-  }
+  LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (args.is_object() && args.contains("source") &&
       args["source"].is_string() && args.contains("distination") &&
       args["distination"].is_string()) {

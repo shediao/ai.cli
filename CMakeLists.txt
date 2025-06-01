@@ -130,6 +130,7 @@ add_executable(
   src/main.cpp
   src/chat.cpp
   src/args.cpp
+  src/logging.cpp
   src/models.cpp
   src/openai.cpp
   src/response.cpp

@@ -246,9 +246,27 @@ argparse::Command& AiArgs::parse(int argc, char* argv[]) {
 }
 
 AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
-  parser.add_flag("d,debug", "Enable debug mode", debug).negatable();
   parser.add_option("x,proxy", "Use proxy(curl)", proxy).value_help("PROXY");
   parser.add_option("k,key", "API key", api_key).value_help("key");
+  parser
+      .add_option("log-level", "set logging level", log_level)
+#if defined(NDEBUG)
+      .default_value("4")
+#else
+      .default_value("3")
+#endif
+      .allowed({"0", "1", "2", "3", "5"})
+      .allowed_help({{"0", "DEBUG"},
+                     {"1", "INFO"},
+                     {"2", "WARNING"},
+                     {"3", "ERROR"},
+                     {"4", "FATAL"}});
+  parser.add_negative_flag("v", "decrement log level", log_level);
+  parser.add_option("enable-logging", "log output to stderr/file", log_type)
+      .default_value("stderr")
+      .allowed({"file", "stderr", "all"});
+  parser.add_option("log-file", "log file path", log_file)
+      .default_value("debug.log");
   bind_chat_args(parser, *this);
   bind_model_args(parser, *this);
 }

@@ -5,6 +5,8 @@
 #include <set>
 #include <string>
 
+#include "logging.h"
+
 struct AiArgs {
   struct ChatArgs {
     std::vector<std::string> prompts;
@@ -26,7 +28,13 @@ struct AiArgs {
   };
 
   bool help{false};
-  bool debug{false};
+#if defined(NDEBUG)
+  int log_level = ::ai::logging::LOGGING_FATAL;
+#else
+  int log_level = ::ai::logging::LOGGING_ERROR;
+#endif
+  std::string log_type{"stderr"};
+  std::string log_file;
   std::optional<std::string> proxy;
   std::string api_key;
   ChatArgs chat_args;

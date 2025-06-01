@@ -16,6 +16,7 @@
 #include "./tool_calls.h"
 #include "./tools/filesystem.h"
 #include "./utils.h"
+#include "logging.h"
 
 namespace {
 static std::map<std::string, std::string> memi_map{
@@ -90,10 +91,6 @@ class OpenAIClient::Impl {
     std::string user_prompt;
     std::vector<std::string> image_exts{".png", ".jpg", ".jpeg", ".webp",
                                         ".bmp"};
-    if (args_.debug) {
-      std::cout << "\n======(history)\n"
-                << chat_history.dump(2) << "\n======\n";
-    }
     for (auto const& prompt : user_prompts) {
       if (std::any_of(
               begin(image_exts), end(image_exts),
@@ -114,14 +111,7 @@ class OpenAIClient::Impl {
       user_prompt += prompt;
     }
 
-    if (args_.debug) {
-      if (!files.empty()) {
-        for (auto const& f : files) {
-          std::cout << "[](" << f << ")\n";
-        }
-      }
-      std::cout << "User prompt: '" << user_prompt << "'\n";
-    }
+    LOG_IF(INFO, !user_prompt.empty()) << "User prompt: " << user_prompt;
 
     auto is_image_url = [](std::string const& url) {
       if (!url.starts_with("https://") && !url.starts_with("http://")) {
@@ -236,10 +226,8 @@ class OpenAIClient::Impl {
 
     std::string url = args_.chat_args.api_url;
     std::string response_string;
-    if (args_.debug) {
-      std::cout << "URL: " << url << std::endl;
-      std::cout << "Request: " << request.dump(2) << std::endl;
-    }
+    LOG(INFO) << "URL: " << url;
+    LOG(INFO) << "Request: " << request.dump();
 
     curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl_, CURLOPT_POST, 1L);
@@ -253,18 +241,14 @@ class OpenAIClient::Impl {
     curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
 
     if (args_.proxy.has_value()) {
-      if (args_.debug) {
-        std::cout << "Proxy: " << args_.proxy.value() << std::endl;
-      }
+      LOG(INFO) << "Proxy: " << args_.proxy.value();
       curl_easy_setopt(curl_, CURLOPT_PROXY, args_.proxy.value().c_str());
     }
 
     std::string request_body = request.dump();
     curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, request_body.c_str());
 
-    std::stringstream eat;
-
-    ai::openai::StreamResponse stream_response(args_.debug ? eat : std::cout);
+    ai::openai::StreamResponse stream_response(std::cout);
 
     if (args_.chat_args.stream) {
 #if 0
@@ -325,14 +309,10 @@ class OpenAIClient::Impl {
     curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, headers);
 
     if (args_.proxy.has_value()) {
-      if (args_.debug) {
-        std::cout << "Proxy: " << args_.proxy.value() << std::endl;
-      }
+      LOG(INFO) << "Proxy: " << args_.proxy.value();
       curl_easy_setopt(curl_, CURLOPT_PROXY, args_.proxy.value().c_str());
     }
-    if (args_.debug) {
-      std::cout << "URL: " << url << std::endl;
-    }
+    LOG(INFO) << "URL: " << url;
 
     curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &response_string);
@@ -344,9 +324,7 @@ class OpenAIClient::Impl {
       throw std::runtime_error(std::string("CURL error: ") +
                                curl_easy_strerror(res));
     }
-    if (args_.debug) {
-      std::cout << "repsonse: " << response_string << std::endl;
-    }
+    LOG(INFO) << response_string;
 
     try {
       auto response_json = nlohmann::json::parse(response_string);

@@ -14,6 +14,7 @@
 #include "./clip.h"
 #include "./openai.h"
 #include "./tool_calls.h"
+#include "logging.h"
 
 int chat() {
   AiArgs const& args = AiArgs::instance();
@@ -52,34 +53,28 @@ int chat() {
         auto& content = response.value().choices().back().message.content;
         auto finish_reason = response.value().choices().back().finish_reason;
 
-        if (args.debug &&
-            !response.value().choices().back().message.tool_calls.empty()) {
-          std::cout << response.value()
-                           .choices()
-                           .back()
-                           .message.tool_calls_json()
-                           .dump(2)
-                    << '\n';
-        }
-        if (args.debug && !finish_reason.empty()) {
-          std::cout << "finish_reason: " << finish_reason << '\n';
-        }
+        LOG_IF(INFO,
+               !response.value().choices().back().message.tool_calls.empty())
+            << response.value().choices().back().message.tool_calls_json().dump(
+                   2);
 
-        if (!reasoning_content.empty()) {
-          auto merged_content =
-              "<think>\n" + reasoning_content + "\n</think>\n\n" + content;
-          save_to_clipboard(merged_content);
-          if (!args.chat_args.stream || args.debug) {
-            std::cout << merged_content << std::endl;
-          }
-        } else {
-          if (!content.empty()) {
-            save_to_clipboard(content);
-            if (!args.chat_args.stream || args.debug) {
+        LOG_IF(INFO, !finish_reason.empty())
+            << "finish_reason: " << finish_reason;
+
+        if (!args.chat_args.stream) {
+          if (!reasoning_content.empty()) {
+            auto merged_content = "<thinking>\n" + reasoning_content +
+                                  "\n</thinking>\n\n" + content;
+            save_to_clipboard(merged_content);
+            LOG(INFO) << merged_content;
+          } else {
+            if (!content.empty()) {
+              save_to_clipboard(content);
               std::cout << content << std::endl;
             }
           }
         }
+
         if (!response.value().choices().back().message.tool_calls.empty()) {
           for (auto const& tool_call :
                response.value().choices().back().message.tool_calls) {
