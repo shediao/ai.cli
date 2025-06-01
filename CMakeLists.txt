@@ -154,7 +154,7 @@ set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 # 添加头文件路径
 target_include_directories(
   ai
-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src
           ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include
           ${filesystem_tools_json_str_GENERATED_INCLUDE_DIR})
 

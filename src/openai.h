@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "./args.h"
-#include "./response.h"
+#include "args.h"
+#include "response.h"
 
 class OpenAIClient {
  public:

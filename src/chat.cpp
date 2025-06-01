@@ -1,4 +1,4 @@
-#include "./chat.h"
+#include "chat.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -10,11 +10,11 @@
 #include <string>
 #include <vector>
 
-#include "./args.h"
-#include "./clip.h"
-#include "./openai.h"
-#include "./tool_calls.h"
+#include "args.h"
+#include "clip.h"
 #include "logging.h"
+#include "openai.h"
+#include "tool_calls.h"
 
 int chat() {
   AiArgs const& args = AiArgs::instance();

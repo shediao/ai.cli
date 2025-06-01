@@ -1,4 +1,4 @@
-#include "./openai.h"
+#include "openai.h"
 
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -10,13 +10,13 @@
 #include <optional>
 #include <stdexcept>
 
-#include "./args.h"
-#include "./base64.h"
-#include "./response.h"
-#include "./tool_calls.h"
-#include "./tools/filesystem.h"
-#include "./utils.h"
+#include "args.h"
+#include "base64.h"
 #include "logging.h"
+#include "response.h"
+#include "tool_calls.h"
+#include "tools/filesystem.h"
+#include "utils.h"
 
 namespace {
 static std::map<std::string, std::string> memi_map{

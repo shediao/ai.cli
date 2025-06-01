@@ -17,8 +17,8 @@
 
 #include <subprocess/subprocess.hpp>
 
-#include "./args.h"
-#include "./utils.h"
+#include "args.h"
+#include "utils.h"
 
 TempFile::TempFile(std::string const &prefix, std::string const &postfix)
     : path_{getTempFilePath(prefix, postfix)} {}

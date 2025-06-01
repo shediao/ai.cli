@@ -1,4 +1,4 @@
-#include "./tool_calls.h"
+#include "tool_calls.h"
 
 auto& get_all_tools() {
   static std::map<std::string, std::function<std::optional<std::string>(

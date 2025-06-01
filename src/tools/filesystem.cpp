@@ -10,11 +10,11 @@
 #include <string>
 #include <subprocess/subprocess.hpp>
 
-#include "../args.h"
-#include "../logging.h"
-#include "../tool_calls.h"
-#include "../utils.h"
+#include "args.h"
 #include "filesystem_tools_json.h"
+#include "logging.h"
+#include "tool_calls.h"
+#include "utils.h"
 
 std::optional<std::string> read_file(nlohmann::json const& args) {
   LOG(INFO) << "call read_file(" << args.dump() << ")";

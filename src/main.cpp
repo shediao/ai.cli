@@ -1,11 +1,11 @@
 #include <argparse/argparse.hpp>
 #include <cstdlib>
 
-#include "./args.h"
-#include "./chat.h"
-#include "./models.h"
-#include "./tools/filesystem.h"
+#include "args.h"
+#include "chat.h"
 #include "curl/curl.h"
+#include "models.h"
+#include "tools/filesystem.h"
 
 class CurlGlobalInitGuard {
  public:

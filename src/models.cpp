@@ -1,8 +1,8 @@
 
 #include "models.h"
 
-#include "./args.h"
-#include "./openai.h"
+#include "args.h"
+#include "openai.h"
 
 int models() {
   try {
