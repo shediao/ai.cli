@@ -1,7 +1,9 @@
 
 #include "response.h"
 
+#include <memory>
 #include <nlohmann/json.hpp>
+#include <optional>
 
 namespace ai {
 namespace {
@@ -26,6 +28,39 @@ bool get_string(std::string const& key, json const& j, std::string& result) {
     return false;
   }
 }
+[[maybe_unused]]
+bool append_string(std::string const& key, json const& j, std::string& result) {
+  if (is_string(key, j)) {
+    result += j[key].get<std::string>();
+    return true;
+  } else {
+    return false;
+  }
+}
+[[maybe_unused]]
+bool get_string(std::string const& key, json const& j,
+                std::optional<std::string>& result) {
+  if (is_string(key, j)) {
+    result = j[key].get<std::string>();
+    return true;
+  } else {
+    return false;
+  }
+}
+[[maybe_unused]]
+bool append_string(std::string const& key, json const& j,
+                   std::optional<std::string>& result) {
+  if (is_string(key, j)) {
+    if (result.has_value()) {
+      result.value() += j[key].get<std::string>();
+    } else {
+      result = j[key].get<std::string>();
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
 bool get_integer(std::string const& key, json const& j, int& result) {
   if (is_integer(key, j)) {
     result = j[key].get<int>();
@@ -37,10 +72,19 @@ bool get_integer(std::string const& key, json const& j, int& result) {
 }  // namespace
 namespace openai {
 
-Response::Message::~Message() = default;
-Response::Message::Message() = default;
-Response::Message::Message(Message&&) = default;
-Response::Message& Response::Message::operator=(Message&&) = default;
+json Response::Message::tool_calls_json() const {
+  auto ret = json::array();
+  for (auto const& tool_call : tool_calls) {
+    auto t = json::object();
+    t["type"] = tool_call.type;
+    t["id"] = tool_call.id;
+    t["function"] = json::object({{"name", tool_call.function.name},
+                                  {"arguments", tool_call.function.arguments}});
+    ret.push_back(t);
+  }
+  return ret;
+}
+
 Response Response::from_string(std::string const& response_data) {
   try {
     auto j = json::parse(response_data);
@@ -80,17 +124,15 @@ Response Response::from_json(json const& response_json) {
           get_string("reasoning_content", msg_json,
                      current_choice.message.reasoning_content);
           if (is_array("tool_calls", msg_json)) {
-            current_choice.message.tool_calls_json.reset(
-                new json(msg_json["tool_calls"]));
             for (auto const& tool_call_item : msg_json["tool_calls"]) {
-              Function current_func;
-              get_string("id", tool_call_item, current_func.id);
+              ToolCall current_tool_call;
+              get_string("id", tool_call_item, current_tool_call.id);
               if (is_object("function", tool_call_item)) {
                 get_string("name", tool_call_item["function"],
-                           current_func.name);
+                           current_tool_call.function.name);
                 get_string("arguments", tool_call_item["function"],
-                           current_func.arguments);
-                current_choice.message.tool_calls.push_back(current_func);
+                           current_tool_call.function.arguments);
+                current_choice.message.tool_calls.push_back(current_tool_call);
               }
             }
           }
@@ -108,23 +150,76 @@ Response Response::from_json(json const& response_json) {
   return response;
 }
 
+Response Response::from_sse_json(const json& sse_json) {
+  Response response;
+  for (auto const& chunk : sse_json) {
+    if (auto id = chunk["id"].get<std::string>(); response.id_.empty()) {
+      response.id_ = id;
+    } else if (response.id_ != id) {
+      // TODO:
+    }
+    if (auto model = chunk["model"].get<std::string>();
+        response.model_.empty()) {
+      response.model_ = model;
+    }
+    for (auto const& delta : chunk["choices"]) {
+      size_t index = delta["index"].get<int>();
+      if (index + 1 > response.choices_.size()) {
+        response.choices_.resize(index + 1);
+        response.choices_[index].index = index;
+      }
+      auto& choice = response.choices_[index];
+      get_string("finish_reason", delta, choice.finish_reason);
+      get_string("role", delta["delta"], choice.message.role);
+
+      append_string("content", delta["delta"], choice.message.content);
+      append_string("reasoning_content", delta["delta"],
+                    choice.message.reasoning_content);
+      if (is_array("tool_calls", delta["delta"])) {
+        for (auto const& delta_tool_call : delta["delta"]["tool_calls"]) {
+          int index{-1};
+          get_integer("index", delta_tool_call, index);
+          if (index == -1) {
+            continue;
+          }
+          if (index + 1 > static_cast<int>(choice.message.tool_calls.size())) {
+            choice.message.tool_calls.resize(index + 1);
+          }
+          auto& tool_call = choice.message.tool_calls[index];
+          get_string("id", delta_tool_call, tool_call.id);
+          append_string("name", delta_tool_call["function"],
+                        tool_call.function.name);
+          append_string("arguments", delta_tool_call["function"],
+                        tool_call.function.arguments);
+        }
+      }
+    }
+    if (is_object("usage", chunk)) {
+      auto const& usage_json = chunk["usage"];
+      get_integer("prompt_tokens", usage_json, response.usage_.prompt_tokens);
+      get_integer("completion_tokens", usage_json,
+                  response.usage_.completion_tokens);
+      get_integer("total_tokens", usage_json, response.usage_.total_tokens);
+    }
+  }
+
+  return response;
+}
+
 void Response::add_to_history(json& history) {
   if (!choices_.empty()) {
     json msg = json::object();
     auto arr = json::array();
     msg["role"] = choices_[0].message.role;
     msg["content"] = choices_[0].message.content;
-    if (choices_[0].message.tool_calls_json) {
-      msg["tool_calls"] = *choices_[0].message.tool_calls_json;
+    if (!choices_[0].message.tool_calls.empty()) {
+      msg["tool_calls"] = choices_[0].message.tool_calls_json();
     }
     history.push_back(msg);
   }
 }
 
 StreamResponse::StreamResponse(std::ostream& out) : out_(out) {}
-StreamResponse::StreamResponse(StreamResponse&&) = default;
-StreamResponse& StreamResponse::operator=(StreamResponse&&) = default;
-StreamResponse::~StreamResponse() = default;
 
 size_t StreamResponse::parse(const char* ptr, size_t size, size_t nmemb,
                              StreamResponse* self) {
@@ -211,78 +306,12 @@ void StreamResponse::parse_impl() {
       // is_parse_done_ = true;
       break;
     }
-    if (!all_json_data_) {
-      all_json_data_.reset(new json(json::array()));
-    }
-    parse_line(data, *all_json_data_, out_);
+    parse_line(data, all_json_data_, out_);
   }
 }
 
 Response StreamResponse::toResponse() {
-  auto response = json::object();
-  response["choices"] = json::array();
-  response["choices"].push_back(json::object());
-  auto& choice = response["choices"].back();
-  choice["index"] = 0;
-  choice["message"] = json::object();
-  auto& message = choice["message"];
-  for (auto const& data_json : *all_json_data_) {
-    if (!is_string("id", response) && is_string("id", data_json)) {
-      response["id"] = data_json["id"];
-    }
-    if (!is_string("model", response) && is_string("model", data_json)) {
-      response["model"] = data_json["model"];
-    }
-    if (is_object("usage", data_json)) {
-      response["usage"] = data_json["usage"];
-    }
-    if (is_array("choices", data_json) && !data_json["choices"].empty()) {
-      auto const& choice_json = data_json["choices"][0];
-      if (is_object("delta", choice_json)) {
-        if (is_string("content", choice_json["delta"])) {
-          if (!is_string("content", message)) {
-            message["content"] = choice_json["delta"]["content"];
-          } else {
-            message["content"] =
-                message["content"].get<std::string>() +
-                choice_json["delta"]["content"].get<std::string>();
-          }
-        }
-        if (is_string("reasoning_content", choice_json["delta"])) {
-          if (!is_string("reasoning_content", message)) {
-            message["reasoning_content"] =
-                choice_json["delta"]["reasoning_content"];
-          } else {
-            message["reasoning_content"] =
-                message["reasoning_content"].get<std::string>() +
-                choice_json["delta"]["reasoning_content"].get<std::string>();
-          }
-        }
-
-        if (!is_string("role", message) &&
-            is_string("role", choice_json["delta"])) {
-          message["role"] = choice_json["delta"]["role"];
-        }
-      }
-      if (!is_string("finish_reason", choice) &&
-          is_string("finish_reason", choice_json)) {
-        choice["finish_reason"] = choice_json["finish_reason"];
-      }
-
-      if (is_array("tool_calls", choice_json["delta"])) {
-        if (!is_array("tool_calls", message)) {
-          message["tool_calls"] = choice_json["delta"]["tool_calls"];
-        } else {
-          auto const& delta_arguments =
-              choice_json["delta"]["tool_calls"][0]["function"]["arguments"];
-          auto& arguments = message["tool_calls"][0]["function"]["arguments"];
-          arguments =
-              arguments.get<std::string>() + delta_arguments.get<std::string>();
-        }
-      }
-    }
-  }
-  return Response::from_json(response);
+  return Response::from_sse_json(this->all_json_data_);
 }
 
 }  // namespace openai

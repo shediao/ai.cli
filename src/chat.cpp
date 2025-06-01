@@ -50,12 +50,16 @@ int chat() {
         auto& reasoning_content =
             response.value().choices().back().message.reasoning_content;
         auto& content = response.value().choices().back().message.content;
-        auto& tool_calls =
-            response.value().choices().back().message.tool_calls_json;
         auto finish_reason = response.value().choices().back().finish_reason;
 
-        if (args.debug && tool_calls) {
-          std::cout << tool_calls->dump(2) << '\n';
+        if (args.debug &&
+            !response.value().choices().back().message.tool_calls.empty()) {
+          std::cout << response.value()
+                           .choices()
+                           .back()
+                           .message.tool_calls_json()
+                           .dump(2)
+                    << '\n';
         }
         if (args.debug && !finish_reason.empty()) {
           std::cout << "finish_reason: " << finish_reason << '\n';
@@ -76,21 +80,17 @@ int chat() {
             }
           }
         }
-        if (tool_calls && tool_calls->size() > 0) {
-          for (auto const& tool : *tool_calls) {
-            if (tool.contains("function") && tool["function"].is_object()) {
-              auto function = tool["function"];
-              auto arguments = nlohmann::json::parse(
-                  function["arguments"].get<std::string>());
-              auto ret =
-                  call_tool(function["name"].get<std::string>(), arguments);
-              if (ret.has_value()) {
-                chat_history.push_back(nlohmann::json::object(
-                    {{"role", "tool"},
-                     {"tool_call_id", tool["id"].get<std::string>()},
-                     {"name", tool["function"]["name"].get<std::string>()},
-                     {"content", ret.value()}}));
-              }
+        if (!response.value().choices().back().message.tool_calls.empty()) {
+          for (auto const& tool_call :
+               response.value().choices().back().message.tool_calls) {
+            auto ret = call_tool(tool_call.function.name,
+                                 json::parse(tool_call.function.arguments));
+            if (ret.has_value()) {
+              chat_history.push_back(
+                  nlohmann::json::object({{"role", "tool"},
+                                          {"tool_call_id", tool_call.id},
+                                          {"name", tool_call.function.name},
+                                          {"content", ret.value()}}));
             }
           }
         }

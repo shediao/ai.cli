@@ -288,12 +288,6 @@ class OpenAIClient::Impl {
                                curl_easy_strerror(res));
     }
 
-    if (args_.chat_args.stream) {
-      std::cout << "response: " << "\n";
-    } else {
-      std::cout << "response: " << response_string << "\n";
-    }
-
     auto response = args_.chat_args.stream
                         ? stream_response.toResponse()
                         : ai::openai::Response::from_string(response_string);
@@ -303,7 +297,7 @@ class OpenAIClient::Impl {
       auto message = json::object();
       message["role"] = choice.message.role;
       if (choice.finish_reason == "tool_calls") {
-        message["tool_calls"] = *choice.message.tool_calls_json;
+        message["tool_calls"] = choice.message.tool_calls_json();
         chat_history.push_back(message);
       } else {
         if (!choice.message.content.empty()) {

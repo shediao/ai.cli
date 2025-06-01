@@ -39,7 +39,7 @@ TEST(AiCliTest, Response1) {
             "你好，李雷！1+1等于2。如果你有其他问题，请随时提问！");
   ASSERT_EQ(choice.message.role, "assistant");
   ASSERT_TRUE(choice.message.tool_calls.empty());
-  ASSERT_FALSE(choice.message.tool_calls_json);
+  ASSERT_TRUE(choice.message.tool_calls.empty());
 }
 
 TEST(AiCliTest, Response2) {
@@ -83,13 +83,14 @@ TEST(AiCliTest, Response2) {
   ASSERT_EQ(choice.message.content, "");
   ASSERT_EQ(choice.message.role, "assistant");
   ASSERT_EQ(choice.message.tool_calls.size(), 1);
-  ASSERT_TRUE(choice.message.tool_calls_json);
+  ASSERT_FALSE(choice.message.tool_calls.empty());
   auto tool_call = choice.message.tool_calls[0];
-  ASSERT_EQ(tool_call.name, "search");
+  ASSERT_EQ(tool_call.function.name, "search");
   ASSERT_EQ(tool_call.id, "search:0");
-  ASSERT_EQ(tool_call.arguments, "{\n    \"query\": \"Context Caching\"\n}");
+  ASSERT_EQ(tool_call.function.arguments,
+            "{\n    \"query\": \"Context Caching\"\n}");
 
-  auto& j = *choice.message.tool_calls_json;
+  auto j = choice.message.tool_calls_json();
   ASSERT_TRUE(j.is_array());
   ASSERT_EQ(j.size(), 1);
   ASSERT_EQ(j[0]["id"].get<std::string>(), "search:0");

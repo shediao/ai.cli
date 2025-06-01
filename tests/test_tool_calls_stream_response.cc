@@ -5,7 +5,6 @@
 #include <string_view>
 
 #include "response.h"
-
 constexpr std::string_view response1 =
     R"(data: {"id":"f437f4d1-cf3a-4292-b255-ef88b01ca03f","object":"chat.completion.chunk","created":1748648834,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}]}
 
@@ -154,10 +153,10 @@ TEST(ToolCallsStreamResponse, Test1) {
   ASSERT_EQ(non_stream_response.usage().total_tokens, 1737);
 
   ASSERT_EQ(ss.str(), "");
-  ASSERT_TRUE(non_stream_response.choices().back().message.tool_calls_json);
+  ASSERT_FALSE(non_stream_response.choices().back().message.tool_calls.empty());
   ASSERT_EQ(
-      non_stream_response.choices().back().message.tool_calls_json->dump(),
-      R"==([{"function":{"arguments":"{\"path\":\"./test.txt\"}","name":"read_file"},"id":"call_0_00213ae3-c4bc-4497-8f41-52bf4f76c3b9","index":0,"type":"function"}])==");
+      non_stream_response.choices().back().message.tool_calls_json().dump(),
+      R"==([{"function":{"arguments":"{\"path\":\"./test.txt\"}","name":"read_file"},"id":"call_0_00213ae3-c4bc-4497-8f41-52bf4f76c3b9","type":"function"}])==");
 }
 
 TEST(ToolCallsStreamResponse, Test2) {
@@ -205,7 +204,6 @@ TEST(ToolCallsStreamResponse, Test3) {
           "name": "read_file"
         },
         "id": "call_0_00213ae3-c4bc-4497-8f41-52bf4f76c3b9",
-        "index": 0,
         "type": "function"
       }
     ]
@@ -226,7 +224,6 @@ TEST(ToolCallsStreamResponse, Test3) {
           "name": "read_file"
         },
         "id": "call_0_00213ae3-c4bc-4497-8f41-52bf4f76c3b9",
-        "index": 0,
         "type": "function"
       }
     ]
