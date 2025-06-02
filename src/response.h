@@ -187,6 +187,7 @@ class StreamResponse {
   static size_t parse(const char* ptr, size_t size, size_t nmemb,
                       StreamResponse*);
   Response toResponse();
+  std::string_view raw_string();
 
  private:
   json all_json_data_{json::array()};

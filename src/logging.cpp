@@ -186,6 +186,10 @@ void LogMessage::Flush() {
 #endif
     }
   }
+
+  if (severity_ >= LOGGING_FATAL) {
+    std::exit(1);
+  }
 }
 bool ShouldCreateLogMessage(LogSeverity severity) {
   return severity >= AiArgs::instance().log_level;

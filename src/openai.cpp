@@ -263,15 +263,29 @@ class OpenAIClient::Impl {
       curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
       curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &response_string);
     }
+    curl_easy_setopt(curl_, CURLOPT_FOLLOWLOCATION, 1L);
 
     CURLcode res = curl_easy_perform(curl_);
     curl_slist_free_all(headers);
 
     if (res != CURLE_OK) {
-      throw std::runtime_error(std::string("CURL error: ") +
-                               curl_easy_strerror(res));
+      LOG(ERROR) << curl_easy_strerror(res);
+      throw std::runtime_error(curl_easy_strerror(res));
     }
 
+    long http_code = 0;
+    curl_easy_getinfo(curl_, CURLINFO_RESPONSE_CODE, &http_code);
+    LOG_IF(ERROR, http_code >= 400)
+        << "HTTP request failed with code " << http_code;
+
+    LOG_IF(FATAL, http_code >= 400 && !args_.chat_args.stream)
+        << response_string;
+    LOG_IF(FATAL, http_code >= 400 && args_.chat_args.stream)
+        << stream_response.raw_string();
+
+    LOG_IF(INFO, !args_.chat_args.stream) << "Response:" << response_string;
+    LOG_IF(INFO, args_.chat_args.stream)
+        << "Response:" << stream_response.raw_string();
     auto response = args_.chat_args.stream
                         ? stream_response.toResponse()
                         : ai::openai::Response::from_string(response_string);
@@ -280,15 +294,13 @@ class OpenAIClient::Impl {
       auto& choice = response.choices().front();
       auto message = json::object();
       message["role"] = choice.message.role;
+      if (!choice.message.content.empty()) {
+        message["content"] = choice.message.content;
+      }
       if (choice.finish_reason == "tool_calls") {
         message["tool_calls"] = choice.message.tool_calls_json();
-        chat_history.push_back(message);
-      } else {
-        if (!choice.message.content.empty()) {
-          message["content"] = choice.message.content;
-          chat_history.push_back(message);
-        }
       }
+      chat_history.push_back(message);
     }
 
     return response;

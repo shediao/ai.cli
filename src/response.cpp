@@ -314,5 +314,9 @@ Response StreamResponse::toResponse() {
   return Response::from_sse_json(this->all_json_data_);
 }
 
+std::string_view StreamResponse::raw_string() {
+  return {response_data_.data(), response_data_.size()};
+}
+
 }  // namespace openai
 }  // namespace ai
