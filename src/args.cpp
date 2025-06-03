@@ -143,10 +143,15 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
   chat.add_flag("C", "continue with last history",
                 chat_args.continue_with_last_history);
 
-  chat.add_option("m,model", "Model to use", chat_args.model);
+  chat.add_option("m,model", "Model to use", chat_args.model)
+      .checker([](const std::string& model) { return !model.empty(); },
+               "model is non empty string");
   chat.add_option("s,system-prompt", "System prompt", chat_args.system_prompt);
-  chat.add_option("t,temperature", "Model temperature", chat_args.temperature);
-  chat.add_option("top-p", "Model top-p parameter", chat_args.top_p);
+  chat.add_option("t,temperature", "Model temperature[0.0~2.0",
+                  chat_args.temperature)
+      .range(0.0, 2.0);
+  chat.add_option("top-p", "Model top-p parameter [0.0~1.0]", chat_args.top_p)
+      .range(0.0, 1.0);
   chat.add_option("u,url", "OpenAI API Compatible URL", chat_args.api_url)
       .hidden();
   chat.add_option("base-url",
@@ -168,7 +173,11 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       .choices({"low", "medium", "high", "none"});
 
   chat.add_option("tools", "tools call", chat_args.tools)
-      .allowed({"filesystem"});
+      .choices({"filesystem"});
+  chat.add_option("tool-choice",
+                  "tool choice(none: if no tools, auto: if has tools)",
+                  chat_args.tool_choice)
+      .choices({"none", "auto", "required"});
 
   add_alias_options(chat);
 
@@ -255,16 +264,16 @@ AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
 #else
       .default_value("3")
 #endif
-      .allowed({"0", "1", "2", "3", "5"})
-      .allowed_help({{"0", "DEBUG"},
-                     {"1", "INFO"},
-                     {"2", "WARNING"},
-                     {"3", "ERROR"},
-                     {"4", "FATAL"}});
+      .choices({0, 1, 2, 3, 4})
+      .choices_description({{"0", "DEBUG"},
+                            {"1", "INFO"},
+                            {"2", "WARNING"},
+                            {"3", "ERROR"},
+                            {"4", "FATAL"}});
   parser.add_negative_flag("v", "decrement log level", log_level);
   parser.add_option("enable-logging", "log output to stderr/file", log_type)
       .default_value("stderr")
-      .allowed({"file", "stderr", "all"});
+      .choices({"file", "stderr", "all"});
   parser.add_option("log-file", "log file path", log_file)
       .default_value("debug.log");
   bind_chat_args(parser, *this);

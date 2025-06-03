@@ -73,6 +73,10 @@ int chat() {
               std::cout << content << std::endl;
             }
           }
+        } else {
+          if (!content.empty()) {
+            save_to_clipboard(content);
+          }
         }
 
         if (!response.value().choices().back().message.tool_calls.empty()) {

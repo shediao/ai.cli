@@ -58,7 +58,7 @@ include(FetchContent)
 FetchContent_Declare(
   argparse
   GIT_REPOSITORY https://github.com/shediao/argparse.hpp
-  GIT_TAG v0.0.6)
+  GIT_TAG v0.0.8)
 FetchContent_MakeAvailable(argparse)
 
 # 添加base64用于嵌入文件

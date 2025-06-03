@@ -24,13 +24,13 @@ inline constexpr LogSeverity LOGGING_ERROR = 3;
 inline constexpr LogSeverity LOGGING_FATAL = 4;
 inline constexpr LogSeverity LOGGING_NUM_SEVERITIES = 5;
 
-using LoggingDestination = uint32_t;
+using LoggingDestination = unsigned int;
 // Specifies where logs will be written. Multiple destinations can be specified
 // with bitwise OR.
 // Unless destination is LOG_NONE, all logs with severity ERROR and above will
 // be written to stderr in addition to the specified destination.
 // LOG_TO_FILE includes logging to externally-provided file handles.
-enum : uint32_t {
+enum : unsigned int {
   LOG_NONE = 0,
   LOG_TO_FILE = 1 << 0,
   LOG_TO_STDERR = 1 << 1,

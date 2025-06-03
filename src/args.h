@@ -13,13 +13,15 @@ struct AiArgs {
     std::string model;
     std::string api_url;
     std::optional<std::string> system_prompt;
-    std::optional<int> max_tokens;
+    std::optional<unsigned int> max_tokens;
+    std::optional<unsigned int> n;
     std::optional<double> temperature;
     std::optional<double> top_p;
     std::optional<std::string> reasoning_effort;
     bool stream{false};
     bool stream_include_usage{false};
     std::set<std::string> tools;
+    std::optional<std::string> tool_choice;
     bool continue_with_last_history{false};
   };
 
