@@ -48,6 +48,33 @@ using NativeHandle = int;
 constexpr NativeHandle INVALID_NATIVE_HANDLE_VALUE = -1;
 #endif  // !_WIN32
 
+inline std::string get_last_error_msg() {
+#if defined(_WIN32)
+  DWORD error = GetLastError();
+  LPVOID errorMsg{NULL};
+  std::stringstream out;
+  out << "Error: " << error;
+  FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+                     FORMAT_MESSAGE_IGNORE_INSERTS,
+                 NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                 (LPSTR)&errorMsg, 0, NULL);
+  if (errorMsg) {
+    out << ": " << (char*)errorMsg;
+    LocalFree(errorMsg);
+  }
+  return out.str();
+#else   // _WIN32
+  int error = errno;
+  auto* err_msg = strerror(error);
+  if (err_msg) {
+    return std::string(err_msg);
+  } else {
+    return "Unknown error or strerror failed, error code: " +
+           std::to_string(errno);
+  }
+#endif  // !_WIN32
+}
+
 inline void WriteToNativeHandle(NativeHandle fd, char* data, size_t len) {
   std::string_view write_view{data, data + len};
   while (!write_view.empty()) {
@@ -84,7 +111,7 @@ void CloseNativeHandle(NativeHandle& handle) {
 }
 NativeHandle OpenNativeFile(std::string const& path) {
 #if defined(_WIN32)
-  return CreateFileA(path_.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr,
+  return CreateFileA(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ, nullptr,
                      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 #else
   return open(path.c_str(), (O_WRONLY | O_CREAT | O_APPEND), 0644);
