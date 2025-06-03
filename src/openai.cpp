@@ -4,6 +4,7 @@
 #include <curl/easy.h>
 
 #include <algorithm>
+#include <ios>
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -251,6 +252,7 @@ class OpenAIClient::Impl {
     ai::openai::StreamResponse stream_response(std::cout);
 
     if (args_.chat_args.stream) {
+      std::cout << std::unitbuf;
 #if 0
             curl_easy_setopt(curl_, CURLOPT_BUFFERSIZE, 0L);
             curl_easy_setopt(curl_, CURLOPT_FRESH_CONNECT, 1L);
@@ -267,6 +269,9 @@ class OpenAIClient::Impl {
 
     CURLcode res = curl_easy_perform(curl_);
     curl_slist_free_all(headers);
+    if (args_.chat_args.stream) {
+      std::cout << std::nounitbuf;
+    }
 
     if (res != CURLE_OK) {
       LOG(ERROR) << curl_easy_strerror(res);
