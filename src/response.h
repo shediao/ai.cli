@@ -164,7 +164,7 @@ class Response {
   ~Response() = default;
   static Response from_string(std::string const& response_data);
   static Response from_json(json const& response_json);
-  static Response from_sse_json(json const& sse_json);
+  static Response from_sse_json(const std::vector<json>& sse_json);
   inline std::vector<Choice> const& choices() const { return choices_; }
   inline Usage const& usage() const { return usage_; }
   inline std::string const& id() { return id_; }
@@ -190,7 +190,7 @@ class StreamResponse {
   std::string_view raw_string();
 
  private:
-  json all_json_data_{json::array()};
+  std::vector<json> all_json_data_;
   void parse_impl();
   std::vector<char> response_data_;
   std::size_t parse_index_{0};

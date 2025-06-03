@@ -150,7 +150,7 @@ Response Response::from_json(json const& response_json) {
   return response;
 }
 
-Response Response::from_sse_json(const json& sse_json) {
+Response Response::from_sse_json(const std::vector<json>& sse_json) {
   Response response;
   for (auto const& chunk : sse_json) {
     if (auto id = chunk["id"].get<std::string>(); response.id_.empty()) {
@@ -249,7 +249,8 @@ static std::optional<std::string> getLine(std::vector<char>& data,
   return ret;
 }
 
-static void parse_line(std::string const& data, json& all, std::ostream& out) {
+static void parse_line(std::string const& data, std::vector<json>& all,
+                       std::ostream& out) {
   try {
     nlohmann::json const data_json = nlohmann::json::parse(data);
     if (is_array("choices", data_json) && !data_json["choices"].empty()) {
@@ -273,7 +274,7 @@ static void parse_line(std::string const& data, json& all, std::ostream& out) {
           out << constent_str;
         }
       }
-      all.push_back(data_json);
+      all.push_back(std::move(data_json));
     }
   } catch (json::parse_error const& e) {
     throw std::runtime_error(std::string("JSON parsing error: ") + e.what() +
