@@ -6,6 +6,7 @@
 #include <Windows.h>
 #else
 #include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
 #endif
 
@@ -93,7 +94,7 @@ inline void WriteToNativeHandle(NativeHandle fd, char* data, size_t len) {
       write_view.remove_prefix(static_cast<size_t>(write_count));
     }
     if (write_count == -1) {
-      throw std::runtime_error("write error: " + std::to_string(errno));
+      throw std::runtime_error("write error: " + get_last_error_msg());
     }
 #endif
   }
