@@ -38,18 +38,18 @@ enum : unsigned int {
   LOG_TO_ALL = LOG_TO_FILE | LOG_TO_STDERR,
 };
 
-#define LOG_STREAM(severity)                                   \
-  ::ai::logging::LogMessage(__FILE__, __LINE__,                \
-                            ::ai::logging::LOGGING_##severity) \
-      .stream()
+#define LOG_STREAM(severity) \
+  ::ai::logging::LogMessage(__FILE__, __LINE__, severity).stream()
 #define LAZY_STREAM(stream, condition) \
   !(condition) ? (void)0 : ::ai::logging::LogMessageVoidify() & (stream)
-#define LOG_IS_ON(severity) \
-  (::ai::logging::ShouldCreateLogMessage(::ai::logging::LOGGING_##severity))
+#define LOG_IS_ON(severity) (::ai::logging::ShouldCreateLogMessage(severity))
 
-#define LOG(severity) LAZY_STREAM(LOG_STREAM(severity), LOG_IS_ON(severity))
-#define LOG_IF(severity, condition) \
-  LAZY_STREAM(LOG_STREAM(severity), LOG_IS_ON(severity) && (condition))
+#define LOG(severity)                                        \
+  LAZY_STREAM(LOG_STREAM(::ai::logging::LOGGING_##severity), \
+              LOG_IS_ON(::ai::logging::LOGGING_##severity))
+#define LOG_IF(severity, condition)                          \
+  LAZY_STREAM(LOG_STREAM(::ai::logging::LOGGING_##severity), \
+              LOG_IS_ON(::ai::logging::LOGGING_##severity) && (condition))
 
 class LogMessageVoidify {
  public:
