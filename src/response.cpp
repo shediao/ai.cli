@@ -176,12 +176,9 @@ Response Response::from_sse_json(const std::vector<json>& sse_json) {
       append_string("reasoning_content", delta["delta"],
                     choice.message.reasoning_content);
       if (is_array("tool_calls", delta["delta"])) {
+        int index{0};
         for (auto const& delta_tool_call : delta["delta"]["tool_calls"]) {
-          int index{-1};
           get_integer("index", delta_tool_call, index);
-          if (index == -1) {
-            continue;
-          }
           if (index + 1 > static_cast<int>(choice.message.tool_calls.size())) {
             choice.message.tool_calls.resize(index + 1);
           }
@@ -191,6 +188,7 @@ Response Response::from_sse_json(const std::vector<json>& sse_json) {
                         tool_call.function.name);
           append_string("arguments", delta_tool_call["function"],
                         tool_call.function.arguments);
+          index++;
         }
       }
     }

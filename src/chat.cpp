@@ -48,6 +48,7 @@ int chat() {
         if (!response.has_value()) {
           return 1;
         }
+
         auto& reasoning_content =
             response.value().choices().back().message.reasoning_content;
         auto& content = response.value().choices().back().message.content;
@@ -113,7 +114,7 @@ int chat() {
         user_prompt.clear();
       }
     } catch (const std::exception& e) {
-      std::cerr << "Error: " << e.what() << std::endl;
+      LOG(ERROR) << e.what();
       return 1;
     }
 
