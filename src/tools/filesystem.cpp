@@ -117,7 +117,7 @@ std::optional<std::string> edit_file(nlohmann::json const& args) {
       auto [replace_lable_pos, replace_lable] =
           find_by_lables(diff, search_lable_pos, replace_lables);
       if (replace_lable_pos == std::string::npos) {
-        std::cerr << "not found lable: '>>>>>>> REPLACE'" << '\n';
+        LOG(ERROR) << "not found lable: '>>>>>>> REPLACE'";
         return "User cancel edit file: " + path;
         break;
       }
@@ -125,7 +125,7 @@ std::optional<std::string> edit_file(nlohmann::json const& args) {
           find_by_lables(diff, search_lable_pos, split_lables);
       if (split_lable_pos == std::string::npos ||
           split_lable_pos > replace_lable_pos) {
-        std::cerr << "not found lable: '======='" << '\n';
+        LOG(ERROR) << "not found lable: '======='";
         return "User cancel edit file: " + path;
         break;
       }
@@ -140,6 +140,8 @@ std::optional<std::string> edit_file(nlohmann::json const& args) {
 
       if (search_pos != std::string::npos) {
         file_content.replace(search_pos, search.size(), replace);
+      } else {
+        LOG(ERROR) << "Not Found: " << search;
       }
       auto [search_lable_pos2, search_lable2] =
           find_by_lables(diff, replace_lable_pos, search_lables);

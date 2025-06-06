@@ -82,14 +82,28 @@ int chat() {
         if (!response.value().choices().back().message.tool_calls.empty()) {
           for (auto const& tool_call :
                response.value().choices().back().message.tool_calls) {
-            auto ret = call_tool(tool_call.function.name,
-                                 json::parse(tool_call.function.arguments));
-            if (ret.has_value()) {
-              chat_history.push_back(
-                  nlohmann::json::object({{"role", "tool"},
-                                          {"tool_call_id", tool_call.id},
-                                          {"name", tool_call.function.name},
-                                          {"content", ret.value()}}));
+            try {
+              auto function = tool_call.function.name;
+              auto arguments = json::parse(tool_call.function.arguments);
+              std::cout << "\n========";
+              std::cout << "\nname: " << function;
+              std::cout << "\narguments: \n" << arguments.dump(2);
+              std::cout << "\n========\n";
+              auto ret = call_tool(function, arguments);
+              if (ret.has_value()) {
+                chat_history.push_back(
+                    nlohmann::json::object({{"role", "tool"},
+                                            {"tool_call_id", tool_call.id},
+                                            {"name", function},
+                                            {"content", ret.value()}}));
+              }
+            } catch (json::parse_error const& e) {
+              LOG(ERROR) << tool_call.function.name << "("
+                         << tool_call.function.arguments << ")" << e.what();
+            } catch (std::exception const& e) {
+              LOG(ERROR) << tool_call.function.name << "("
+                         << tool_call.function.arguments << ")" << e.what();
+              LOG(ERROR) << e.what();
             }
           }
         }
