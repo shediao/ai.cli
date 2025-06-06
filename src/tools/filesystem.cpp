@@ -16,7 +16,7 @@
 #include "tool_calls.h"
 #include "utils.h"
 
-std::optional<std::string> read_file(nlohmann::json const& args) {
+std::string read_file(nlohmann::json const& args) {
   LOG(INFO) << "call read_file(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
@@ -24,13 +24,18 @@ std::optional<std::string> read_file(nlohmann::json const& args) {
     if (in.is_open()) {
       std::string content{std::istreambuf_iterator<char>(in),
                           std::istreambuf_iterator<char>()};
-      return content;
+      if (!content.empty()) {
+        return content;
+      } else {
+        return path + " is empty.";
+      }
     }
+    return path + " is not exists.";
   }
-  return std::nullopt;
+  return "tool_calls read_file arguments is invalid.";
 }
 
-std::optional<std::string> read_multiple_files(nlohmann::json const& args) {
+std::string read_multiple_files(nlohmann::json const& args) {
   LOG(INFO) << "call read_multiple_files(" << args.dump() << ")";
   if (args.is_object() && args.contains("paths") && args["paths"].is_array()) {
     std::vector<std::string> paths;
@@ -45,24 +50,22 @@ std::optional<std::string> read_multiple_files(nlohmann::json const& args) {
       if (in.is_open()) {
         std::string file_content{std::istreambuf_iterator<char>(in),
                                  std::istreambuf_iterator<char>()};
+        contents += "\n------\n";
         if (!contents.empty()) {
-          contents += "\n------\n";
+          contents += path;
+          contents += "\n";
+          contents += file_content;
+        } else {
+          contents += path + " is empty.";
         }
-        contents += path;
-        contents += "\n";
-        contents += file_content;
       }
     }
-    if (contents.empty()) {
-      return std::nullopt;
-    } else {
-      return contents;
-    }
+    return contents;
   }
-  return std::nullopt;
+  return "tool_calls read_multiple_files arguments is invalid.";
 }
 
-std::optional<std::string> write_file(nlohmann::json const& args) {
+std::string write_file(nlohmann::json const& args) {
   LOG(INFO) << "call write_file(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string() &&
       args.contains("content") && args["content"].is_string()) {
@@ -75,7 +78,7 @@ std::optional<std::string> write_file(nlohmann::json const& args) {
     }
     return "Successfully wrote to " + path;
   }
-  return std::nullopt;
+  return "tool_calls write_file arguments is invalid.";
 }
 
 std::pair<size_t, std::string_view> find_by_lables(
@@ -95,7 +98,7 @@ std::pair<size_t, std::string_view> find_by_lables(
   return {search_lable_pos, lable};
 }
 
-std::optional<std::string> edit_file(nlohmann::json const& args) {
+std::string edit_file(nlohmann::json const& args) {
   LOG(INFO) << "call edit_file(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string() &&
       args.contains("diff") && args["diff"].is_string()) {
@@ -178,10 +181,10 @@ std::optional<std::string> edit_file(nlohmann::json const& args) {
       return std::string{begin(diff_str), end(diff_str)};
     }
   }
-  return std::nullopt;
+  return "tool_calls edit_file arguments is invalid.";
 }
 
-std::optional<std::string> create_directory(nlohmann::json const& args) {
+std::string create_directory(nlohmann::json const& args) {
   LOG(INFO) << "call create_directory(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
@@ -193,10 +196,10 @@ std::optional<std::string> create_directory(nlohmann::json const& args) {
       return "Successfully created directory " + path;
     }
   }
-  return std::nullopt;
+  return "tool_calls create_directory arguments is invalid.";
 }
 
-std::optional<std::string> list_directory(nlohmann::json const& args) {
+std::string list_directory(nlohmann::json const& args) {
   LOG(INFO) << "call list_directory(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
@@ -215,7 +218,7 @@ std::optional<std::string> list_directory(nlohmann::json const& args) {
     }
     return ret;
   }
-  return std::nullopt;
+  return "tool_calls list_directory arguments is invalid.";
 }
 
 nlohmann::json buildTree(std::filesystem::path const& path) {
@@ -247,7 +250,7 @@ nlohmann::json buildTree(std::filesystem::path const& path) {
   }
 }
 
-std::optional<std::string> directory_tree(nlohmann::json const& args) {
+std::string directory_tree(nlohmann::json const& args) {
   LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
@@ -258,10 +261,10 @@ std::optional<std::string> directory_tree(nlohmann::json const& args) {
     }
     return buildTree(path).dump(2);
   }
-  return std::nullopt;
+  return "tool_calls directory_tree arguments is invalid.";
 }
 
-std::optional<std::string> move_file(nlohmann::json const& args) {
+std::string move_file(nlohmann::json const& args) {
   LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (args.is_object() && args.contains("source") &&
       args["source"].is_string() && args.contains("distination") &&
@@ -277,7 +280,7 @@ std::optional<std::string> move_file(nlohmann::json const& args) {
       return "Successfully moved " + source + " to " + distination;
     }
   }
-  return std::nullopt;
+  return "tool_calls move_file arguments is invalid.";
 }
 
 const std::string_view get_filesystem_tools() {

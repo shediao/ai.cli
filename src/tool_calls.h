@@ -10,8 +10,7 @@
 std::optional<std::string> call_tool(std::string const& name,
                                      nlohmann::json const& args);
 
-bool regist_tool_calls(
-    std::string const& name,
-    std::function<std::optional<std::string>(nlohmann::json const& args)>);
+bool regist_tool_calls(std::string const& name,
+                       std::function<std::string(nlohmann::json const& args)>);
 
 #endif  // __AI_CLI_TOOLS_CALL_H__

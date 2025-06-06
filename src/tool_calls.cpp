@@ -1,8 +1,8 @@
 #include "tool_calls.h"
 
 auto& get_all_tools() {
-  static std::map<std::string, std::function<std::optional<std::string>(
-                                   nlohmann::json const& args)>>
+  static std::map<std::string,
+                  std::function<std::string(nlohmann::json const& args)>>
       tools;
   return tools;
 }
@@ -18,8 +18,7 @@ std::optional<std::string> call_tool(std::string const& name,
 
 bool regist_tool_calls(
     std::string const& name,
-    std::function<std::optional<std::string>(nlohmann::json const& args)>
-        func) {
+    std::function<std::string(nlohmann::json const& args)> func) {
   auto ret = get_all_tools().insert_or_assign(name, std::move(func));
   return ret.second;
 }
