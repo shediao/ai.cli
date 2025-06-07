@@ -80,6 +80,11 @@ int chat() {
           }
         }
 
+        if (response.value().choices().back().message.tool_calls.empty() &&
+            finish_reason != "tool_calls") {
+          LOG(FATAL) << "not found tool_calls";
+        }
+
         if (!response.value().choices().back().message.tool_calls.empty()) {
           for (auto const& tool_call :
                response.value().choices().back().message.tool_calls) {

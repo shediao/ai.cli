@@ -58,7 +58,7 @@ include(FetchContent)
 FetchContent_Declare(
   argparse
   GIT_REPOSITORY https://github.com/shediao/argparse.hpp
-  GIT_TAG v0.0.8)
+  GIT_TAG v0.0.9)
 FetchContent_MakeAvailable(argparse)
 
 # 添加base64用于嵌入文件
@@ -71,7 +71,7 @@ FetchContent_MakeAvailable(base64)
 FetchContent_Declare(
   subprocess
   GIT_REPOSITORY https://github.com/shediao/subprocess.hpp
-  GIT_TAG v0.0.2)
+  GIT_TAG v0.0.3)
 FetchContent_MakeAvailable(subprocess)
 
 # 添加libcurl用于HTTP请求
