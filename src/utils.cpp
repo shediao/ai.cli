@@ -15,6 +15,7 @@
 #include <unistd.h>  // For access
 #endif
 
+#include <environment/environment.hpp>
 #include <subprocess/subprocess.hpp>
 
 #include "args.h"
@@ -61,9 +62,9 @@ std::string getTempFilePath(std::string const &prefix,
 
 #else
   std::string temp_dir = []() -> std::string {
-    char *tmpdir = getenv("TMPDIR");
-    if (tmpdir != nullptr) {
-      return std::string(tmpdir);
+    auto tmpdir = environment::getenv("TMPDIR");
+    if (tmpdir.has_value()) {
+      return tmpdir.value();
     } else {
       return "/tmp";
     }
@@ -106,8 +107,8 @@ std::string getUserInputViaEditor() {
     editor = "notepad.exe";  // Default to Notepad
   }
 #else
-  if (const char *env_editor = std::getenv("EDITOR")) {
-    editor = env_editor;
+  if (auto env_editor = environment::getenv("EDITOR"); env_editor.has_value()) {
+    editor = env_editor.value();
   } else {
     // Try some common Linux/macOS editors
     if (access("/usr/bin/nano", X_OK) == 0) {

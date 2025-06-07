@@ -74,6 +74,12 @@ FetchContent_Declare(
   GIT_TAG v0.0.3)
 FetchContent_MakeAvailable(subprocess)
 
+FetchContent_Declare(
+  environment
+  GIT_REPOSITORY https://github.com/shediao/environment.hpp
+  GIT_TAG v0.0.1)
+FetchContent_MakeAvailable(environment)
+
 # 添加libcurl用于HTTP请求
 find_package(CURL REQUIRED)
 
@@ -159,8 +165,9 @@ target_include_directories(
           ${filesystem_tools_json_str_GENERATED_INCLUDE_DIR})
 
 # 链接依赖库
-target_link_libraries(ai PRIVATE argparse::argparse base64::base64
-                                 subprocess::subprocess CURL::libcurl)
+target_link_libraries(
+  ai PRIVATE argparse::argparse base64::base64 subprocess::subprocess
+             environment::environment CURL::libcurl)
 
 if(APPLE)
   target_link_libraries(ai PRIVATE "-framework AppKit")

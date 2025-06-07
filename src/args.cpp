@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <argparse/argparse.hpp>
 #include <cstdlib>
+#include <environment/environment.hpp>
 #include <fstream>
 
 #if defined(_WIN32) || defined(_Win64)
@@ -35,8 +36,8 @@ static std::optional<std::string> getProxyFromEnvironment(
                            return url.find(entry.first) != std::string::npos;
                          });
   if (it != url_proxy.end()) {
-    if (auto* env = std::getenv(it->second.c_str())) {
-      return env;
+    if (auto env = environment::getenv(it->second.c_str()); env.has_value()) {
+      return env.value();
     }
   }
   return std::nullopt;
@@ -55,8 +56,8 @@ static std::optional<std::string> getApiKeyFromEnvironment(
         return url.find(entry.first) != std::string::npos;
       });
   if (it != url_key.end()) {
-    if (auto* env = std::getenv(it->second.c_str())) {
-      return env;
+    if (auto env = environment::getenv(it->second.c_str()); env.has_value()) {
+      return env.value();
     }
   }
   return std::nullopt;
