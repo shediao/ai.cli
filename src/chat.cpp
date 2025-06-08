@@ -27,7 +27,7 @@ int chat() {
       if (!exists(p.parent_path())) {
         std::filesystem::create_directory(p.parent_path());
       }
-      write_to_history(chat_history, history_file);
+      write_to_history(chat_history, history_file.string());
     });
     if (chat_args.continue_with_last_history) {
       auto last_history = get_last_history(history_file);
