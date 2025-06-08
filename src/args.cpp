@@ -210,6 +210,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     if (chat_args.prompts.empty() && stdin_is_atty()) {
       try {
         if (auto prompt = getUserInputViaEditor(); !prompt.empty()) {
+          std::cout << prompt;
           chat_args.prompts.push_back(prompt);
         }
       } catch (...) {

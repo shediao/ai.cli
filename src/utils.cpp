@@ -16,6 +16,7 @@
 #endif
 
 #include <environment/environment.hpp>
+#include <nlohmann/json.hpp>
 #include <subprocess/subprocess.hpp>
 
 #include "args.h"
@@ -412,4 +413,92 @@ std::string getMEMI(std::string const &url) {
   curl_easy_cleanup(curl);
 
   return content_type;
+}
+
+std::string app_data_dir(const std::string &app,
+                         [[maybe_unused]] const std::string &author) {
+#if defined(_WIN32)
+  auto home_drive = environment::getenv("HOMEDRIVE");
+  auto home_path = environment::getenv("HOMEPATH");
+  if (home_drive.has_value() && home_path.has_value()) {
+    return home_drive.value() + home_path.value() + R"(\AppData\Local\)" +
+           (author.empty() ? "Shediao\\" : author + "\\") + app;
+  }
+#elif defined(__APPLE__)
+  auto home_dir = environment::getenv("HOME");
+  if (home_dir.has_value()) {
+    return home_dir.value() + "/Library/Application Support/" + app;
+  }
+#else
+  auto home_dir = environment::getenv("HOME");
+  if (home_dir.has_value()) {
+    return home_dir.value() + "/.local/share/" + app;
+  }
+#endif
+  return std::filesystem::current_path().string();
+}
+
+void write_to_history(nlohmann::json const &chat_history,
+                      std::string const &history_file) {
+  if (!chat_history.is_array() || chat_history.empty()) {
+    return;
+  }
+  std::ofstream output{history_file};
+  if (!output.is_open()) {
+    return;
+  }
+  output << chat_history.dump() << '\n';
+  output.close();
+}
+
+std::optional<nlohmann::json> get_last_history(
+    std::string const &history_file) {
+  std::ifstream input{history_file,
+                      std::ios::ate | std::ios::binary | std::ios::in};
+  if (!input.is_open()) {
+    return std::nullopt;
+  }
+  auto last_pos = input.tellg();
+  char last_char;
+
+  do {
+    input.seekg(last_pos - std::streamoff(1));
+    input.get(last_char);
+    if (last_char != '\n' && last_char != '\r') {
+      break;
+    }
+    last_pos -= std::streamoff(1);
+  } while (last_pos > 0);
+
+  if (last_pos == 0) {
+    return std::nullopt;
+  }
+
+  auto current_pos = last_pos;
+
+  std::vector<char> line;
+
+  std::vector<char> buf(1024);
+
+  while (current_pos > 0) {
+    auto seek_pos = current_pos - std::streamoff(buf.size()) > std::streamoff(0)
+                        ? current_pos - std::streamoff(buf.size())
+                        : std::streampos{0};
+    auto size = current_pos - seek_pos;
+    input.seekg(seek_pos);
+    input.read(buf.data(), size);
+
+    auto begin = std::make_reverse_iterator(buf.data() + size);
+    auto end = std::make_reverse_iterator(buf.data());
+    auto it = std::find(begin, end, '\n');
+    if (it != end) {
+      line.insert(line.begin(), it.base(), begin.base());
+      return nlohmann::json::parse(std::string_view(line.data(), line.size()));
+    }
+
+    line.insert(line.begin(), buf.begin(), buf.begin() + size);
+    current_pos = seek_pos;
+  }
+
+  return "";
 }
