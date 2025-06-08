@@ -30,7 +30,7 @@ int chat() {
       write_to_history(chat_history, history_file.string());
     });
     if (chat_args.continue_with_last_history) {
-      auto last_history = get_last_history(history_file);
+      auto last_history = get_last_history(history_file.string());
       if (last_history.has_value()) {
         chat_history = std::move(last_history.value());
       }
