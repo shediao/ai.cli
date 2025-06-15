@@ -7,8 +7,7 @@
 
 #include "nlohmann/json.hpp"
 
-std::optional<std::string> call_tool(std::string const& name,
-                                     nlohmann::json const& args);
+std::string call_tool(std::string const& name, nlohmann::json const& args);
 
 bool regist_tool_calls(std::string const& name,
                        std::function<std::string(nlohmann::json const& args)>);

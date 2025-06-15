@@ -87,15 +87,15 @@ int chat() {
             try {
               auto function = tool_call.function.name;
               auto arguments = json::parse(tool_call.function.arguments);
-              std::cout << function << "==> (" << arguments.dump() << ")\n";
+              std::cout << "==> " << function << "(" << arguments.dump()
+                        << ")\n";
               auto ret = call_tool(function, arguments);
-              if (ret.has_value()) {
-                chat_history.push_back(
-                    nlohmann::json::object({{"role", "tool"},
-                                            {"tool_call_id", tool_call.id},
-                                            {"name", function},
-                                            {"content", ret.value()}}));
-              }
+              chat_history.push_back(
+                  nlohmann::json::object({{"role", "tool"},
+                                          {"tool_call_id", tool_call.id},
+                                          {"name", function},
+                                          {"content", ret}}));
+
             } catch (json::parse_error const& e) {
               LOG(ERROR) << tool_call.function.name << "("
                          << tool_call.function.arguments << ")" << e.what();

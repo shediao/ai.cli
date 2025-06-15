@@ -7,13 +7,12 @@ auto& get_all_tools() {
   return tools;
 }
 
-std::optional<std::string> call_tool(std::string const& name,
-                                     nlohmann::json const& args) {
+std::string call_tool(std::string const& name, nlohmann::json const& args) {
   auto it = get_all_tools().find(name);
   if (it != get_all_tools().end()) {
     return it->second(args);
   }
-  return std::nullopt;
+  return "tool_calls function (" + name + ") not found";
 }
 
 bool regist_tool_calls(
