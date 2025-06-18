@@ -443,7 +443,7 @@ void write_to_history(nlohmann::json const &chat_history,
   if (!chat_history.is_array() || chat_history.empty()) {
     return;
   }
-  std::ofstream output{history_file};
+  std::ofstream output{history_file, std::ios::app};
   if (!output.is_open()) {
     return;
   }
