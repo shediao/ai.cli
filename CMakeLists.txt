@@ -71,13 +71,13 @@ FetchContent_MakeAvailable(base64)
 FetchContent_Declare(
   subprocess
   GIT_REPOSITORY https://github.com/shediao/subprocess.hpp
-  GIT_TAG v0.0.3)
+  GIT_TAG v0.0.5)
 FetchContent_MakeAvailable(subprocess)
 
 FetchContent_Declare(
   environment
   GIT_REPOSITORY https://github.com/shediao/environment.hpp
-  GIT_TAG v0.0.1)
+  GIT_TAG v0.0.4)
 FetchContent_MakeAvailable(environment)
 
 # 添加libcurl用于HTTP请求

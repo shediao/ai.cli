@@ -152,7 +152,7 @@ std::string edit_file(nlohmann::json const& args) {
       search_lable = search_lable2;
     }
 
-    std::vector<char> diff_str;
+    subprocess::buffer diff_str;
     {
       TempFile temp("", std::filesystem::path(path).filename().string());
 
@@ -160,14 +160,14 @@ std::string edit_file(nlohmann::json const& args) {
         ftemp.write(file_content.data(), file_content.size());
         ftemp.flush();
       }
-      using namespace process::named_arguments;
-      process::run({"diff", "-U0", "--color=never", path, temp.path()},
-                   std_out > diff_str);
-      if (0 == process::run({"which", "delta"}, std_out > devnull,
-                            std_err > devnull)) {
-        process::run({"delta", "--paging=never", path, temp.path()});
+      using namespace subprocess::named_arguments;
+      using subprocess::run;
+      run({"diff", "-U0", "--color=never", path, temp.path()},
+          std_out > diff_str);
+      if (0 == run({"which", "delta"}, std_out > devnull, std_err > devnull)) {
+        run({"delta", "--paging=never", path, temp.path()});
       } else {
-        process::run({"diff", "-U0", "--color=always", path, temp.path()});
+        run({"diff", "-U0", "--color=always", path, temp.path()});
       }
     }
 
@@ -178,7 +178,7 @@ std::string edit_file(nlohmann::json const& args) {
     if (diff_str.empty()) {
       return "Successfully edited file " + path;
     } else {
-      return std::string{begin(diff_str), end(diff_str)};
+      return diff_str.to_string();
     }
   }
   return "tool_calls edit_file arguments is invalid.";

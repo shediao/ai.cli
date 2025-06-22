@@ -63,7 +63,7 @@ std::string getTempFilePath(std::string const &prefix,
 
 #else
   std::string temp_dir = []() -> std::string {
-    auto tmpdir = environment::getenv("TMPDIR");
+    auto tmpdir = env::get("TMPDIR");
     if (tmpdir.has_value()) {
       return tmpdir.value();
     } else {
@@ -108,7 +108,7 @@ std::string getUserInputViaEditor() {
     editor = "notepad.exe";  // Default to Notepad
   }
 #else
-  if (auto env_editor = environment::getenv("EDITOR"); env_editor.has_value()) {
+  if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
     editor = env_editor.value();
   } else {
     // Try some common Linux/macOS editors
@@ -135,7 +135,7 @@ std::string getUserInputViaEditor() {
   std::string command =
       editor + " \"" + tempfile.path() + "\"";  // Wrap path in quotes
 
-  int result = process::run(editor, tempfile.path());
+  int result = subprocess::run(editor, tempfile.path());
 
   // Handle errors from system call (editor not found, etc.)
   if (result != 0) {
@@ -418,19 +418,19 @@ std::string getMEMI(std::string const &url) {
 std::string app_data_dir(const std::string &app,
                          [[maybe_unused]] const std::string &author) {
 #if defined(_WIN32)
-  auto home_drive = environment::getenv("HOMEDRIVE");
-  auto home_path = environment::getenv("HOMEPATH");
+  auto home_drive = env::get("HOMEDRIVE");
+  auto home_path = env::get("HOMEPATH");
   if (home_drive.has_value() && home_path.has_value()) {
     return home_drive.value() + home_path.value() + R"(\AppData\Local\)" +
            (author.empty() ? "Shediao\\" : author + "\\") + app;
   }
 #elif defined(__APPLE__)
-  auto home_dir = environment::getenv("HOME");
+  auto home_dir = env::get("HOME");
   if (home_dir.has_value()) {
     return home_dir.value() + "/Library/Application Support/" + app;
   }
 #else
-  auto home_dir = environment::getenv("HOME");
+  auto home_dir = env::get("HOME");
   if (home_dir.has_value()) {
     return home_dir.value() + "/.local/share/" + app;
   }

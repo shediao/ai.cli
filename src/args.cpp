@@ -36,7 +36,7 @@ static std::optional<std::string> getProxyFromEnvironment(
                            return url.find(entry.first) != std::string::npos;
                          });
   if (it != url_proxy.end()) {
-    if (auto env = environment::getenv(it->second.c_str()); env.has_value()) {
+    if (auto env = env::get(it->second.c_str()); env.has_value()) {
       return env.value();
     }
   }
@@ -56,7 +56,7 @@ static std::optional<std::string> getApiKeyFromEnvironment(
         return url.find(entry.first) != std::string::npos;
       });
   if (it != url_key.end()) {
-    if (auto env = environment::getenv(it->second.c_str()); env.has_value()) {
+    if (auto env = env::get(it->second.c_str()); env.has_value()) {
       return env.value();
     }
   }
