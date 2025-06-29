@@ -8,6 +8,7 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <subprocess/subprocess.hpp>
 
 #include "args.h"
@@ -162,12 +163,13 @@ std::string edit_file(nlohmann::json const& args) {
       }
       using namespace subprocess::named_arguments;
       using subprocess::run;
-      run({"diff", "-U0", "--color=never", path, temp.path()},
+      run("diff", "-U0", "--color=never", path, temp.path(),
           std_out > diff_str);
-      if (0 == run({"which", "delta"}, std_out > devnull, std_err > devnull)) {
-        run({"delta", "--paging=never", path, temp.path()});
+      if (0 == run(std::string("which"), "delta", std_out > devnull,
+                   std_err > devnull)) {
+        run("delta", "--paging=never", path, temp.path());
       } else {
-        run({"diff", "-U0", "--color=always", path, temp.path()});
+        run("diff", "-U0", "--color=always", path, temp.path());
       }
     }
 

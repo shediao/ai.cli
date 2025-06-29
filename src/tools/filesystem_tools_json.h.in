@@ -1,6 +1,4 @@
 
-#include <string_view>  // C++17 for efficiency, or <string>
-
-constexpr std::string_view filesystem_tools_json_str = R"===(
+constexpr char filesystem_tools_json_str[] = R"===(
 @FILESYSTEM_TOOLS_JSON_DATA@
 )===";
