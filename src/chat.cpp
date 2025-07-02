@@ -5,6 +5,7 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <utfx/utfx.hpp>
 
 #include "args.h"
 #include "clip.h"
@@ -39,6 +40,17 @@ int chat() {
     try {
       std::string system_prompt = chat_args.system_prompt.value_or("");
       auto user_prompt = chat_args.prompts;
+      if (!utfx::is_utf8(system_prompt.c_str(), system_prompt.size())) {
+        LOG(ERROR) << "system prompt not an utf8 string";
+        return 1;
+      }
+      if (std::find_if_not(user_prompt.begin(), user_prompt.end(),
+                           [](std::string const& s) {
+                             return utfx::is_utf8(s.data(), s.size());
+                           }) != user_prompt.end()) {
+        LOG(ERROR) << "user prompt not an utf8 string";
+        return 1;
+      }
       while (true) {
         auto response = client.chat(system_prompt, user_prompt, chat_history);
         if (!response.has_value()) {

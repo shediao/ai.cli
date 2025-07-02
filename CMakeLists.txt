@@ -84,6 +84,12 @@ FetchContent_Declare(
   GIT_TAG v0.0.4)
 FetchContent_MakeAvailable(environment)
 
+FetchContent_Declare(
+  utfx
+  GIT_REPOSITORY https://github.com/shediao/utfx.hpp
+  GIT_TAG 272b036d6a25e3a24cf1685d5ce361003e2cc576)
+FetchContent_MakeAvailable(utfx)
+
 # 添加libcurl用于HTTP请求
 find_package(CURL REQUIRED)
 
@@ -128,7 +134,7 @@ target_include_directories(
 # 链接依赖库
 target_link_libraries(
   ai PRIVATE argparse::argparse base64::base64 subprocess::subprocess
-             environment::environment CURL::libcurl)
+             environment::environment utfx::utfx CURL::libcurl)
 
 if(APPLE)
   target_link_libraries(ai PRIVATE "-framework AppKit")
