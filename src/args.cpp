@@ -9,7 +9,8 @@
 #if defined(_WIN32) || defined(_Win64)
 #include <io.h>
 #include <stdio.h>
-#elif defined(__linux__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__APPLE__) || defined(__CYGWIN__) || \
+    defined(__MSYS__) || defined(__unix__)
 #include <unistd.h>
 #endif
 
@@ -126,7 +127,8 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
 bool stdin_is_atty() {
 #if defined(_WIN32) || defined(_Win64)
   return _isatty(_fileno(stdin));
-#elif defined(__linux__) || defined(__APPLE__)
+#elif defined(__linux__) || defined(__APPLE__) || defined(__CYGWIN__) || \
+    defined(__MSYS__) || defined(__unix__)
   return isatty(STDIN_FILENO);
 #endif
   return false;

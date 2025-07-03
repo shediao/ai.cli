@@ -111,13 +111,18 @@ std::string getUserInputViaEditor() {
   if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
     editor = env_editor.value();
   } else {
-    // Try some common Linux/macOS editors
-    if (access("/usr/bin/nano", X_OK) == 0) {
-      editor = "/usr/bin/nano";
-    } else if (access("/usr/bin/vim", X_OK) == 0) {
-      editor = "/usr/bin/vim";
-    } else if (access("/usr/bin/vi", X_OK) == 0) {
-      editor = "/usr/bin/vi";
+    std::vector<std::string> editors{"/usr/bin/nano", "/usr/bin/vim",
+                                     "/usr/bin/vi"};
+#if defined(__CYGWIN__) || defined(__MSYS__)
+    for (auto &e : editors) {
+      e += ".exe";
+    }
+#endif
+    auto it = std::find_if(
+        editors.begin(), editors.end(),
+        [](const std::string &e) { return access(e.c_str(), X_OK) == 0; });
+    if (it != editors.end()) {
+      editor = *it;
     } else {
       // Default to vi or nano if available
       // If not available throw an exception.
@@ -132,9 +137,6 @@ std::string getUserInputViaEditor() {
   std::string temp_file_path = tempfile.path();
 
   // 3. Open the editor with the temporary file
-  std::string command =
-      editor + " \"" + tempfile.path() + "\"";  // Wrap path in quotes
-
   int result = subprocess::run(editor, tempfile.path());
 
   // Handle errors from system call (editor not found, etc.)
