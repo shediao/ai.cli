@@ -42,7 +42,11 @@ struct AiArgs {
   ChatArgs chat_args;
   ModelsArgs models_args;
 
+#if defined(_WIN32)
+  argparse::Command& parse(int argc, wchar_t* argv[]);
+#else
   argparse::Command& parse(int argc, char* argv[]);
+#endif
   static AiArgs& instance();
   AiArgs& operator=(AiArgs const&) = delete;
   AiArgs(AiArgs const&) = delete;

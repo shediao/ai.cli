@@ -12,9 +12,13 @@ class CurlGlobalInitGuard {
   CurlGlobalInitGuard() { curl_global_init(CURL_GLOBAL_DEFAULT); }
   ~CurlGlobalInitGuard() { curl_global_cleanup(); }
 };
-int main(int argc, char* argv[]) {
 #if defined(_WIN32)
-  SetConsoleCP(CP_UTF8);
+int wmain(int argc, wchar_t* argv[])
+#else
+int main(int argc, char* argv[])
+#endif
+{
+#if defined(_WIN32)
   SetConsoleOutputCP(CP_UTF8);
 #endif
   CurlGlobalInitGuard guard;

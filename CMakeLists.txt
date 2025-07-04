@@ -62,7 +62,7 @@ include(FetchContent)
 FetchContent_Declare(
   argparse
   GIT_REPOSITORY https://github.com/shediao/argparse.hpp
-  GIT_TAG v0.0.10)
+  GIT_TAG 6886ef4797497a4a5f022c95c7bbaceb3303844a)
 FetchContent_MakeAvailable(argparse)
 
 # 添加base64用于嵌入文件
@@ -120,6 +120,10 @@ endif()
 
 set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  target_compile_definitions(ai PRIVATE UNICODE _UNICODE)
+endif()
+
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/filesystem.json
      FILESYSTEM_TOOLS_JSON_DATA)
 configure_file(src/tools/filesystem_tools_json.h.in filesystem_tools_json.h)
@@ -140,6 +144,11 @@ if(APPLE)
   target_link_libraries(ai PRIVATE "-framework AppKit")
 elseif(WIN32)
   target_link_libraries(ai PRIVATE "-luser32")
+endif()
+
+if(MINGW)
+  target_link_options(ai PRIVATE -static-libgcc)
+  set_target_properties(ai PROPERTIES LINK_FLAGS "-mconsole -municode")
 endif()
 
 if(AICLI_BUILD_TESTS)

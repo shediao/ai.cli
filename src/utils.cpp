@@ -100,9 +100,8 @@ std::string getUserInputViaEditor() {
   std::string editor;
 
 #ifdef _WIN32
-  char editor_path[MAX_PATH];
-  if (GetEnvironmentVariable("EDITOR", editor_path, MAX_PATH) > 0) {
-    editor = editor_path;
+  if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
+    editor = env_editor.value();
   } else {
     // Try some common Windows editors
     editor = "notepad.exe";  // Default to Notepad

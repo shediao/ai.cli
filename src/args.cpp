@@ -147,8 +147,10 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                 chat_args.continue_with_last_history);
 
   chat.add_option("m,model", "Model to use", chat_args.model)
-      .checker([](const std::string& model) { return !model.empty(); },
-               "model is non empty string");
+      .checker([](const std::string& model) {
+        return std::pair<bool, std::string>{!model.empty(),
+                                            "model is non empty string"};
+      });
   chat.add_option("s,system-prompt", "System prompt", chat_args.system_prompt);
   chat.add_option("t,temperature", "Model temperature[0.0~2.0",
                   chat_args.temperature)
@@ -248,6 +250,17 @@ AiArgs& AiArgs::instance() {
   return args;
 }
 
+#if defined(_WIN32)
+argparse::Command& AiArgs::parse(int argc, wchar_t* argv[]) {
+  try {
+    auto& cmd = parser.parse(argc, (const wchar_t**)argv);
+    return cmd;
+  } catch (std::exception const& e) {
+    std::cerr << e.what() << "\n";
+    exit(EXIT_FAILURE);
+  }
+}
+#else
 argparse::Command& AiArgs::parse(int argc, char* argv[]) {
   try {
     auto& cmd = parser.parse(argc, (const char**)argv);
@@ -257,6 +270,7 @@ argparse::Command& AiArgs::parse(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 }
+#endif
 
 AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
   parser.add_option("x,proxy", "Use proxy(curl)", proxy).value_help("PROXY");
