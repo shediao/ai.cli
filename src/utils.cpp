@@ -420,6 +420,11 @@ std::string getMEMI(std::string const &url) {
 std::string app_data_dir(const std::string &app,
                          [[maybe_unused]] const std::string &author) {
 #if defined(_WIN32)
+  auto userprofile = env::get("USERPROFILE");
+  if (userprofile) {
+    return userprofile.value() + R"(\AppData\Local\)" +
+           (author.empty() ? "Shediao\\" : author + "\\") + app;
+  }
   auto home_drive = env::get("HOMEDRIVE");
   auto home_path = env::get("HOMEPATH");
   if (home_drive.has_value() && home_path.has_value()) {
@@ -504,3 +509,50 @@ std::optional<nlohmann::json> get_last_history(
 
   return "";
 }
+
+#if defined(_WIN32)
+namespace {
+// Helper function to convert a UTF-8 std::string to a UTF-16 std::wstring
+inline std::wstring to_wstring(const std::string &utf8str,
+                               const UINT from_codepage = CP_UTF8) {
+  if (utf8str.empty()) {
+    return {};
+  }
+  int size_needed = MultiByteToWideChar(from_codepage, 0, &utf8str[0],
+                                        (int)utf8str.size(), NULL, 0);
+  if (size_needed <= 0) {
+    // Consider throwing an exception for conversion errors
+    return {};
+  }
+  std::wstring utf16str(size_needed, 0);
+  MultiByteToWideChar(from_codepage, 0, &utf8str[0], (int)utf8str.size(),
+                      &utf16str[0], size_needed);
+  return utf16str;
+}
+
+// Helper function to convert a UTF-16 std::wstring to a UTF-8 std::string
+inline std::string to_string(const std::wstring &utf16str,
+                             const UINT to_codepage = CP_UTF8) {
+  if (utf16str.empty()) {
+    return {};
+  }
+  int size_needed = WideCharToMultiByte(
+      to_codepage, 0, &utf16str[0], (int)utf16str.size(), NULL, 0, NULL, NULL);
+  if (size_needed <= 0) {
+    // Consider throwing an exception for conversion errors
+    return {};
+  }
+  std::string utf8str(size_needed, 0);
+  WideCharToMultiByte(to_codepage, 0, &utf16str[0], (int)utf16str.size(),
+                      &utf8str[0], size_needed, NULL, NULL);
+  return utf8str;
+}
+}  // namespace
+std::optional<std::string> toUtf8(const std::string &s) {
+  auto u8 = to_string(to_wstring(s, GetACP()), CP_UTF8);
+  if (!u8.empty()) {
+    return u8;
+  }
+  return std::nullopt;
+}
+#endif

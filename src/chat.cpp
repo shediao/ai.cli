@@ -26,7 +26,7 @@ int chat() {
     AutoRun scope_exit_runner([&chat_history, &history_file]() {
       std::filesystem::path p{history_file};
       if (!exists(p.parent_path())) {
-        std::filesystem::create_directory(p.parent_path());
+        std::filesystem::create_directories(p.parent_path());
       }
       write_to_history(chat_history, history_file.string());
     });
@@ -44,13 +44,27 @@ int chat() {
         LOG(ERROR) << "system prompt not an utf8 string";
         return 1;
       }
-      if (std::find_if_not(user_prompt.begin(), user_prompt.end(),
-                           [](std::string const& s) {
-                             return utfx::is_utf8(s.data(), s.size());
-                           }) != user_prompt.end()) {
+#if defined(_WIN32)
+      for (auto& s : user_prompt) {
+        if (!utfx::is_utf8(s.data(), s.size())) {
+          auto u8 = toUtf8(s);
+          if (!u8) {
+            LOG(ERROR) << "user prompt not an utf8 string";
+            return 1;
+          }
+          s = u8.value();
+        }
+      }
+#else
+      if (auto it = std::find_if_not(user_prompt.begin(), user_prompt.end(),
+                                     [](std::string const& s) {
+                                       return utfx::is_utf8(s.data(), s.size());
+                                     });
+          it != user_prompt.end()) {
         LOG(ERROR) << "user prompt not an utf8 string";
         return 1;
       }
+#endif
       while (true) {
         auto response = client.chat(system_prompt, user_prompt, chat_history);
         if (!response.has_value()) {

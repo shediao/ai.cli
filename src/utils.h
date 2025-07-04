@@ -56,4 +56,9 @@ std::string app_data_dir(const std::string &app,
 void write_to_history(nlohmann::json const &chat_history,
                       std::string const &history_file);
 std::optional<nlohmann::json> get_last_history(std::string const &history_file);
+
+#if defined(_WIN32)
+std::optional<std::string> toUtf8(const std::string &s);
+#endif
+
 #endif  // __AI_CLI_UTILS_H__

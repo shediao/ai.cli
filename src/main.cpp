@@ -13,6 +13,10 @@ class CurlGlobalInitGuard {
   ~CurlGlobalInitGuard() { curl_global_cleanup(); }
 };
 int main(int argc, char* argv[]) {
+#if defined(_WIN32)
+  SetConsoleCP(CP_UTF8);
+  SetConsoleOutputCP(CP_UTF8);
+#endif
   CurlGlobalInitGuard guard;
   auto& args = AiArgs::instance();
 
