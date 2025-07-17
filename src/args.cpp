@@ -19,47 +19,26 @@
 namespace {
 
 static const std::string gemini_base_url =
-    "https://generativelanguage.googleapis.com/v1beta/openai/";
+    "https://generativelanguage.googleapis.com/v1beta/openai";
 static const std::string qwen_base_url =
-    "https://dashscope.aliyuncs.com/compatible-mode/v1/";
-static const std::string deepseek_base_url = "https://api.deepseek.com/";
-static const std::string openai_base_url = "https://api.openai.com/v1/";
+    "https://dashscope.aliyuncs.com/compatible-mode/v1";
+static const std::string deepseek_base_url = "https://api.deepseek.com";
+static const std::string openai_base_url = "https://api.openai.com/v1";
 static const std::string moonshot_base_url = "https://api.moonshot.cn/v1";
 static const std::string ollama_base_url = "http://127.0.0.1:11434/v1";
+static std::map<std::string, std::string> url_env_prefix{
+    {deepseek_base_url, "DEEPSEEK"}, {openai_base_url, "OPENAI"},
+    {gemini_base_url, "GEMINI"},     {qwen_base_url, "QWEN"},
+    {moonshot_base_url, "MOONSHOT"}, {ollama_base_url, "OLLAMA"}};
 
-static std::optional<std::string> getProxyFromEnvironment(
-    std::string const& url) {
-  static std::map<std::string, std::string> url_proxy{
-      {openai_base_url, "OPENAI_API_PROXY"},
-      {gemini_base_url, "GEMINI_API_PROXY"}};
-  auto it = std::find_if(url_proxy.begin(), url_proxy.end(),
+static std::optional<std::string> getEnvironmentConfig(
+    std::string const& url, std::string const& config_postfix) {
+  auto it = std::find_if(url_env_prefix.begin(), url_env_prefix.end(),
                          [&url](auto const& entry) {
                            return url.find(entry.first) != std::string::npos;
                          });
-  if (it != url_proxy.end()) {
-    if (auto env = env::get(it->second.c_str()); env.has_value()) {
-      return env.value();
-    }
-  }
-  return std::nullopt;
-}
-
-static std::optional<std::string> getApiKeyFromEnvironment(
-    std::string const& url) {
-  static std::map<std::string, std::string> url_key{
-      {deepseek_base_url, "DEEPSEEK_API_KEY"},
-      {openai_base_url, "OPENAI_API_KEY"},
-      {gemini_base_url, "GEMINI_API_KEY"},
-      {qwen_base_url, "QWEN_API_KEY"},
-      {moonshot_base_url, "MOONSHOT_API_KEY"}};
-  auto it =
-      std::find_if(url_key.begin(), url_key.end(), [&url](auto const& entry) {
-        return url.find(entry.first) != std::string::npos;
-      });
-  if (it != url_key.end()) {
-    if (auto env = env::get(it->second.c_str()); env.has_value()) {
-      return env.value();
-    }
+  if (it != url_env_prefix.end()) {
+    return env::get(it->second + config_postfix);
   }
   return std::nullopt;
 }
@@ -109,14 +88,14 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
   models.callback([&args]() -> void {
     auto& models_args = args.models_args;
     if (args.api_key.empty() && !models_args.api_url.empty()) {
-      auto key = getApiKeyFromEnvironment(models_args.api_url);
+      auto key = getEnvironmentConfig(models_args.api_url, "_API_KEY");
       if (key.has_value()) {
         args.api_key = key.value();
       }
     }
 
     if (!args.proxy.has_value()) {
-      auto proxy = getProxyFromEnvironment(models_args.api_url);
+      auto proxy = getEnvironmentConfig(models_args.api_url, "_API_PROXY");
       if (proxy.has_value()) {
         args.proxy = proxy.value();
       }
@@ -192,7 +171,10 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& chat_args = args.chat_args;
 
     if (chat_args.model.empty()) {
-      auto model = getDefaultModelForUrl(chat_args.api_url);
+      auto model = getEnvironmentConfig(chat_args.api_url, "_API_MODEL");
+      if (!model) {
+        model = getDefaultModelForUrl(chat_args.api_url);
+      }
       if (model.has_value()) {
         chat_args.model = model.value();
       }
@@ -226,18 +208,16 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     }
 
     if (args.api_key.empty() && !chat_args.api_url.empty()) {
-      auto key = getApiKeyFromEnvironment(chat_args.api_url);
+      auto key = getEnvironmentConfig(chat_args.api_url, "_API_KEY");
       if (key.has_value()) {
         args.api_key = key.value();
       }
     }
 
     if (!args.proxy.has_value()) {
-      if (!args.proxy.has_value()) {
-        auto proxy = getProxyFromEnvironment(chat_args.api_url);
-        if (proxy.has_value()) {
-          args.proxy = proxy.value();
-        }
+      auto proxy = getEnvironmentConfig(chat_args.api_url, "_API_PROXY");
+      if (proxy.has_value()) {
+        args.proxy = proxy.value();
       }
     }
   });
