@@ -357,7 +357,7 @@ class OpenAIClient::Impl {
         std::cout << response_string << '\n';
       }
     } catch (const nlohmann::json::exception& e) {
-      throw std::runtime_error(response_string);
+      throw std::runtime_error(response_string + "\n" + e.what());
     }
     return {};
   }

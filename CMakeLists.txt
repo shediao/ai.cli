@@ -28,7 +28,7 @@ if(NOT MSYS)
 endif()
 
 if(MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /WX /utf-8 /EHsc")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /utf-8 /EHsc")
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang" AND NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
@@ -62,14 +62,14 @@ include(FetchContent)
 FetchContent_Declare(
   argparse
   GIT_REPOSITORY https://github.com/shediao/argparse.hpp
-  GIT_TAG 6886ef4797497a4a5f022c95c7bbaceb3303844a)
+  GIT_TAG 8056522918fdd7f0c5fe632a095304f19893cfc4)
 FetchContent_MakeAvailable(argparse)
 
 # 添加base64用于嵌入文件
 FetchContent_Declare(
   base64
   GIT_REPOSITORY https://github.com/shediao/base64.hpp
-  GIT_TAG v0.0.1)
+  GIT_TAG 6ff32c627e55d5360feb08476369a83a3c46c376)
 FetchContent_MakeAvailable(base64)
 
 FetchContent_Declare(

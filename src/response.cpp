@@ -114,7 +114,7 @@ Response Response::from_json(json const& response_json) {
           response.choices_.resize(index + 1);
         }
         Choice& current_choice = response.choices_[index];
-        current_choice.index = index;
+        current_choice.index = static_cast<int>(index);
 
         get_string("finish_reason", choice_json, current_choice.finish_reason);
         if (is_object("message", choice_json)) {
@@ -166,7 +166,7 @@ Response Response::from_sse_json(const std::vector<json>& sse_json) {
       size_t index = delta["index"].get<int>();
       if (index + 1 > response.choices_.size()) {
         response.choices_.resize(index + 1);
-        response.choices_[index].index = index;
+        response.choices_[index].index = static_cast<int>(index);
       }
       auto& choice = response.choices_[index];
       get_string("finish_reason", delta, choice.finish_reason);
