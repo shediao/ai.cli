@@ -214,7 +214,7 @@ bool download_image(std::string const &image_url, std::string const &image_path,
   curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
 
   // (可选) 设置超时
-  curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, 10000L);  // 30 秒总超时
+  curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, 60000L);  // 60 秒总超时
   curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS,
                    3000L);  // 3 秒连接超时
 
