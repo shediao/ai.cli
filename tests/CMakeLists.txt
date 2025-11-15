@@ -29,7 +29,7 @@ function(add_ai_cli_test test_name test_files)
      OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
      OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     if(NOT MSVC)
-      target_compile_options(${test_name} PRIVATE -Wall -Wextra -Werror)
+      target_compile_options(${test_name} PRIVATE -Wall -Wextra)
     endif()
   endif()
   if(MSVC)

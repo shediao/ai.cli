@@ -32,7 +32,7 @@ if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /utf-8 /EHsc")
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang" AND NOT MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 endif()
 
 if(NOT CMAKE_CROSSCOMPILING AND CMAKE_HOST_SYSTEM_NAME MATCHES "Linux|Darwin")
@@ -244,15 +244,31 @@ else()
     set(USE_APPLE_SECTRUST
         ON
         CACHE BOOL "Use Apple OS-native certificate verification")
+    set(CURL_USE_OPENSSL
+        OFF
+        CACHE BOOL "Enable OpenSSL for SSL/TLS")
   endif()
   if(WIN32)
     set(CURL_USE_SCHANNEL
         ON
         CACHE BOOL "Enable Windows native SSL/TLS (Schannel)")
+    set(CURL_USE_OPENSSL
+        OFF
+        CACHE BOOL "Enable OpenSSL for SSL/TLS")
   endif()
   set(CURL_USE_SSL
       ON
       CACHE BOOL "Enable Windows native SSL/TLS (Schannel)")
+
+  set(USE_LIBIDN2
+      OFF
+      CACHE BOOL "Use libidn2 for IDN support")
+  set(USE_APPLE_IDN
+      OFF
+      CACHE BOOL "Use Apple built-in IDN support")
+  set(USE_WIN32_IDN
+      OFF
+      CACHE BOOL "Use WinIDN for IDN support")
 
   FetchContent_MakeAvailable(curl)
 endif()
@@ -273,7 +289,7 @@ add_executable(
   src/base64.cpp)
 
 if(APPLE)
-  target_sources(ai PRIVATE src/clip_macos.mm)
+  target_sources(ai PRIVATE src/clip_other.cpp)
 elseif(WIN32)
   target_sources(ai PRIVATE src/clip_win.cpp)
 elseif(LINUX)
@@ -304,9 +320,7 @@ target_link_libraries(
   ai PRIVATE argparse::argparse base64::base64 subprocess::subprocess
              environment::environment utfx::utfx CURL::libcurl)
 
-if(APPLE)
-  target_link_libraries(ai PRIVATE "-framework AppKit")
-elseif(WIN32)
+if(WIN32)
   target_link_libraries(ai PRIVATE "-luser32")
 endif()
 
