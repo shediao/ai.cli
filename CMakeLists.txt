@@ -22,6 +22,7 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 if(NOT MSYS)
   set(CMAKE_CXX_EXTENSIONS OFF)
@@ -44,6 +45,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   option(AICLI_BUILD_TESTS "Set to ON to build tests" ON)
 else()
   option(AICLI_BUILD_TESTS "Set to OFF to build tests" OFF)
+endif()
+
+if(LINUX)
+  option(AICLI_USE_SYSTEM_CURL "Use system curl" ON)
+else()
+  option(AICLI_USE_SYSTEM_CURL "Use system curl" OFF)
 endif()
 
 if(AICLI_ENABLE_ASASN)
@@ -91,7 +98,164 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(utfx)
 
 # 添加libcurl用于HTTP请求
-find_package(CURL REQUIRED)
+
+if(AICLI_USE_SYSTEM_CURL)
+  find_package(CURL QUIET)
+endif()
+
+if(AICLI_USE_SYSTEM_CURL AND CURL_FOUND)
+  message(STATUS "Found CURL version: ${CURL_VERSION_STRING}")
+  message(STATUS "Using CURL include dir(s): ${CURL_INCLUDE_DIRS}")
+  message(STATUS "Using CURL lib(s): ${CURL_LIBRARIES}")
+else()
+  message(STATUS "Fetching CURL...")
+  FetchContent_Declare(
+    curl
+    GIT_REPOSITORY https://github.com/curl/curl.git
+    GIT_TAG curl-8_9_1
+    UPDATE_DISCONNECTED ON)
+
+  # 设置 curl 的构建选项
+  set(BUILD_CURL_EXE
+      OFF
+      CACHE BOOL "Don't build curl executable")
+  set(HTTP_ONLY
+      ON
+      CACHE BOOL "Only enable HTTP protocol")
+
+  set(CURL_WERROR
+      OFF
+      CACHE BOOL "Turn compiler warnings into errors")
+  set(BUILD_CURL_EXE
+      ON
+      CACHE BOOL "Build curl executable")
+  set(BUILD_SHARED_LIBS
+      OFF
+      CACHE BOOL "Build shared libraries")
+  set(BUILD_STATIC_LIBS
+      ON
+      CACHE BOOL "Build static libraries")
+  set(ENABLE_ARES
+      OFF
+      CACHE BOOL "Enable c-ares support")
+  set(CURL_DISABLE_ALTSVC
+      ON
+      CACHE BOOL "Disable alt-svc support")
+  set(CURL_DISABLE_SRP
+      ON
+      CACHE BOOL "Disable TLS-SRP support")
+  set(CURL_DISABLE_COOKIES
+      ON
+      CACHE BOOL "Disable cookies support")
+  set(CURL_DISABLE_AWS
+      ON
+      CACHE BOOL "Disable aws-sigv4")
+  set(CURL_DISABLE_DICT
+      ON
+      CACHE BOOL "Disable DICT")
+  set(CURL_DISABLE_DOH
+      ON
+      CACHE BOOL "Disable DNS-over-HTTPS")
+  set(CURL_DISABLE_FILE
+      ON
+      CACHE BOOL "Disable FILE")
+  set(CURL_DISABLE_FTP
+      ON
+      CACHE BOOL "Disable FTP")
+  set(CURL_DISABLE_GETOPTIONS
+      ON
+      CACHE
+        BOOL
+        "Disable curl_easy_options API for existing options to curl_easy_setopt"
+  )
+  set(CURL_DISABLE_GOPHER
+      ON
+      CACHE BOOL "Disable Gopher")
+  set(CURL_DISABLE_HSTS
+      ON
+      CACHE BOOL "Disable HSTS support")
+  set(CURL_DISABLE_IMAP
+      ON
+      CACHE BOOL "Disable IMAP")
+  set(CURL_DISABLE_LDAP
+      ON
+      CACHE BOOL "Disable LDAP")
+  set(CURL_DISABLE_LDAPS
+      ON
+      CACHE BOOL "Disable LDAPS")
+  set(CURL_DISABLE_MQTT
+      ON
+      CACHE BOOL "Disable MQTT")
+  set(CURL_DISABLE_BINDLOCAL
+      ON
+      CACHE BOOL "Disable local binding support")
+  set(CURL_DISABLE_NETRC
+      ON
+      CACHE BOOL "Disable netrc parser")
+  set(CURL_DISABLE_NTLM
+      ON
+      CACHE BOOL "Disable NTLM support")
+  set(CURL_DISABLE_POP3
+      ON
+      CACHE BOOL "Disable POP3")
+  set(CURL_DISABLE_PROGRESS_METER
+      ON
+      CACHE BOOL "Disable built-in progress meter")
+  set(CURL_DISABLE_IPFS
+      ON
+      CACHE BOOL "Disable IPFS")
+  set(CURL_DISABLE_RTSP
+      ON
+      CACHE BOOL "Disable RTSP")
+  set(CURL_DISABLE_SMB
+      ON
+      CACHE BOOL "Disable SMB")
+  set(CURL_DISABLE_SMTP
+      ON
+      CACHE BOOL "Disable SMTP")
+  set(CURL_DISABLE_WEBSOCKETS
+      ON
+      CACHE BOOL "Disable WebSocket")
+  set(CURL_DISABLE_TELNET
+      ON
+      CACHE BOOL "Disable Telnet")
+  set(CURL_DISABLE_TFTP
+      ON
+      CACHE BOOL "Disable TFTP")
+  set(CURL_DISABLE_VERBOSE_STRINGS
+      ON
+      CACHE BOOL "Disable verbose strings")
+  set(BUILD_LIBCURL_DOCS
+      OFF
+      CACHE BOOL "Build libcurl man pages")
+  set(BUILD_MISC_DOCS
+      OFF
+      CACHE BOOL "Build misc man pages (e.g. curl-config and mk-ca-bundle)")
+  set(ENABLE_CURL_MANUAL
+      OFF
+      CACHE BOOL
+            "Build the man page for curl and enable its -M/--manual option")
+
+  set(CURL_USE_LIBSSH2
+      OFF
+      CACHE BOOL "Use libssh2")
+
+  if(APPLE)
+    set(USE_APPLE_SECTRUST
+        ON
+        CACHE BOOL "Use Apple OS-native certificate verification")
+  endif()
+  if(WIN32)
+    set(CURL_USE_SCHANNEL
+        ON
+        CACHE BOOL "Enable Windows native SSL/TLS (Schannel)")
+  endif()
+  set(CURL_USE_SSL
+      ON
+      CACHE BOOL "Enable Windows native SSL/TLS (Schannel)")
+
+  FetchContent_MakeAvailable(curl)
+endif()
 
 # 添加源文件
 add_executable(
@@ -149,6 +313,10 @@ endif()
 if(MINGW)
   target_link_options(ai PRIVATE -static-libgcc)
   set_target_properties(ai PROPERTIES LINK_FLAGS "-mconsole -municode")
+endif()
+
+if(LINUX)
+  target_link_options(ai PRIVATE -static-libgcc -static-libstdc++)
 endif()
 
 if(AICLI_BUILD_TESTS)

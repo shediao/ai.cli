@@ -1,7 +1,15 @@
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS ON)
 
+set(INSTALL_GTEST OFF)
+
 include(FetchContent)
+
+if(NOT CMAKE_HOST_SYSTEM_NAME MATCHES "Windows" AND MSVC)
+  set(gtest_disable_pthreads
+      ON
+      CACHE BOOL "" FORCE)
+endif()
 
 FetchContent_Declare(
   googletest
