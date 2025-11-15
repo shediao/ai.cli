@@ -47,8 +47,8 @@ else()
   option(AICLI_BUILD_TESTS "Set to OFF to build tests" OFF)
 endif()
 
-if(LINUX)
-  option(AICLI_USE_SYSTEM_CURL "Use system curl" ON)
+if(WIN32)
+  option(AICLI_USE_SYSTEM_CURL "Use system curl" OFF)
 else()
   option(AICLI_USE_SYSTEM_CURL "Use system curl" OFF)
 endif()
@@ -241,9 +241,9 @@ else()
       CACHE BOOL "Use libssh2")
 
   if(APPLE)
-    set(USE_APPLE_SECTRUST
+    set(CURL_USE_SECTRANSP
         ON
-        CACHE BOOL "Use Apple OS-native certificate verification")
+        CACHE BOOL "Enable Apple OS native SSL/TLS")
     set(CURL_USE_OPENSSL
         OFF
         CACHE BOOL "Enable OpenSSL for SSL/TLS")
