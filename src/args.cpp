@@ -9,8 +9,8 @@
 #if defined(_WIN32) || defined(_Win64)
 #include <io.h>
 #include <stdio.h>
-#elif defined(__linux__) || defined(__APPLE__) || defined(__CYGWIN__) || \
-    defined(__MSYS__) || defined(__unix__)
+#else
+#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -103,14 +103,51 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
   });
 }
 
-bool stdin_is_atty() {
-#if defined(_WIN32) || defined(_Win64)
+inline static bool stdin_is_atty() {
+#if defined(_WIN32) || defined(_WIN64)
   return _isatty(_fileno(stdin));
-#elif defined(__linux__) || defined(__APPLE__) || defined(__CYGWIN__) || \
-    defined(__MSYS__) || defined(__unix__)
+#else
   return isatty(STDIN_FILENO);
 #endif
+}
+
+inline static bool stdin_is_pipe() {
+#if defined(_WIN32) || defined(_WIN64)
+  if (FILE_TYPE_PIPE == GetFileType(GetStdHandle(STD_INPUT_HANDLE))) {
+    return true;
+  }
+
+  struct _stat sb;
+  if (0 == _fstat(_fileno(stdin), &sb)) {
+    return (sb.st_mode & _S_IFMT) == _S_IFIFO;
+  }
   return false;
+#else
+  struct stat sb;
+  if (0 == fstat(STDIN_FILENO, &sb)) {
+    return (S_ISFIFO(sb.st_mode));
+  }
+  return false;
+#endif
+}
+
+inline static bool stdin_is_file() {
+#if defined(_WIN32) || defined(_WIN64)
+  if (FILE_TYPE_DISK == GetFileType(GetStdHandle(STD_INPUT_HANDLE))) {
+    return true;
+  }
+  struct _stat sb;
+  if (0 == _fstat(_fileno(stdin), &sb)) {
+    return (sb.st_mode & _S_IFMT) == _S_IFREG;
+  }
+  return false;
+#else
+  struct stat sb;
+  if (0 == fstat(STDIN_FILENO, &sb)) {
+    return S_ISREG(sb.st_mode);
+  }
+  return false;
+#endif
 }
 
 static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
@@ -200,6 +237,14 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
           chat_args.prompts.push_back(prompt);
         }
       } catch (...) {
+      }
+    }
+    if (stdin_is_pipe() || stdin_is_file()) {
+      std::string read_content{std::istreambuf_iterator<char>(std::cin),
+                               std::istreambuf_iterator<char>{}};
+      if (!read_content.empty()) {
+        std::cout << read_content;
+        chat_args.prompts.push_back(std::move(read_content));
       }
     }
     if (chat_args.prompts.empty()) {
