@@ -116,11 +116,6 @@ inline static bool stdin_is_pipe() {
   if (FILE_TYPE_PIPE == GetFileType(GetStdHandle(STD_INPUT_HANDLE))) {
     return true;
   }
-
-  struct _stat sb;
-  if (0 == _fstat(_fileno(stdin), &sb)) {
-    return (sb.st_mode & _S_IFMT) == _S_IFIFO;
-  }
   return false;
 #else
   struct stat sb;
@@ -135,10 +130,6 @@ inline static bool stdin_is_file() {
 #if defined(_WIN32) || defined(_WIN64)
   if (FILE_TYPE_DISK == GetFileType(GetStdHandle(STD_INPUT_HANDLE))) {
     return true;
-  }
-  struct _stat sb;
-  if (0 == _fstat(_fileno(stdin), &sb)) {
-    return (sb.st_mode & _S_IFMT) == _S_IFREG;
   }
   return false;
 #else
