@@ -154,7 +154,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                 chat_args.continue_with_last_history);
 
   chat.add_option("m,model", "Model to use", chat_args.model)
-      .checker([](const std::string& model) {
+      .validator([](const std::string& model) {
         return std::pair<bool, std::string>{!model.empty(),
                                             "model is non empty string"};
       });
@@ -289,8 +289,9 @@ argparse::Command& AiArgs::parse(int argc, char* argv[]) {
 #endif
 
 AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
-  parser.add_option("x,proxy", "Use proxy(curl)", proxy).value_help("PROXY");
-  parser.add_option("k,key", "API key", api_key).value_help("key");
+  parser.add_option("x,proxy", "Use proxy(curl)", proxy)
+      .value_placeholder("PROXY");
+  parser.add_option("k,key", "API key", api_key).value_placeholder("key");
   parser
       .add_option("log-level", "set logging level", log_level)
 #if defined(NDEBUG)
