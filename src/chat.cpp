@@ -85,8 +85,9 @@ int chat() {
             << "finish_reason: " << finish_reason;
 
         if (!args.chat_args.stream) {
-          if (!reasoning_content.empty()) {
-            auto merged_content = "<thinking>\n" + reasoning_content +
+          if (reasoning_content.has_value()) {
+            auto merged_content = "<thinking>\n" +
+                                  reasoning_content.value_or("") +
                                   "\n</thinking>\n\n" + content;
             save_to_clipboard(merged_content);
             LOG(INFO) << merged_content;

@@ -17,6 +17,7 @@ struct AiArgs {
     std::optional<unsigned int> n;
     std::optional<double> temperature;
     std::optional<double> top_p;
+    std::optional<bool> thinking{std::nullopt};
     std::optional<std::string> reasoning_effort;
     bool stream{false};
     bool stream_include_usage{false};

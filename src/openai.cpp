@@ -303,6 +303,11 @@ class OpenAIClient::Impl {
         message["content"] = choice.message.content;
       }
       if (choice.finish_reason == "tool_calls") {
+        if (choice.message.reasoning_content.has_value()) {
+          message["reasoning_content"] = choice.message.reasoning_content;
+        } else {
+          message["reasoning_content"] = std::string();
+        }
         message["tool_calls"] = choice.message.tool_calls_json();
       }
       chat_history.push_back(message);

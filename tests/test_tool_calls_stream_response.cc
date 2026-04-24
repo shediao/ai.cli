@@ -147,7 +147,10 @@ TEST(ToolCallsStreamResponse, Test1) {
   auto non_stream_response = stream_response.toResponse();
   ASSERT_EQ(non_stream_response.choices().back().finish_reason, "tool_calls");
   ASSERT_EQ(non_stream_response.choices().back().message.content, "");
-  ASSERT_EQ(non_stream_response.choices().back().message.reasoning_content, "");
+  ASSERT_EQ(
+      non_stream_response.choices().back().message.reasoning_content.value_or(
+          ""),
+      "");
   ASSERT_EQ(non_stream_response.usage().prompt_tokens, 1716);
   ASSERT_EQ(non_stream_response.usage().completion_tokens, 21);
   ASSERT_EQ(non_stream_response.usage().total_tokens, 1737);
@@ -166,7 +169,10 @@ TEST(ToolCallsStreamResponse, Test2) {
                                     &stream_response);
   auto non_stream_response = stream_response.toResponse();
   ASSERT_EQ(non_stream_response.choices().back().finish_reason, "stop");
-  ASSERT_EQ(non_stream_response.choices().back().message.reasoning_content, "");
+  ASSERT_EQ(
+      non_stream_response.choices().back().message.reasoning_content.value_or(
+          ""),
+      "");
   ASSERT_EQ(non_stream_response.usage().prompt_tokens, 1748);
   ASSERT_EQ(non_stream_response.usage().completion_tokens, 50);
   ASSERT_EQ(non_stream_response.usage().total_tokens, 1798);

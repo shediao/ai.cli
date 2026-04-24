@@ -141,7 +141,7 @@ class Response {
     std::string role;
     // The contents of the chunk message.
     std::string content;
-    std::string reasoning_content;
+    std::optional<std::string> reasoning_content{std::nullopt};
     // The name and arguments of a function that should be called, as generated
     // by the model.
     std::vector<ToolCall> tool_calls;
