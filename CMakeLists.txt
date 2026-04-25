@@ -82,7 +82,7 @@ FetchContent_MakeAvailable(base64)
 FetchContent_Declare(
   subprocess
   GIT_REPOSITORY https://github.com/shediao/subprocess.hpp
-  GIT_TAG v0.0.5)
+  GIT_TAG v0.0.8)
 FetchContent_MakeAvailable(subprocess)
 
 FetchContent_Declare(
