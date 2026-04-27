@@ -7,6 +7,7 @@
 #include <iterator>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <subprocess/subprocess.hpp>
@@ -26,6 +27,38 @@ std::string read_file(nlohmann::json const& args) {
       std::string content{std::istreambuf_iterator<char>(in),
                           std::istreambuf_iterator<char>()};
       if (!content.empty()) {
+        bool has_limit = args.contains("limit") && args["limit"].is_number_integer();
+        bool has_offset = args.contains("offset") && args["offset"].is_number_integer();
+
+        if (has_limit || has_offset) {
+          int limit = has_limit ? args["limit"].get<int>() : -1;
+          int offset = has_offset ? args["offset"].get<int>() : 1;
+          if (offset < 1) offset = 1;
+
+          std::vector<std::string> lines;
+          std::istringstream iss(content);
+          std::string line;
+          while (std::getline(iss, line)) {
+            lines.push_back(line);
+          }
+
+          if (offset > static_cast<int>(lines.size())) {
+            return path + " has only " + std::to_string(lines.size()) +
+                   " lines, offset " + std::to_string(offset) +
+                   " is out of range.";
+          }
+
+          std::string result;
+          int start = offset - 1;
+          int end = (limit > 0) ? std::min(start + limit, static_cast<int>(lines.size()))
+                               : static_cast<int>(lines.size());
+          for (int i = start; i < end; ++i) {
+            if (i > start) result += '\n';
+            result += lines[i];
+          }
+          return result;
+        }
+
         return content;
       } else {
         return path + " is empty.";
