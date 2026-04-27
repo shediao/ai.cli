@@ -16,8 +16,6 @@
 #include "logging.h"
 #include "response.h"
 #include "tool_calls.h"
-#include "tools/bash.h"
-#include "tools/filesystem.h"
 #include "utils.h"
 
 namespace {
@@ -210,14 +208,18 @@ class OpenAIClient::Impl {
     }
     if (!args_.chat_args.tools.empty()) {
       auto tools = nlohmann::json::array();
-      if (args_.chat_args.tools.contains("filesystem")) {
-        tools = nlohmann::json::parse(get_filesystem_tools());
-      }
-      if (args_.chat_args.tools.contains("bash")) {
-        auto bash_tools = nlohmann::json::parse(get_bash_tools());
-        for (auto& tool : bash_tools) {
+      for (auto const& tool_name : args_.chat_args.tools) {
+        auto schema_str = get_tool_schema(tool_name);
+        if (schema_str.empty()) {
+          LOG(WARNING) << "Unknown tool category: " << tool_name;
+          continue;
+        }
+        auto category_tools = nlohmann::json::parse(schema_str);
+        for (auto& tool : category_tools) {
           tools.push_back(tool);
         }
+        // Ensure the tool's execution functions are registered
+        register_tool_category_funcs(tool_name);
       }
 
       if (tools.size() > 0) {

@@ -35,8 +35,7 @@ std::string bash(nlohmann::json const& args) {
     using namespace subprocess::named_arguments;
     using subprocess::run;
 
-    int ret = run("bash", "-c", command, std_out > out_buf,
-                  std_err > err_buf);
+    int ret = run("bash", "-c", command, std_out > out_buf, std_err > err_buf);
 
     std::string result;
     if (!out_buf.empty()) {
@@ -56,9 +55,14 @@ std::string bash(nlohmann::json const& args) {
 
     return result;
   }
-  return "tool_calls bash arguments is invalid. Expected: {\"command\": \"...\"}";
+  return "tool_calls bash arguments is invalid. Expected: {\"command\": "
+         "\"...\"}";
 }
 
-const std::string_view get_bash_tools() { return bash_tools_json_str; }
+std::string_view get_bash_tools() { return bash_tools_json_str; }
 
 void regist_bash_tools() { regist_tool_calls("bash", bash); }
+
+// Self-register the category at static-init time
+static bool _bash_tool_category_registered =
+    regist_tool_category("bash", get_bash_tools, regist_bash_tools);

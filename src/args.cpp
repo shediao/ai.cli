@@ -14,6 +14,7 @@
 #include <unistd.h>
 #endif
 
+#include "tool_calls.h"
 #include "utils.h"
 
 namespace {
@@ -185,7 +186,10 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       .choices({"low", "medium", "high", "none"});
 
   chat.add_option("tools", "tools call", chat_args.tools)
-      .choices({"filesystem", "bash"});
+      .choices([&]() {
+        auto cats = get_tool_categories();
+        return std::vector<std::string>(cats.begin(), cats.end());
+      }());
   chat.add_option("tool-choice",
                   "tool choice(none: if no tools, auto: if has tools)",
                   chat_args.tool_choice)

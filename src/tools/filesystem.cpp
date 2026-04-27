@@ -431,7 +431,7 @@ std::string move_file(nlohmann::json const& args) {
   return "tool_calls move_file arguments is invalid.";
 }
 
-const std::string_view get_filesystem_tools() {
+std::string_view get_filesystem_tools() {
   return filesystem_tools_json_str;
 }
 
@@ -447,3 +447,7 @@ void regist_filesystem_tools() {
   regist_tool_calls("search_files", search_files);
   regist_tool_calls("get_file_info", get_file_info);
 }
+
+// Self-register the category at static-init time
+static bool _filesystem_tool_category_registered = regist_tool_category(
+    "filesystem", get_filesystem_tools, regist_filesystem_tools);
