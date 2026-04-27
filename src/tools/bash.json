@@ -9,6 +9,10 @@
         "command": {
           "type": "string",
           "description": "The bash command to execute. This will be passed to 'bash -c'. Can include pipes, redirects, variable expansions, and any valid bash syntax."
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "description": "Set to true if the command is potentially dangerous or destructive and should require user confirmation before execution. Commands that modify files (rm, mv, dd), change system settings, install packages, use sudo, make network requests that could expose data, or any other sensitive operations should have this set to true. Set to false for safe read-only operations like cat, ls, find, grep, etc."
         }
       },
       "required": [

@@ -14,6 +14,21 @@ std::string bash(nlohmann::json const& args) {
       args["command"].is_string()) {
     std::string command = args["command"].get<std::string>();
 
+    // Check if user confirmation is required
+    if (args.contains("requires_confirmation") &&
+        args["requires_confirmation"].is_boolean() &&
+        args["requires_confirmation"].get<bool>()) {
+      std::cerr << "\n⚠️  Bash command requires confirmation:\n"
+                << "   " << command << "\n"
+                << "   Execute? (y/n): ";
+      std::string answer;
+      std::getline(std::cin, answer);
+      if (answer != "y" && answer != "Y" && answer != "yes" &&
+          answer != "Yes") {
+        return "Command cancelled by user: " + command;
+      }
+    }
+
     subprocess::buffer out_buf;
     subprocess::buffer err_buf;
 

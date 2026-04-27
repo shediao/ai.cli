@@ -185,7 +185,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       .choices({"low", "medium", "high", "none"});
 
   chat.add_option("tools", "tools call", chat_args.tools)
-      .choices({"filesystem"});
+      .choices({"filesystem", "bash"});
   chat.add_option("tool-choice",
                   "tool choice(none: if no tools, auto: if has tools)",
                   chat_args.tool_choice)

@@ -16,6 +16,7 @@
 #include "logging.h"
 #include "response.h"
 #include "tool_calls.h"
+#include "tools/bash.h"
 #include "tools/filesystem.h"
 #include "utils.h"
 
@@ -207,10 +208,19 @@ class OpenAIClient::Impl {
     if (args_.chat_args.reasoning_effort.has_value()) {
       request["reasoning_effort"] = args_.chat_args.reasoning_effort.value();
     }
-    if (args_.chat_args.tools.contains("filesystem")) {
-      auto tools = nlohmann::json::parse(get_filesystem_tools());
+    if (!args_.chat_args.tools.empty()) {
+      auto tools = nlohmann::json::array();
+      if (args_.chat_args.tools.contains("filesystem")) {
+        tools = nlohmann::json::parse(get_filesystem_tools());
+      }
+      if (args_.chat_args.tools.contains("bash")) {
+        auto bash_tools = nlohmann::json::parse(get_bash_tools());
+        for (auto& tool : bash_tools) {
+          tools.push_back(tool);
+        }
+      }
 
-      if (true) {
+      if (tools.size() > 0) {
         auto tools_for_deepseek = nlohmann::json::array();
         for (auto tool : tools) {
           auto t = nlohmann::json::object();
