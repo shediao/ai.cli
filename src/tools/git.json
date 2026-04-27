@@ -1,0 +1,222 @@
+[
+  {
+    "type": "function",
+    "name": "git_status",
+    "description": "Show the working tree status of a git repository. Returns the current branch, staged/unstaged changes, and untracked files. Use this to understand the current state of the repository before making changes.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Optional. Path to the git repository. If not provided, uses the current working directory."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "type": "function",
+    "name": "git_diff",
+    "description": "Show changes between commits, commit and working tree, etc. Shows unstaged changes by default. Use 'staged' parameter to see staged changes, or provide commit hashes to compare specific commits.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Optional. Path to the git repository. If not provided, uses the current working directory."
+        },
+        "staged": {
+          "type": "boolean",
+          "description": "If true, show staged changes (git diff --staged). Default is false (show unstaged changes)."
+        },
+        "commit1": {
+          "type": "string",
+          "description": "Optional. First commit hash, branch name, or tag for comparison."
+        },
+        "commit2": {
+          "type": "string",
+          "description": "Optional. Second commit hash, branch name, or tag for comparison. If commit1 is provided without commit2, compares commit1 with HEAD."
+        },
+        "file": {
+          "type": "string",
+          "description": "Optional. Limit diff to a specific file path."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "type": "function",
+    "name": "git_log",
+    "description": "Show commit logs. Returns a formatted list of commits with hash, author, date, and message. Use this to understand the project history, find specific commits, or review recent changes.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Optional. Path to the git repository. If not provided, uses the current working directory."
+        },
+        "count": {
+          "type": "integer",
+          "description": "Optional. Number of commits to show. Default is 20."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Optional. Show log for a specific branch. Default is current branch."
+        },
+        "file": {
+          "type": "string",
+          "description": "Optional. Show log for a specific file only."
+        },
+        "oneline": {
+          "type": "boolean",
+          "description": "Optional. If true, show compact one-line format. Default is false (shows full format)."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "type": "function",
+    "name": "git_add",
+    "description": "Add file contents to the staging area (index). Use this to stage files before committing. Can add individual files, directories, or use patterns.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Optional. Path to the git repository. If not provided, uses the current working directory."
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Files or directories to stage. Can be individual file paths, directory paths, or patterns like '*.cpp'. Use '.' to stage all changes."
+        }
+      },
+      "required": [
+        "files"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "name": "git_commit",
+    "description": "Record changes to the repository. Creates a new commit with the staged changes and the given message.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Optional. Path to the git repository. If not provided, uses the current working directory."
+        },
+        "message": {
+          "type": "string",
+          "description": "The commit message."
+        }
+      },
+      "required": [
+        "message"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "name": "git_branch",
+    "description": "List, create, or delete branches. Without arguments, lists all local branches. Use 'name' to create a new branch. Use 'name' with 'delete=true' to delete a branch.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Optional. Path to the git repository. If not provided, uses the current working directory."
+        },
+        "name": {
+          "type": "string",
+          "description": "Optional. Name of the branch to create or delete. If not provided, lists all branches."
+        },
+        "delete": {
+          "type": "boolean",
+          "description": "Optional. If true, delete the specified branch. Use with 'name' parameter."
+        },
+        "remote": {
+          "type": "boolean",
+          "description": "Optional. If true, list remote branches instead of local branches."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "type": "function",
+    "name": "git_checkout",
+    "description": "Switch branches or restore working tree files. Use 'branch' to switch to a different branch. Use 'file' to restore a specific file to its committed state.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Optional. Path to the git repository. If not provided, uses the current working directory."
+        },
+        "branch": {
+          "type": "string",
+          "description": "Name of the branch to switch to."
+        },
+        "file": {
+          "type": "string",
+          "description": "Optional. Restore a specific file instead of switching branches. If provided, discards local changes to that file."
+        },
+        "create": {
+          "type": "boolean",
+          "description": "Optional. If true, create the branch before switching to it (git checkout -b <branch>)."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "type": "function",
+    "name": "git_init",
+    "description": "Create an empty git repository or reinitialize an existing one. Creates a .git directory with all necessary files.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path where the git repository should be initialized. If not provided, uses the current working directory."
+        },
+        "bare": {
+          "type": "boolean",
+          "description": "Optional. If true, create a bare repository (no working tree). Default is false."
+        }
+      },
+      "required": []
+    }
+  },
+  {
+    "type": "function",
+    "name": "git_clone",
+    "description": "Clone a repository into a new directory. Downloads the entire repository including all branches and history.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The URL of the remote repository to clone (e.g., https://github.com/user/repo.git)."
+        },
+        "directory": {
+          "type": "string",
+          "description": "Optional. The directory to clone into. If not provided, uses the repository name."
+        },
+        "depth": {
+          "type": "integer",
+          "description": "Optional. Create a shallow clone with truncated history. Use 1 for only the latest commit."
+        }
+      },
+      "required": [
+        "url"
+      ]
+    }
+  }
+]
