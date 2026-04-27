@@ -65,7 +65,7 @@
   {
     "type": "function",
     "name": "edit_file",
-    "description": "Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file.",
+    "description": "Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file. If the edit fails due to matching issues, fall back to using the write_file tool to rewrite the entire file with the corrected content.",
     "parameters": {
       "type": "object",
       "properties": {

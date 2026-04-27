@@ -1,5 +1,3 @@
-
-
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -20,207 +18,323 @@
 
 std::string read_file(nlohmann::json const& args) {
   LOG(INFO) << "call read_file(" << args.dump() << ")";
-  if (args.is_object() && args.contains("path") && args["path"].is_string()) {
-    std::string path = args["path"].get<std::string>();
-    std::ifstream in(path);
-    if (in.is_open()) {
-      std::string content{std::istreambuf_iterator<char>(in),
-                          std::istreambuf_iterator<char>()};
-      if (!content.empty()) {
-        bool has_limit = args.contains("limit") && args["limit"].is_number_integer();
-        bool has_offset = args.contains("offset") && args["offset"].is_number_integer();
-
-        if (has_limit || has_offset) {
-          int limit = has_limit ? args["limit"].get<int>() : -1;
-          int offset = has_offset ? args["offset"].get<int>() : 1;
-          if (offset < 1) offset = 1;
-
-          std::vector<std::string> lines;
-          std::istringstream iss(content);
-          std::string line;
-          while (std::getline(iss, line)) {
-            lines.push_back(line);
-          }
-
-          if (offset > static_cast<int>(lines.size())) {
-            return path + " has only " + std::to_string(lines.size()) +
-                   " lines, offset " + std::to_string(offset) +
-                   " is out of range.";
-          }
-
-          std::string result;
-          int start = offset - 1;
-          int end = (limit > 0) ? std::min(start + limit, static_cast<int>(lines.size()))
-                               : static_cast<int>(lines.size());
-          for (int i = start; i < end; ++i) {
-            if (i > start) result += '\n';
-            result += lines[i];
-          }
-          return result;
-        }
-
-        return content;
-      } else {
-        return path + " is empty.";
-      }
+  if (!args.is_object()) {
+    return "tool_calls read_file arguments is invalid: expected a JSON object.";
+  }
+  if (!args.contains("path") && !args.contains("file")) {
+    return "tool_calls read_file arguments is invalid: missing required "
+           "parameter \"path\" or \"file\".";
+  }
+  if (args.contains("path") && !args["path"].is_string()) {
+    return "tool_calls read_file arguments is invalid: \"path\" must be a "
+           "string.";
+  }
+  if (args.contains("file") && !args["file"].is_string()) {
+    return "tool_calls read_file arguments is invalid: \"file\" must be a "
+           "string.";
+  }
+  std::string path = [](nlohmann::json const& args) -> std::string {
+    if (!args.is_object()) {
+      return "";
     }
+    if (args.contains("path") && args["path"].is_string()) {
+      return args["path"].get<std::string>();
+    }
+    if (args.contains("file") && args["file"].is_string()) {
+      return args["file"].get<std::string>();
+    }
+    return "";
+  }(args);
+  if (path.empty()) {
+    return "tool_calls read_file arguments is invalid.";
+  }
+  std::ifstream in(path);
+  if (!in.is_open()) {
     return path + " is not exists.";
   }
-  return "tool_calls read_file arguments is invalid.";
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  if (content.empty()) {
+    return path + " is empty.";
+  }
+
+  bool has_offset =
+      args.contains("offset") && args["offset"].is_number_integer();
+  bool has_limit = args.contains("limit") && args["limit"].is_number_integer();
+
+  if (has_limit || has_offset) {
+    int limit = has_limit ? args["limit"].get<int>() : -1;
+    int offset = has_offset ? args["offset"].get<int>() : 1;
+    if (offset < 1) {
+      offset = 1;
+    }
+    // Count total lines for accurate error reporting
+    int total_lines =
+        static_cast<int>(std::count(content.begin(), content.end(), '\n'));
+    // A non-empty file without trailing newline still has 1 line;
+    // a file ending with newline has that many lines.
+    if (!content.empty() && content.back() != '\n') {
+      ++total_lines;
+    }
+
+    auto it = content.begin();
+    for (int i = 0; i < offset - 1; ++i) {
+      it = std::find(it, content.end(), '\n');
+      if (it == content.end()) {
+        return path + " has only " + std::to_string(total_lines) +
+               " lines, offset " + std::to_string(offset) + " is out of range.";
+      }
+      ++it;
+    }
+
+    if (limit == 0) {
+      return std::string{};  // limit=0 means read zero lines
+    } else if (limit > 0) {
+      auto end = it;
+      for (int i = 0; i < limit; ++i) {
+        end = std::find(end, content.end(), '\n');
+        if (end == content.end()) {
+          break;
+        }
+        ++end;
+      }
+      return std::string(it, end);
+    } else {
+      return std::string(it, content.end());
+    }
+  }
+
+  return content;
 }
 
 std::string read_multiple_files(nlohmann::json const& args) {
   LOG(INFO) << "call read_multiple_files(" << args.dump() << ")";
-  if (args.is_object() && args.contains("paths") && args["paths"].is_array()) {
-    std::vector<std::string> paths;
-    for (auto const& p : args["paths"]) {
-      if (p.is_string()) {
-        paths.push_back(p.get<std::string>());
-      }
-    }
-    std::string contents;
-    for (auto const& path : paths) {
-      std::ifstream in(path);
-      if (in.is_open()) {
-        std::string file_content{std::istreambuf_iterator<char>(in),
-                                 std::istreambuf_iterator<char>()};
-        contents += "\n------\n";
-        if (!contents.empty()) {
-          contents += path;
-          contents += "\n";
-          contents += file_content;
-        } else {
-          contents += path + " is empty.";
-        }
-      }
-    }
-    return contents;
+  if (!args.is_object()) {
+    return "tool_calls read_multiple_files arguments is invalid: expected a "
+           "JSON object.";
   }
-  return "tool_calls read_multiple_files arguments is invalid.";
+  if (!args.contains("paths")) {
+    return "tool_calls read_multiple_files arguments is invalid: missing "
+           "required parameter \"paths\".";
+  }
+  if (!args["paths"].is_array()) {
+    return "tool_calls read_multiple_files arguments is invalid: \"paths\" "
+           "must be an array.";
+  }
+  std::vector<std::string> paths;
+  for (auto const& p : args["paths"]) {
+    if (p.is_string()) {
+      paths.push_back(p.get<std::string>());
+    }
+  }
+  std::string contents;
+  for (auto const& path : paths) {
+    if (!contents.empty()) {
+      contents += "\n------\n";
+    }
+    std::ifstream in(path);
+    if (in.is_open()) {
+      std::string file_content{std::istreambuf_iterator<char>(in),
+                               std::istreambuf_iterator<char>()};
+      contents += path;
+      contents += "\n";
+      if (!file_content.empty()) {
+        contents += file_content;
+      } else {
+        contents += "(empty)";
+      }
+    } else {
+      contents += path + " (failed to read)";
+    }
+  }
+  return contents;
 }
 
 std::string write_file(nlohmann::json const& args) {
   LOG(INFO) << "call write_file(" << args.dump() << ")";
-  if (args.is_object() && args.contains("path") && args["path"].is_string() &&
-      args.contains("content") && args["content"].is_string()) {
-    std::string path = args["path"].get<std::string>();
-    std::string content = args["content"].get<std::string>();
-    std::ofstream out(path);
-    if (out.is_open()) {
-      out.write(content.data(), content.size());
-      out.flush();
-    }
-    return "Successfully wrote to " + path;
+  if (!args.is_object()) {
+    return "tool_calls write_file arguments is invalid: expected a JSON "
+           "object.";
   }
-  return "tool_calls write_file arguments is invalid.";
+  if (!args.contains("path")) {
+    return "tool_calls write_file arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "tool_calls write_file arguments is invalid: \"path\" must be a "
+           "string.";
+  }
+  if (!args.contains("content")) {
+    return "tool_calls write_file arguments is invalid: missing required "
+           "parameter \"content\".";
+  }
+  if (!args["content"].is_string()) {
+    return "tool_calls write_file arguments is invalid: \"content\" must be a "
+           "string.";
+  }
+  std::string path = args["path"].get<std::string>();
+  std::string content = args["content"].get<std::string>();
+  std::ofstream out(path);
+  if (out.is_open()) {
+    out.write(content.data(), content.size());
+    out.flush();
+  }
+  return "Successfully wrote to " + path;
 }
 
+// Finds the earliest-occurring label from |labels| in |str| starting at
+// |start_pos|. Returns {npos, ""} if none match.
 std::pair<size_t, std::string_view> find_by_lables(
     const std::string& str, size_t start_pos,
     std::vector<std::string_view> const& lables) {
-  auto search_lable_pos = std::string::npos;
-  auto it = std::find_if(
-      begin(lables), end(lables),
-      [&str, &search_lable_pos, start_pos](std::string_view lable) {
-        search_lable_pos = str.find(lable, start_pos);
-        return search_lable_pos != std::string::npos;
-      });
-  if (it == end(lables)) {
-    return {std::string::npos, ""};
+  size_t best_pos = std::string::npos;
+  std::string_view best_label;
+  for (auto const& label : lables) {
+    size_t pos = str.find(label, start_pos);
+    if (pos != std::string::npos && pos < best_pos) {
+      best_pos = pos;
+      best_label = label;
+    }
   }
-  std::string_view lable{*it};
-  return {search_lable_pos, lable};
+  return {best_pos, best_label};
 }
 
 std::string edit_file(nlohmann::json const& args) {
   LOG(INFO) << "call edit_file(" << args.dump() << ")";
-  if (args.is_object() && args.contains("path") && args["path"].is_string() &&
-      args.contains("diff") && args["diff"].is_string()) {
-    std::string path = args["path"].get<std::string>();
-    std::string diff = args["diff"].get<std::string>();
-    std::ifstream in(path);
-    std::string file_content{std::istreambuf_iterator<char>(in),
-                             std::istreambuf_iterator<char>()};
-    in.close();
-    std::vector<std::string_view> search_lables{"<<<<<<< SEARCH\n",
-                                                "<<<<<<< SEARCH"};
-    std::vector<std::string_view> replace_lables{"\n>>>>>>> REPLACE",
-                                                 ">>>>>>> REPLACE"};
-    std::vector<std::string_view> split_lables{"\n=======\n", "=======\n",
-                                               "\n=======", "======="};
-    auto [search_lable_pos, search_lable] =
-        find_by_lables(diff, 0, search_lables);
-    while (search_lable_pos != std::string::npos) {
-      auto [replace_lable_pos, replace_lable] =
-          find_by_lables(diff, search_lable_pos, replace_lables);
-      if (replace_lable_pos == std::string::npos) {
-        LOG(ERROR) << "not found lable: '>>>>>>> REPLACE'";
-        return "User cancel edit file: " + path;
-        break;
-      }
-      auto [split_lable_pos, split_lable] =
-          find_by_lables(diff, search_lable_pos, split_lables);
-      if (split_lable_pos == std::string::npos ||
-          split_lable_pos > replace_lable_pos) {
-        LOG(ERROR) << "not found lable: '======='";
-        return "User cancel edit file: " + path;
-        break;
-      }
 
-      auto search =
-          diff.substr(search_lable_pos + search_lable.size(),
-                      split_lable_pos - search_lable_pos - search_lable.size());
-      auto replace =
-          diff.substr(split_lable_pos + split_lable.size(),
-                      replace_lable_pos - split_lable_pos - split_lable.size());
-      auto search_pos = file_content.find(search);
+  // --- argument validation ---
+  if (!args.is_object()) {
+    return "tool_calls edit_file arguments is invalid: expected a JSON object.";
+  }
+  if (!args.contains("path")) {
+    return "tool_calls edit_file arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "tool_calls edit_file arguments is invalid: \"path\" must be a "
+           "string.";
+  }
+  if (!args.contains("diff")) {
+    return "tool_calls edit_file arguments is invalid: missing required "
+           "parameter \"diff\".";
+  }
+  if (!args["diff"].is_string()) {
+    return "tool_calls edit_file arguments is invalid: \"diff\" must be a "
+           "string.";
+  }
 
-      if (search_pos != std::string::npos) {
-        file_content.replace(search_pos, search.size(), replace);
-      } else {
-        LOG(ERROR) << "Not Found: " << search;
-      }
-      auto [search_lable_pos2, search_lable2] =
-          find_by_lables(diff, replace_lable_pos, search_lables);
-      search_lable_pos = search_lable_pos2;
-      search_lable = search_lable2;
+  std::string path = args["path"].get<std::string>();
+  std::string diff = args["diff"].get<std::string>();
+
+  // --- read original file ---
+  std::ifstream in(path);
+  if (!in.is_open()) {
+    return "Failed to open file: " + path;
+  }
+  std::string file_content{std::istreambuf_iterator<char>(in),
+                           std::istreambuf_iterator<char>()};
+  in.close();
+
+  // --- static label tables (avoid re-allocation every call) ---
+  static const std::vector<std::string_view> search_labels{"<<<<<<< SEARCH\n",
+                                                           "<<<<<<< SEARCH"};
+  static const std::vector<std::string_view> replace_labels{"\n>>>>>>> REPLACE",
+                                                            ">>>>>>> REPLACE"};
+  static const std::vector<std::string_view> split_labels{
+      "\n=======\n", "=======\n", "\n=======", "======="};
+
+  // --- parse diff and apply each SEARCH/REPLACE block ---
+  std::string_view diff_view(diff);
+  size_t cursor = 0;
+
+  while (true) {
+    // 1. locate next SEARCH marker
+    auto [search_pos, search_label] =
+        find_by_lables(diff, cursor, search_labels);
+    if (search_pos == std::string::npos) {
+      break;  // no more blocks
     }
 
-    subprocess::buffer diff_str;
-    {
-      TempFile temp("", std::filesystem::path(path).filename().string());
-
-      if (std::ofstream ftemp(temp.path()); ftemp.is_open()) {
-        ftemp.write(file_content.data(), file_content.size());
-        ftemp.flush();
-      }
-      using namespace subprocess::named_arguments;
-      using subprocess::run;
-      run("diff", "-U0", "--color=never", path, temp.path(),
-          std_out > diff_str);
-      if (0 == run(std::string("which"), "delta", std_out > devnull,
-                   std_err > devnull)) {
-        run("delta", "--paging=never", path, temp.path());
-      } else {
-        run("diff", "-U0", "--color=always", path, temp.path());
-      }
+    // 2. locate SPLIT marker (natural order: SEARCH → SPLIT → REPLACE)
+    auto [split_pos, split_label] =
+        find_by_lables(diff, search_pos + search_label.size(), split_labels);
+    if (split_pos == std::string::npos) {
+      LOG(ERROR) << "not found label: '======='";
+      return "Failed to edit file " + path;
     }
 
-    if (std::ofstream out(path); out.is_open()) {
-      out.write(file_content.data(), file_content.size());
-      out.flush();
+    // 3. locate REPLACE marker after the split
+    auto [replace_pos, replace_label] =
+        find_by_lables(diff, split_pos + split_label.size(), replace_labels);
+    if (replace_pos == std::string::npos) {
+      LOG(ERROR) << "not found label: '>>>>>>> REPLACE'";
+      return "Failed to edit file " + path;
     }
-    if (diff_str.empty()) {
-      return "Successfully edited file " + path;
+
+    // 4. extract search & replace strings (string_view avoids copies)
+    std::string_view search =
+        diff_view.substr(search_pos + search_label.size(),
+                         split_pos - search_pos - search_label.size());
+    std::string_view replace =
+        diff_view.substr(split_pos + split_label.size(),
+                         replace_pos - split_pos - split_label.size());
+
+    // 5. apply the replacement
+    size_t found = file_content.find(search);
+    if (found == std::string::npos) {
+      LOG(ERROR) << "Not Found: " << search;
+      return "Failed edited file " + path;
+    }
+    file_content.replace(found, search.size(), replace);
+
+    // 6. advance past this block for the next iteration
+    cursor = replace_pos + replace_label.size();
+  }
+
+  // --- show diff between original file and modified content ---
+  {
+    TempFile temp("", std::filesystem::path(path).filename().string());
+    if (std::ofstream ftemp(temp.path()); ftemp.is_open()) {
+      ftemp.write(file_content.data(), file_content.size());
+      ftemp.flush();
+    }
+    using namespace subprocess::named_arguments;
+    using subprocess::run;
+    if (0 == run(std::string("which"), "delta", std_out > devnull,
+                 std_err > devnull)) {
+      run("delta", "--paging=never", path, temp.path());
     } else {
-      return diff_str.to_string();
+      run("diff", "-U0", "--color=always", path, temp.path());
     }
   }
-  return "tool_calls edit_file arguments is invalid.";
+
+  // --- persist modified content back to the original file ---
+  {
+    std::ofstream out(path);
+    if (!out.is_open()) {
+      return "Failed to write to file: " + path;
+    }
+    out.write(file_content.data(), file_content.size());
+    out.flush();
+  }
+
+  return "Successfully edited file " + path;
 }
 
 std::string create_directory(nlohmann::json const& args) {
   LOG(INFO) << "call create_directory(" << args.dump() << ")";
+  if (!args.is_object()) {
+    return "tool_calls create_directory arguments is invalid: expected a JSON "
+           "object.";
+  }
+  if (!args.contains("path")) {
+    return "tool_calls create_directory arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "tool_calls create_directory arguments is invalid: \"path\" must be "
+           "a string.";
+  }
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
     std::error_code err;
@@ -236,6 +350,18 @@ std::string create_directory(nlohmann::json const& args) {
 
 std::string list_directory(nlohmann::json const& args) {
   LOG(INFO) << "call list_directory(" << args.dump() << ")";
+  if (!args.is_object()) {
+    return "tool_calls list_directory arguments is invalid: expected a JSON "
+           "object.";
+  }
+  if (!args.contains("path")) {
+    return "tool_calls list_directory arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "tool_calls list_directory arguments is invalid: \"path\" must be a "
+           "string.";
+  }
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
     std::error_code err;
@@ -287,6 +413,18 @@ nlohmann::json buildTree(std::filesystem::path const& path) {
 
 std::string directory_tree(nlohmann::json const& args) {
   LOG(INFO) << "call directory_tree(" << args.dump() << ")";
+  if (!args.is_object()) {
+    return "tool_calls directory_tree arguments is invalid: expected a JSON "
+           "object.";
+  }
+  if (!args.contains("path")) {
+    return "tool_calls directory_tree arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "tool_calls directory_tree arguments is invalid: \"path\" must be a "
+           "string.";
+  }
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
     std::error_code err;
@@ -301,6 +439,26 @@ std::string directory_tree(nlohmann::json const& args) {
 
 std::string search_files(nlohmann::json const& args) {
   LOG(INFO) << "call search_files(" << args.dump() << ")";
+  if (!args.is_object()) {
+    return "tool_calls search_files arguments is invalid: expected a JSON "
+           "object.";
+  }
+  if (!args.contains("path")) {
+    return "tool_calls search_files arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "tool_calls search_files arguments is invalid: \"path\" must be a "
+           "string.";
+  }
+  if (!args.contains("pattern")) {
+    return "tool_calls search_files arguments is invalid: missing required "
+           "parameter \"pattern\".";
+  }
+  if (!args["pattern"].is_string()) {
+    return "tool_calls search_files arguments is invalid: \"pattern\" must be "
+           "a string.";
+  }
   if (args.is_object() && args.contains("path") && args["path"].is_string() &&
       args.contains("pattern") && args["pattern"].is_string()) {
     std::string path = args["path"].get<std::string>();
@@ -327,7 +485,9 @@ std::string search_files(nlohmann::json const& args) {
                      filename_lower.begin(), ::tolower);
 
       if (filename_lower.find(pattern_lower) != std::string::npos) {
-        if (!ret.empty()) ret += '\n';
+        if (!ret.empty()) {
+          ret += '\n';
+        }
         if (entry.is_directory(err)) {
           ret += "[DIR] " + entry.path().string();
         } else {
@@ -347,6 +507,18 @@ std::string search_files(nlohmann::json const& args) {
 
 std::string get_file_info(nlohmann::json const& args) {
   LOG(INFO) << "call get_file_info(" << args.dump() << ")";
+  if (!args.is_object()) {
+    return "tool_calls get_file_info arguments is invalid: expected a JSON "
+           "object.";
+  }
+  if (!args.contains("path")) {
+    return "tool_calls get_file_info arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "tool_calls get_file_info arguments is invalid: \"path\" must be a "
+           "string.";
+  }
   if (args.is_object() && args.contains("path") && args["path"].is_string()) {
     std::string path = args["path"].get<std::string>();
     std::error_code err;
@@ -381,7 +553,9 @@ std::string get_file_info(nlohmann::json const& args) {
     // Remove trailing newline from ctime
     if (info["last_modified"].is_string()) {
       std::string ts = info["last_modified"];
-      if (!ts.empty() && ts.back() == '\n') ts.pop_back();
+      if (!ts.empty() && ts.back() == '\n') {
+        ts.pop_back();
+      }
       info["last_modified"] = ts;
     }
 
@@ -414,6 +588,25 @@ std::string get_file_info(nlohmann::json const& args) {
 
 std::string move_file(nlohmann::json const& args) {
   LOG(INFO) << "call directory_tree(" << args.dump() << ")";
+  if (!args.is_object()) {
+    return "tool_calls move_file arguments is invalid: expected a JSON object.";
+  }
+  if (!args.contains("source")) {
+    return "tool_calls move_file arguments is invalid: missing required "
+           "parameter \"source\".";
+  }
+  if (!args["source"].is_string()) {
+    return "tool_calls move_file arguments is invalid: \"source\" must be a "
+           "string.";
+  }
+  if (!args.contains("distination")) {
+    return "tool_calls move_file arguments is invalid: missing required "
+           "parameter \"distination\".";
+  }
+  if (!args["distination"].is_string()) {
+    return "tool_calls move_file arguments is invalid: \"distination\" must be "
+           "a string.";
+  }
   if (args.is_object() && args.contains("source") &&
       args["source"].is_string() && args.contains("distination") &&
       args["distination"].is_string()) {
@@ -431,9 +624,7 @@ std::string move_file(nlohmann::json const& args) {
   return "tool_calls move_file arguments is invalid.";
 }
 
-std::string_view get_filesystem_tools() {
-  return filesystem_tools_json_str;
-}
+std::string_view get_filesystem_tools() { return filesystem_tools_json_str; }
 
 void regist_filesystem_tools() {
   regist_tool_calls("read_file", read_file);
