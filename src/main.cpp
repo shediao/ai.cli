@@ -5,6 +5,7 @@
 #include "chat.h"
 #include "curl/curl.h"
 #include "models.h"
+#include "tools/bash.h"
 #include "tools/filesystem.h"
 
 class CurlGlobalInitGuard {
@@ -28,6 +29,7 @@ int main(int argc, char* argv[])
 
   if (cmd.command() == "chat") {
     regist_filesystem_tools();
+    regist_bash_tools();
     return chat();
   } else if (cmd.command() == "models") {
     return models();

@@ -1,0 +1,19 @@
+[
+  {
+    "type": "function",
+    "name": "bash",
+    "description": "Execute a bash command and return the output. This tool allows running arbitrary shell commands. The command is executed via 'bash -c', so all bash features like pipes, redirects, variables, and command substitution are available. Use this tool for file operations, system queries, building projects, running scripts, and any other shell-level tasks. Returns both stdout and stderr output.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The bash command to execute. This will be passed to 'bash -c'. Can include pipes, redirects, variable expansions, and any valid bash syntax."
+        }
+      },
+      "required": [
+        "command"
+      ]
+    }
+  }
+]

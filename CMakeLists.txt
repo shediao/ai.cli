@@ -284,6 +284,7 @@ add_executable(
   src/openai.cpp
   src/response.cpp
   src/tools/filesystem.cpp
+  src/tools/bash.cpp
   src/tool_calls.cpp
   src/utils.cpp
   src/base64.cpp)
@@ -307,6 +308,10 @@ endif()
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/filesystem.json
      FILESYSTEM_TOOLS_JSON_DATA)
 configure_file(src/tools/filesystem_tools_json.h.in filesystem_tools_json.h)
+
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/bash.json
+     BASH_TOOLS_JSON_DATA)
+configure_file(src/tools/bash_tools_json.h.in bash_tools_json.h)
 
 # 添加头文件路径
 target_include_directories(
