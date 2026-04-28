@@ -609,6 +609,60 @@ std::string move_file(nlohmann::json const& args) {
   return "tool_calls move_file arguments is invalid.";
 }
 
+std::string execute_file(nlohmann::json const& args) {
+  LOG(INFO) << "call execute_file(" << args.dump() << ")";
+  if (!args.is_object()) {
+    return "tool_calls execute_file arguments is invalid: expected a JSON "
+           "object.";
+  }
+  if (!args.contains("path")) {
+    return "tool_calls execute_file arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "tool_calls execute_file arguments is invalid: \"path\" must be a "
+           "string.";
+  }
+
+  std::string path = args["path"].get<std::string>();
+
+  // Build the command vector
+  std::vector<std::string> cmd_args;
+  cmd_args.push_back(path);
+  if (args.contains("args") && args["args"].is_array()) {
+    for (auto const& a : args["args"]) {
+      if (a.is_string()) {
+        cmd_args.push_back(a.get<std::string>());
+      }
+    }
+  }
+
+  // Execute and capture output
+  auto [exit_code, out_buf, err_buf] = subprocess::capture_run(cmd_args);
+
+  std::string result;
+  result += "Exit code: " + std::to_string(exit_code) + "\n";
+
+  std::string out_str = out_buf.to_string();
+  std::string err_str = err_buf.to_string();
+
+  if (!out_str.empty()) {
+    result += "stdout:\n" + out_str;
+    if (!err_str.empty()) {
+      result += "\n";
+    }
+  }
+  if (!err_str.empty()) {
+    result += "stderr:\n" + err_str;
+  }
+
+  if (out_str.empty() && err_str.empty()) {
+    result += "(no output)";
+  }
+
+  return result;
+}
+
 std::string_view get_filesystem_tools() { return filesystem_tools_json_str; }
 
 void regist_filesystem_tools() {
@@ -622,6 +676,7 @@ void regist_filesystem_tools() {
   regist_tool_calls("move_file", move_file);
   regist_tool_calls("search_files", search_files);
   regist_tool_calls("get_file_info", get_file_info);
+  regist_tool_calls("execute_file", execute_file);
 }
 
 // Self-register the category at static-init time

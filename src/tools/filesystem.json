@@ -169,6 +169,30 @@
     }
   },
   {
+    "type": "function",
+    "name": "execute_file",
+    "description": "Execute a file as a subprocess and capture its output. Returns the exit code, stdout, and stderr. Use this tool when you need to run an executable or script file.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The path to the executable file to run."
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional arguments to pass to the executable."
+        }
+      },
+      "required": [
+        "path"
+      ]
+    }
+  },
+  {
     "name": "get_file_info",
     "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content.",
     "parameters": {
