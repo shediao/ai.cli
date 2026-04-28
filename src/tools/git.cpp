@@ -11,8 +11,8 @@
 namespace {
 
 /// Helper: run a git command in the given repository path and capture
-/// stdout+stderr. Builds a shell command string and executes via bash,
-/// following the same pattern as bash.cpp.
+/// stdout+stderr. Builds a command vector and executes directly via
+/// subprocess::run.
 std::string run_git(std::string const& repo_path,
                     std::vector<std::string> const& args) {
   subprocess::buffer out_buf;
@@ -21,21 +21,15 @@ std::string run_git(std::string const& repo_path,
   using namespace subprocess::named_arguments;
   using subprocess::run;
 
-  // Build the git command string
-  std::string cmd = "git";
+  // Build the command vector
+  std::vector<std::string> cmd{"git"};
   if (!repo_path.empty()) {
-    cmd += " -C " + repo_path;
+    cmd.push_back("-C");
+    cmd.push_back(repo_path);
   }
-  for (auto const& a : args) {
-    // Wrap arguments that contain spaces in double quotes
-    if (a.find(' ') != std::string::npos || a.empty()) {
-      cmd += " \"" + a + "\"";
-    } else {
-      cmd += " " + a;
-    }
-  }
+  cmd.insert(cmd.end(), args.begin(), args.end());
 
-  int ret = run("bash", "-c", cmd, std_out > out_buf, std_err > err_buf);
+  int ret = run(std::move(cmd), std_out > out_buf, std_err > err_buf);
 
   std::string result;
   if (!out_buf.empty()) {
@@ -71,7 +65,7 @@ std::string git_status(nlohmann::json const& args) {
   LOG(INFO) << "call git_status(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_status arguments is invalid: expected a JSON "
+    return "function git_status arguments is invalid: expected a JSON "
            "object.";
   }
 
@@ -84,7 +78,7 @@ std::string git_diff(nlohmann::json const& args) {
   LOG(INFO) << "call git_diff(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_diff arguments is invalid: expected a JSON object.";
+    return "function git_diff arguments is invalid: expected a JSON object.";
   }
 
   std::string repo = get_repo_path(args);
@@ -121,7 +115,7 @@ std::string git_log(nlohmann::json const& args) {
   LOG(INFO) << "call git_log(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_log arguments is invalid: expected a JSON object.";
+    return "function git_log arguments is invalid: expected a JSON object.";
   }
 
   std::string repo = get_repo_path(args);
@@ -132,8 +126,7 @@ std::string git_log(nlohmann::json const& args) {
       args["oneline"].get<bool>()) {
     cmd_args.push_back("--oneline");
   } else {
-    cmd_args.push_back(
-        "--format=%h %an %ad %s");  // hash author date subject
+    cmd_args.push_back("--format=%h %an %ad %s");  // hash author date subject
   }
 
   // number of commits
@@ -167,15 +160,15 @@ std::string git_add(nlohmann::json const& args) {
   LOG(INFO) << "call git_add(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_add arguments is invalid: expected a JSON object.";
+    return "function git_add arguments is invalid: expected a JSON object.";
   }
 
   if (!args.contains("files")) {
-    return "tool_calls git_add arguments is invalid: missing required "
+    return "function git_add arguments is invalid: missing required "
            "parameter \"files\".";
   }
   if (!args["files"].is_array()) {
-    return "tool_calls git_add arguments is invalid: \"files\" must be an "
+    return "function git_add arguments is invalid: \"files\" must be an "
            "array.";
   }
 
@@ -189,7 +182,7 @@ std::string git_add(nlohmann::json const& args) {
   }
 
   if (cmd_args.size() == 1) {
-    return "tool_calls git_add arguments is invalid: \"files\" array is empty.";
+    return "function git_add arguments is invalid: \"files\" array is empty.";
   }
 
   return run_git(repo, cmd_args);
@@ -200,16 +193,16 @@ std::string git_commit(nlohmann::json const& args) {
   LOG(INFO) << "call git_commit(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_commit arguments is invalid: expected a JSON "
+    return "function git_commit arguments is invalid: expected a JSON "
            "object.";
   }
 
   if (!args.contains("message")) {
-    return "tool_calls git_commit arguments is invalid: missing required "
+    return "function git_commit arguments is invalid: missing required "
            "parameter \"message\".";
   }
   if (!args["message"].is_string()) {
-    return "tool_calls git_commit arguments is invalid: \"message\" must be a "
+    return "function git_commit arguments is invalid: \"message\" must be a "
            "string.";
   }
 
@@ -224,7 +217,7 @@ std::string git_branch(nlohmann::json const& args) {
   LOG(INFO) << "call git_branch(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_branch arguments is invalid: expected a JSON "
+    return "function git_branch arguments is invalid: expected a JSON "
            "object.";
   }
 
@@ -256,7 +249,7 @@ std::string git_checkout(nlohmann::json const& args) {
   LOG(INFO) << "call git_checkout(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_checkout arguments is invalid: expected a JSON "
+    return "function git_checkout arguments is invalid: expected a JSON "
            "object.";
   }
 
@@ -276,7 +269,7 @@ std::string git_checkout(nlohmann::json const& args) {
     cmd_args.push_back("--");
     cmd_args.push_back(args["file"].get<std::string>());
   } else {
-    return "tool_calls git_checkout arguments is invalid: missing \"branch\" "
+    return "function git_checkout arguments is invalid: missing \"branch\" "
            "or \"file\" parameter.";
   }
 
@@ -288,20 +281,20 @@ std::string git_init(nlohmann::json const& args) {
   LOG(INFO) << "call git_init(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_init arguments is invalid: expected a JSON object.";
+    return "function git_init arguments is invalid: expected a JSON object.";
   }
 
   std::string repo = get_repo_path(args);
 
   // git init doesn't use -C (the directory may not exist yet), so we build
-  // the command string directly and run via bash.
-  std::string cmd = "git init";
+  // the command vector directly.
+  std::vector<std::string> cmd{"git", "init"};
   if (args.contains("bare") && args["bare"].is_boolean() &&
       args["bare"].get<bool>()) {
-    cmd += " --bare";
+    cmd.push_back("--bare");
   }
   if (!repo.empty()) {
-    cmd += " " + repo;
+    cmd.push_back(repo);
   }
 
   subprocess::buffer out_buf;
@@ -309,7 +302,7 @@ std::string git_init(nlohmann::json const& args) {
   using namespace subprocess::named_arguments;
   using subprocess::run;
 
-  int ret = run("bash", "-c", cmd, std_out > out_buf, std_err > err_buf);
+  int ret = run(std::move(cmd), std_out > out_buf, std_err > err_buf);
 
   std::string result;
   if (!out_buf.empty()) {
@@ -332,36 +325,37 @@ std::string git_clone(nlohmann::json const& args) {
   LOG(INFO) << "call git_clone(" << args.dump() << ")";
 
   if (!args.is_object()) {
-    return "tool_calls git_clone arguments is invalid: expected a JSON object.";
+    return "function git_clone arguments is invalid: expected a JSON object.";
   }
 
   if (!args.contains("url")) {
-    return "tool_calls git_clone arguments is invalid: missing required "
+    return "function git_clone arguments is invalid: missing required "
            "parameter \"url\".";
   }
   if (!args["url"].is_string()) {
-    return "tool_calls git_clone arguments is invalid: \"url\" must be a "
+    return "function git_clone arguments is invalid: \"url\" must be a "
            "string.";
   }
 
   std::string url = args["url"].get<std::string>();
 
-  // git clone doesn't use -C, so build the command string directly.
-  std::string cmd = "git clone";
+  // git clone doesn't use -C, so build the command vector directly.
+  std::vector<std::string> cmd{"git", "clone"};
 
   // depth (shallow clone)
   if (args.contains("depth") && args["depth"].is_number_integer()) {
     int d = args["depth"].get<int>();
     if (d > 0) {
-      cmd += " --depth " + std::to_string(d);
+      cmd.push_back("--depth");
+      cmd.push_back(std::to_string(d));
     }
   }
 
-  cmd += " " + url;
+  cmd.push_back(url);
 
   // target directory
   if (args.contains("directory") && args["directory"].is_string()) {
-    cmd += " " + args["directory"].get<std::string>();
+    cmd.push_back(args["directory"].get<std::string>());
   }
 
   subprocess::buffer out_buf;
@@ -369,7 +363,7 @@ std::string git_clone(nlohmann::json const& args) {
   using namespace subprocess::named_arguments;
   using subprocess::run;
 
-  int ret = run("bash", "-c", cmd, std_out > out_buf, std_err > err_buf);
+  int ret = run(std::move(cmd), std_out > out_buf, std_err > err_buf);
 
   std::string result;
   if (!out_buf.empty()) {
@@ -382,8 +376,7 @@ std::string git_clone(nlohmann::json const& args) {
     result += err_buf.to_string();
   }
   if (result.empty()) {
-    result =
-        "git clone completed with exit code " + std::to_string(ret) + ".";
+    result = "git clone completed with exit code " + std::to_string(ret) + ".";
   }
   return result;
 }
