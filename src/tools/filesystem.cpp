@@ -12,6 +12,7 @@
 
 #include "args.h"
 #include "filesystem_tools_json.h"
+#include "glob.hpp"
 #include "logging.h"
 #include "tool_calls.h"
 #include "utils.h"
@@ -459,50 +460,28 @@ std::string search_files(nlohmann::json const& args) {
     return "tool_calls search_files arguments is invalid: \"pattern\" must be "
            "a string.";
   }
-  if (args.is_object() && args.contains("path") && args["path"].is_string() &&
-      args.contains("pattern") && args["pattern"].is_string()) {
-    std::string path = args["path"].get<std::string>();
-    std::string pattern = args["pattern"].get<std::string>();
+  std::string path = args["path"].get<std::string>();
+  std::string pattern = args["pattern"].get<std::string>();
 
-    // Convert pattern to lowercase for case-insensitive matching
-    std::string pattern_lower = pattern;
-    std::transform(pattern_lower.begin(), pattern_lower.end(),
-                   pattern_lower.begin(), ::tolower);
-
-    std::error_code err;
-    if (!std::filesystem::exists(path, err) ||
-        !std::filesystem::is_directory(path, err) || err) {
-      return "Error: " + path + " is not a valid directory (" + err.message() +
-             ")";
-    }
-
-    std::string ret;
-    for (auto const& entry :
-         std::filesystem::recursive_directory_iterator(path, err)) {
-      std::string filename = entry.path().filename().string();
-      std::string filename_lower = filename;
-      std::transform(filename_lower.begin(), filename_lower.end(),
-                     filename_lower.begin(), ::tolower);
-
-      if (filename_lower.find(pattern_lower) != std::string::npos) {
-        if (!ret.empty()) {
-          ret += '\n';
-        }
-        if (entry.is_directory(err)) {
-          ret += "[DIR] " + entry.path().string();
-        } else {
-          ret += "[FILE] " + entry.path().string();
-        }
-      }
-    }
-
-    if (ret.empty()) {
-      return "No files or directories matching \"" + pattern + "\" found in " +
-             path;
-    }
-    return ret;
+  bool recursive = false;
+  if (args.contains("recursive") && args["recursive"].is_boolean()) {
+    recursive = args["recursive"].get<bool>();
   }
-  return "tool_calls search_files arguments is invalid.";
+
+  std::string ret;
+  for (auto const& entry : glob::glob(pattern, path, recursive)) {
+    if (std::filesystem::is_directory(entry)) {
+      ret += "[DIR] " + entry;
+    } else {
+      ret += "[FILE] " + entry;
+    }
+  }
+
+  if (ret.empty()) {
+    return "No files or directories matching \"" + pattern + "\" found in " +
+           path;
+  }
+  return ret;
 }
 
 std::string get_file_info(nlohmann::json const& args) {

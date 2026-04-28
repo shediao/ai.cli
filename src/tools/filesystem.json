@@ -147,7 +147,7 @@
   },
   {
     "name": "search_files",
-    "description": "Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location.",
+    "description": "Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path when recursive is true. The search is case-insensitive and matches partial names. Returns full paths to all matching items. Great for finding files when you don't know their exact location.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -156,6 +156,10 @@
         },
         "pattern": {
           "type": "string"
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Whether to search recursively into subdirectories. Defaults to false (only search the immediate directory). Set to true to search through all nested subdirectories."
         }
       },
       "required": [
