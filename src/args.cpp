@@ -295,6 +295,13 @@ argparse::Command& AiArgs::parse(int argc, char* argv[]) {
 #endif
 
 AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
+  parser.add_flag("version", "Print version information", version)
+      .callback([](bool v) {
+        if (v) {
+          std::cout << "ai version " << GIT_VERSION << "\n";
+          std::exit(0);
+        }
+      });
   parser.add_option("x,proxy", "Use proxy(curl)", proxy)
       .value_placeholder("PROXY");
   parser.add_option("k,key", "API key", api_key).value_placeholder("key");

@@ -62,6 +62,19 @@ endif()
 # ── Options ────────────────────────────────────────────────────────────────
 option(AICLI_USE_SYSTEM_CURL "Use system-installed libcurl" OFF)
 
+# ── Git version ────────────────────────────────────────────────────────────
+execute_process(
+  COMMAND git describe --tags --always --dirty
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_VERSION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET
+)
+if(NOT GIT_VERSION)
+  set(GIT_VERSION "unknown")
+endif()
+message(STATUS "Git version: ${GIT_VERSION}")
+
 # ── Dependencies ───────────────────────────────────────────────────────────
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Dependencies)
@@ -116,6 +129,8 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}/src
           ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include
           ${CMAKE_CURRENT_BINARY_DIR})
+
+target_compile_definitions(ai PRIVATE GIT_VERSION="${GIT_VERSION}")
 
 # ── Platform-specific settings ─────────────────────────────────────────────
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")

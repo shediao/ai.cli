@@ -33,6 +33,7 @@ struct AiArgs {
   };
 
   bool help{false};
+  bool version{false};
 #if defined(NDEBUG)
   int log_level = ::ai::logging::LOGGING_FATAL;
 #else
