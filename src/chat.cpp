@@ -114,13 +114,15 @@ int chat() {
             try {
               auto function = tool_call.function.name;
               auto arguments = json::parse(tool_call.function.arguments);
-              std::cout << "\n\033[34m`" << function + "(" + arguments.dump() + ")"
+              std::cout << "\n\033[32;1m ● `"
+                        << function + "(" + arguments.dump() + ")"
                         << "`\033[0m\n";
               auto ret = call_tool(function, arguments);
               if (ret.size() > 120) {
-                std::cout << "\033[1;33m" << ret.substr(0, 114) << "......\033[0m\n";
+                std::cout << "\033[33;1m" << ret.substr(0, 114)
+                          << "......\033[0m\n";
               } else {
-                std::cout << "\033[1;33m" << ret << "\033[0m\n";
+                std::cout << "\033[33;1m" << ret << "\033[0m\n";
               }
               chat_history.push_back(
                   nlohmann::json::object({{"role", "tool"},
