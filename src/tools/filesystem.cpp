@@ -237,12 +237,11 @@ std::string edit_file(nlohmann::json const& args) {
   in.close();
 
   // --- static label tables (avoid re-allocation every call) ---
-  static const std::vector<std::string_view> search_labels{"<<<<<<< SEARCH\n",
-                                                           "<<<<<<< SEARCH"};
-  static const std::vector<std::string_view> replace_labels{"\n>>>>>>> REPLACE",
-                                                            ">>>>>>> REPLACE"};
-  static const std::vector<std::string_view> split_labels{
-      "\n=======\n", "=======\n", "\n=======", "======="};
+  static const std::vector<std::string_view> search_labels{"\n<<<<<<< SEARCH\n",
+                                                           "<<<<<<< SEARCH\n"};
+  static const std::vector<std::string_view> replace_labels{
+      "\n>>>>>>> REPLACE\n", "\n>>>>>>> REPLACE"};
+  static const std::vector<std::string_view> split_labels{"\n=======\n"};
 
   // --- parse diff and apply each SEARCH/REPLACE block ---
   std::string_view diff_view(diff);
@@ -260,7 +259,7 @@ std::string edit_file(nlohmann::json const& args) {
     auto [split_pos, split_label] =
         find_by_lables(diff, search_pos + search_label.size(), split_labels);
     if (split_pos == std::string::npos) {
-      LOG(ERROR) << "not found label: '======='";
+      LOG(ERROR) << "not found label: '\\n=======\\n'";
       return "Failed to edit file " + path;
     }
 
