@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <nlohmann/json.hpp>
@@ -566,6 +567,64 @@ std::string get_file_info(nlohmann::json const& args) {
   return info.dump();
 }
 
+std::string disk_space_info(nlohmann::json const& args) {
+  LOG(INFO) << "call disk_space_info(" << args.dump() << ")";
+  if (!args.is_object()) {
+    return "function disk_space_info arguments is invalid: expected a JSON "
+           "object.";
+  }
+  if (!args.contains("path")) {
+    return "function disk_space_info arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "function disk_space_info arguments is invalid: \"path\" must be "
+           "a string.";
+  }
+  std::string path = args["path"].get<std::string>();
+  std::error_code err;
+  auto space = std::filesystem::space(path, err);
+  if (err) {
+    return "Error: " + err.message();
+  }
+
+  auto format_size = [](std::uintmax_t bytes) -> std::string {
+    const char* units[] = {"B", "KB", "MB", "GB", "TB"};
+    int unit_idx = 0;
+    double size = static_cast<double>(bytes);
+    while (size >= 1024.0 && unit_idx < 4) {
+      size /= 1024.0;
+      ++unit_idx;
+    }
+    std::ostringstream oss;
+    oss.precision(2);
+    oss << std::fixed << size << " " << units[unit_idx];
+    return oss.str();
+  };
+
+  nlohmann::json info;
+  info["path"] = path;
+  info["capacity"] = space.capacity;
+  info["free"] = space.free;
+  info["available"] = space.available;
+  info["used"] = space.capacity - space.free;
+  info["capacity_human"] = format_size(space.capacity);
+  info["free_human"] = format_size(space.free);
+  info["available_human"] = format_size(space.available);
+  info["used_human"] = format_size(space.capacity - space.free);
+
+  if (space.capacity > 0) {
+    double pct = 100.0 * (space.capacity - space.free) /
+                 static_cast<double>(space.capacity);
+    std::ostringstream pct_oss;
+    pct_oss.precision(2);
+    pct_oss << std::fixed << pct << "%";
+    info["used_percent"] = pct_oss.str();
+  }
+
+  return info.dump();
+}
+
 std::string move_file(nlohmann::json const& args) {
   LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (!args.is_object()) {
@@ -666,6 +725,7 @@ void regist_filesystem_tools() {
   regist_tool_calls("move_file", move_file);
   regist_tool_calls("search_files", search_files);
   regist_tool_calls("get_file_info", get_file_info);
+  regist_tool_calls("disk_space_info", disk_space_info);
   regist_tool_calls("execute_file", execute_file);
 }
 
