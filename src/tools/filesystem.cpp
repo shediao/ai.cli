@@ -20,18 +20,18 @@
 std::string read_file(nlohmann::json const& args) {
   LOG(INFO) << "call read_file(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls read_file arguments is invalid: expected a JSON object.";
+    return "function read_file arguments is invalid: expected a JSON object.";
   }
   if (!args.contains("path") && !args.contains("file")) {
-    return "tool_calls read_file arguments is invalid: missing required "
+    return "function read_file arguments is invalid: missing required "
            "parameter \"path\" or \"file\".";
   }
   if (args.contains("path") && !args["path"].is_string()) {
-    return "tool_calls read_file arguments is invalid: \"path\" must be a "
+    return "function read_file arguments is invalid: \"path\" must be a "
            "string.";
   }
   if (args.contains("file") && !args["file"].is_string()) {
-    return "tool_calls read_file arguments is invalid: \"file\" must be a "
+    return "function read_file arguments is invalid: \"file\" must be a "
            "string.";
   }
   std::string path = [](nlohmann::json const& args) -> std::string {
@@ -47,7 +47,7 @@ std::string read_file(nlohmann::json const& args) {
     return "";
   }(args);
   if (path.empty()) {
-    return "tool_calls read_file arguments is invalid.";
+    return "function read_file arguments is invalid.";
   }
   std::ifstream in(path);
   if (!in.is_open()) {
@@ -111,15 +111,15 @@ std::string read_file(nlohmann::json const& args) {
 std::string read_multiple_files(nlohmann::json const& args) {
   LOG(INFO) << "call read_multiple_files(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls read_multiple_files arguments is invalid: expected a "
+    return "function read_multiple_files arguments is invalid: expected a "
            "JSON object.";
   }
   if (!args.contains("paths")) {
-    return "tool_calls read_multiple_files arguments is invalid: missing "
+    return "function read_multiple_files arguments is invalid: missing "
            "required parameter \"paths\".";
   }
   if (!args["paths"].is_array()) {
-    return "tool_calls read_multiple_files arguments is invalid: \"paths\" "
+    return "function read_multiple_files arguments is invalid: \"paths\" "
            "must be an array.";
   }
   std::vector<std::string> paths;
@@ -154,23 +154,23 @@ std::string read_multiple_files(nlohmann::json const& args) {
 std::string write_file(nlohmann::json const& args) {
   LOG(INFO) << "call write_file(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls write_file arguments is invalid: expected a JSON "
+    return "function write_file arguments is invalid: expected a JSON "
            "object.";
   }
   if (!args.contains("path")) {
-    return "tool_calls write_file arguments is invalid: missing required "
+    return "function write_file arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (!args["path"].is_string()) {
-    return "tool_calls write_file arguments is invalid: \"path\" must be a "
+    return "function write_file arguments is invalid: \"path\" must be a "
            "string.";
   }
   if (!args.contains("content")) {
-    return "tool_calls write_file arguments is invalid: missing required "
+    return "function write_file arguments is invalid: missing required "
            "parameter \"content\".";
   }
   if (!args["content"].is_string()) {
-    return "tool_calls write_file arguments is invalid: \"content\" must be a "
+    return "function write_file arguments is invalid: \"content\" must be a "
            "string.";
   }
   std::string path = args["path"].get<std::string>();
@@ -205,22 +205,22 @@ std::string edit_file(nlohmann::json const& args) {
 
   // --- argument validation ---
   if (!args.is_object()) {
-    return "tool_calls edit_file arguments is invalid: expected a JSON object.";
+    return "function edit_file arguments is invalid: expected a JSON object.";
   }
   if (!args.contains("path")) {
-    return "tool_calls edit_file arguments is invalid: missing required "
+    return "function edit_file arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (!args["path"].is_string()) {
-    return "tool_calls edit_file arguments is invalid: \"path\" must be a "
+    return "function edit_file arguments is invalid: \"path\" must be a "
            "string.";
   }
   if (!args.contains("diff")) {
-    return "tool_calls edit_file arguments is invalid: missing required "
+    return "function edit_file arguments is invalid: missing required "
            "parameter \"diff\".";
   }
   if (!args["diff"].is_string()) {
-    return "tool_calls edit_file arguments is invalid: \"diff\" must be a "
+    return "function edit_file arguments is invalid: \"diff\" must be a "
            "string.";
   }
 
@@ -324,62 +324,56 @@ std::string edit_file(nlohmann::json const& args) {
 std::string create_directory(nlohmann::json const& args) {
   LOG(INFO) << "call create_directory(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls create_directory arguments is invalid: expected a JSON "
+    return "function create_directory arguments is invalid: expected a JSON "
            "object.";
   }
   if (!args.contains("path")) {
-    return "tool_calls create_directory arguments is invalid: missing required "
+    return "function create_directory arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (!args["path"].is_string()) {
-    return "tool_calls create_directory arguments is invalid: \"path\" must be "
+    return "function create_directory arguments is invalid: \"path\" must be "
            "a string.";
   }
-  if (args.is_object() && args.contains("path") && args["path"].is_string()) {
-    std::string path = args["path"].get<std::string>();
-    std::error_code err;
-    std::filesystem::create_directories(path, err);
-    if (err) {
-      return "Error: " + err.message();
-    } else {
-      return "Successfully created directory " + path;
-    }
+  std::string path = args["path"].get<std::string>();
+  std::error_code err;
+  std::filesystem::create_directories(path, err);
+  if (err) {
+    return "Error: " + err.message();
+  } else {
+    return "Successfully created directory " + path;
   }
-  return "tool_calls create_directory arguments is invalid.";
 }
 
 std::string list_directory(nlohmann::json const& args) {
   LOG(INFO) << "call list_directory(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls list_directory arguments is invalid: expected a JSON "
+    return "function list_directory arguments is invalid: expected a JSON "
            "object.";
   }
   if (!args.contains("path")) {
-    return "tool_calls list_directory arguments is invalid: missing required "
+    return "function list_directory arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (!args["path"].is_string()) {
-    return "tool_calls list_directory arguments is invalid: \"path\" must be a "
+    return "function list_directory arguments is invalid: \"path\" must be a "
            "string.";
   }
-  if (args.is_object() && args.contains("path") && args["path"].is_string()) {
-    std::string path = args["path"].get<std::string>();
-    std::error_code err;
-    if (!std::filesystem::exists(path, err) ||
-        !std::filesystem::is_directory(path, err) || err) {
-      return "Error: " + err.message();
-    }
-    std::string ret;
-    for (auto const& entry : std::filesystem::directory_iterator(path, err)) {
-      if (entry.is_directory()) {
-        ret += "\n[DIR]" + entry.path().string();
-      } else {
-        ret += "\n[FILE]" + entry.path().string();
-      }
-    }
-    return ret;
+  std::string path = args["path"].get<std::string>();
+  std::error_code err;
+  if (!std::filesystem::exists(path, err) ||
+      !std::filesystem::is_directory(path, err) || err) {
+    return "Error: " + err.message();
   }
-  return "tool_calls list_directory arguments is invalid.";
+  std::string ret;
+  for (auto const& entry : std::filesystem::directory_iterator(path, err)) {
+    if (entry.is_directory()) {
+      ret += "[DIR] " + entry.path().string() + "\n";
+    } else {
+      ret += "[FILE] " + entry.path().string() + "\n";
+    }
+  }
+  return ret;
 }
 
 nlohmann::json buildTree(std::filesystem::path const& path) {
@@ -414,49 +408,46 @@ nlohmann::json buildTree(std::filesystem::path const& path) {
 std::string directory_tree(nlohmann::json const& args) {
   LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls directory_tree arguments is invalid: expected a JSON "
+    return "function directory_tree arguments is invalid: expected a JSON "
            "object.";
   }
   if (!args.contains("path")) {
-    return "tool_calls directory_tree arguments is invalid: missing required "
+    return "function directory_tree arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (!args["path"].is_string()) {
-    return "tool_calls directory_tree arguments is invalid: \"path\" must be a "
+    return "function directory_tree arguments is invalid: \"path\" must be a "
            "string.";
   }
-  if (args.is_object() && args.contains("path") && args["path"].is_string()) {
-    std::string path = args["path"].get<std::string>();
-    std::error_code err;
-    if (!std::filesystem::exists(path, err) ||
-        !std::filesystem::is_directory(path, err) || err) {
-      return "Error: " + path + " not a directory or not exists";
-    }
-    return buildTree(path).dump(2);
+  std::string path = args["path"].get<std::string>();
+  std::error_code err;
+  if (!std::filesystem::exists(path, err) ||
+      !std::filesystem::is_directory(path, err) || err) {
+    return "Error: " + path + " not a directory or not exists";
   }
-  return "tool_calls directory_tree arguments is invalid.";
+  return "function directory_tree arguments is invalid.";
 }
 
 std::string search_files(nlohmann::json const& args) {
   LOG(INFO) << "call search_files(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls search_files arguments is invalid: expected a JSON "
+    return "function search_files arguments is invalid: expected a JSON "
            "object.";
   }
   if (!args.contains("path")) {
-    return "tool_calls search_files arguments is invalid: missing required "
+    return "function search_files arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (!args["path"].is_string()) {
-    return "tool_calls search_files arguments is invalid: \"path\" must be a "
+    return "function search_files arguments is invalid: \"path\" must be a "
            "string.";
   }
   if (!args.contains("pattern")) {
-    return "tool_calls search_files arguments is invalid: missing required "
+    return "function search_files arguments is invalid: missing required "
            "parameter \"pattern\".";
   }
   if (!args["pattern"].is_string()) {
-    return "tool_calls search_files arguments is invalid: \"pattern\" must be "
+    return "function search_files arguments is invalid: \"pattern\" must be "
            "a string.";
   }
   std::string path = args["path"].get<std::string>();
@@ -493,15 +484,15 @@ std::string search_files(nlohmann::json const& args) {
 std::string get_file_info(nlohmann::json const& args) {
   LOG(INFO) << "call get_file_info(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls get_file_info arguments is invalid: expected a JSON "
+    return "function get_file_info arguments is invalid: expected a JSON "
            "object.";
   }
   if (!args.contains("path")) {
-    return "tool_calls get_file_info arguments is invalid: missing required "
+    return "function get_file_info arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (!args["path"].is_string()) {
-    return "tool_calls get_file_info arguments is invalid: \"path\" must be a "
+    return "function get_file_info arguments is invalid: \"path\" must be a "
            "string.";
   }
   std::string path = args["path"].get<std::string>();
@@ -578,53 +569,48 @@ std::string get_file_info(nlohmann::json const& args) {
 std::string move_file(nlohmann::json const& args) {
   LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls move_file arguments is invalid: expected a JSON object.";
+    return "function move_file arguments is invalid: expected a JSON object.";
   }
   if (!args.contains("source")) {
-    return "tool_calls move_file arguments is invalid: missing required "
+    return "function move_file arguments is invalid: missing required "
            "parameter \"source\".";
   }
   if (!args["source"].is_string()) {
-    return "tool_calls move_file arguments is invalid: \"source\" must be a "
+    return "function move_file arguments is invalid: \"source\" must be a "
            "string.";
   }
   if (!args.contains("distination")) {
-    return "tool_calls move_file arguments is invalid: missing required "
+    return "function move_file arguments is invalid: missing required "
            "parameter \"distination\".";
   }
   if (!args["distination"].is_string()) {
-    return "tool_calls move_file arguments is invalid: \"distination\" must be "
+    return "function move_file arguments is invalid: \"distination\" must be "
            "a string.";
   }
-  if (args.is_object() && args.contains("source") &&
-      args["source"].is_string() && args.contains("distination") &&
-      args["distination"].is_string()) {
-    std::string source = args["source"].get<std::string>();
-    std::string distination = args["distination"].get<std::string>();
-    std::error_code err;
-    std::filesystem::rename(source, distination, err);
+  std::string source = args["source"].get<std::string>();
+  std::string distination = args["distination"].get<std::string>();
+  std::error_code err;
+  std::filesystem::rename(source, distination, err);
 
-    if (err) {
-      return "Error: " + err.message();
-    } else {
-      return "Successfully moved " + source + " to " + distination;
-    }
+  if (err) {
+    return "Error: " + err.message();
+  } else {
+    return "Successfully moved " + source + " to " + distination;
   }
-  return "tool_calls move_file arguments is invalid.";
 }
 
 std::string execute_file(nlohmann::json const& args) {
   LOG(INFO) << "call execute_file(" << args.dump() << ")";
   if (!args.is_object()) {
-    return "tool_calls execute_file arguments is invalid: expected a JSON "
+    return "function execute_file arguments is invalid: expected a JSON "
            "object.";
   }
   if (!args.contains("path")) {
-    return "tool_calls execute_file arguments is invalid: missing required "
+    return "function execute_file arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (!args["path"].is_string()) {
-    return "tool_calls execute_file arguments is invalid: \"path\" must be a "
+    return "function execute_file arguments is invalid: \"path\" must be a "
            "string.";
   }
 
