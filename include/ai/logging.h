@@ -1,5 +1,5 @@
-#ifndef __AI_CLI_LOGGING_H__
-#define __AI_CLI_LOGGING_H__
+#pragma once
+
 #include <iomanip>
 #include <sstream>
 
@@ -14,9 +14,7 @@ namespace logging {
 
 using LogSeverity = int;
 
-inline constexpr LogSeverity LOGGING_VERBOSE = -1;  // This is level 1 verbosity
-// Note: the log severities are used to index into the array of names,
-// see log_severity_names.
+inline constexpr LogSeverity LOGGING_VERBOSE = -1;
 inline constexpr LogSeverity LOGGING_DEBUG = 0;
 inline constexpr LogSeverity LOGGING_INFO = 1;
 inline constexpr LogSeverity LOGGING_WARNING = 2;
@@ -25,16 +23,11 @@ inline constexpr LogSeverity LOGGING_FATAL = 4;
 inline constexpr LogSeverity LOGGING_NUM_SEVERITIES = 5;
 
 using LoggingDestination = unsigned int;
-// Specifies where logs will be written. Multiple destinations can be specified
-// with bitwise OR.
-// Unless destination is LOG_NONE, all logs with severity ERROR and above will
-// be written to stderr in addition to the specified destination.
-// LOG_TO_FILE includes logging to externally-provided file handles.
+
 enum : unsigned int {
   LOG_NONE = 0,
   LOG_TO_FILE = 1 << 0,
   LOG_TO_STDERR = 1 << 1,
-
   LOG_TO_ALL = LOG_TO_FILE | LOG_TO_STDERR,
 };
 
@@ -54,8 +47,6 @@ enum : unsigned int {
 class LogMessageVoidify {
  public:
   LogMessageVoidify() = default;
-  // This has to be an operator with a precedence lower than << but
-  // higher than ?:
   void operator&(std::ostream&) {}
 };
 
@@ -68,8 +59,6 @@ class LogMessage {
   virtual ~LogMessage();
 
   std::ostream& stream() { return stream_; }
-
-  // Gets file:line: message in a format suitable for crash reporting.
   std::string BuildCrashString() const;
 
  protected:
@@ -80,16 +69,13 @@ class LogMessage {
 
   const LogSeverity severity_;
   std::ostringstream stream_;
-  size_t message_start_;  // Offset of the start of the message (past prefix
-                          // info).
-  // The file and line information passed in to the constructor.
+  size_t message_start_;
   const char* const file_;
   const int line_;
 };
 
 bool ShouldCreateLogMessage(LogSeverity severity);
 const char* GetSeverityName(int severity);
+
 }  // namespace logging
 }  // namespace ai
-
-#endif  // __AI_CLI_LOGGING_H__

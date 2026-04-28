@@ -1,4 +1,4 @@
-#include "openai.h"
+#include "ai/openai.h"
 
 #include <curl/curl.h>
 #include <curl/easy.h>
@@ -11,12 +11,16 @@
 #include <optional>
 #include <stdexcept>
 
-#include "args.h"
-#include "base64.h"
-#include "logging.h"
-#include "response.h"
-#include "tool_calls.h"
-#include "utils.h"
+#include "ai/args.h"
+#include "ai/base64.h"
+#include "ai/logging.h"
+#include "ai/response.h"
+#include "ai/tool_calls.h"
+#include "ai/utils.h"
+
+using json = nlohmann::json;
+
+namespace ai {
 
 namespace {
 static std::map<std::string, std::string> memi_map{
@@ -396,3 +400,5 @@ std::optional<ai::openai::Response> OpenAIClient::chat(
 }
 
 std::vector<std::string> OpenAIClient::models() { return pimpl->models(); }
+
+}  // namespace ai

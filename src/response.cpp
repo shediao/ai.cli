@@ -1,9 +1,11 @@
 
-#include "response.h"
+#include "ai/response.h"
 
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
+
+using json = nlohmann::json;
 
 namespace ai {
 namespace {

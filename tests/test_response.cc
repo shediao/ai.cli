@@ -3,8 +3,10 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-#include "../src/response.h"
+#include "ai/response.h"
 #include "gtest/gtest.h"
+
+using json = nlohmann::json;
 
 TEST(AiCliTest, Response1) {
   auto response = ai::openai::Response::from_string(R"(

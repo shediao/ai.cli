@@ -3,7 +3,7 @@
 #include <random>
 
 #include "./stream_response_data.h"
-#include "response.h"
+#include "ai/response.h"
 
 TEST(StreamResponse, Test1) {
   std::stringstream ss;

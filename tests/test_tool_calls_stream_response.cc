@@ -4,7 +4,8 @@
 #include <nlohmann/json.hpp>
 #include <string_view>
 
-#include "response.h"
+#include "ai/response.h"
+using json = nlohmann::json;
 constexpr std::string_view response1 =
     R"(data: {"id":"f437f4d1-cf3a-4292-b255-ef88b01ca03f","object":"chat.completion.chunk","created":1748648834,"model":"deepseek-chat","system_fingerprint":"fp_8802369eaa_prod0425fp8","choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}]}
 

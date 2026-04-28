@@ -1,7 +1,7 @@
 
-#include "logging.h"
+#include "ai/logging.h"
 
-#include "args.h"
+#include "ai/args.h"
 #if defined(_WIN32)
 #include <Windows.h>
 #else

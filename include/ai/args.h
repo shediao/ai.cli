@@ -1,11 +1,13 @@
-#ifndef __AI_CLI_ARGS_H__
-#define __AI_CLI_ARGS_H__
+#pragma once
+
 #include <argparse/argparse.hpp>
 #include <optional>
 #include <set>
 #include <string>
 
-#include "logging.h"
+#include "ai/logging.h"
+
+namespace ai {
 
 struct AiArgs {
   struct ChatArgs {
@@ -60,4 +62,4 @@ struct AiArgs {
   argparse::ArgParser parser;
 };
 
-#endif  // __AI_CLI_ARGS_H__
+}  // namespace ai

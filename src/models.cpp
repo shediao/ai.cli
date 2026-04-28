@@ -1,14 +1,17 @@
+#include "ai/models.h"
 
-#include "models.h"
+#include <iostream>
 
-#include "args.h"
-#include "openai.h"
+#include "ai/args.h"
+#include "ai/openai.h"
+
+namespace ai {
 
 int models() {
   try {
     OpenAIClient client;
-    auto models = client.models();
-    for (auto& model : models) {
+    auto model_list = client.models();
+    for (auto& model : model_list) {
       std::cout << model << '\n';
     }
     return 0;
@@ -17,3 +20,5 @@ int models() {
     return 1;
   }
 }
+
+}  // namespace ai

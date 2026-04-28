@@ -1,18 +1,21 @@
 #include <argparse/argparse.hpp>
 #include <cstdlib>
 
-#include "args.h"
-#include "chat.h"
+#include "ai/args.h"
+#include "ai/chat.h"
+#include "ai/models.h"
+#include "ai/tools/bash.h"
+#include "ai/tools/filesystem.h"
 #include "curl/curl.h"
-#include "models.h"
-#include "tools/bash.h"
-#include "tools/filesystem.h"
+
+using namespace ai;
 
 class CurlGlobalInitGuard {
  public:
   CurlGlobalInitGuard() { curl_global_init(CURL_GLOBAL_DEFAULT); }
   ~CurlGlobalInitGuard() { curl_global_cleanup(); }
 };
+
 #if defined(_WIN32)
 int wmain(int argc, wchar_t* argv[])
 #else

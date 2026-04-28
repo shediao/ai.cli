@@ -1,6 +1,6 @@
 
 BasedOnStyle: Google
-Standard: Cpp11
+Standard: c++20
 IndentWidth: 2
 InsertBraces: true
 InsertNewlineAtEOF: true

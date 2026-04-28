@@ -1,8 +1,7 @@
-#ifndef __AI_CLI_TOOLS_CALL_H__
-#define __AI_CLI_TOOLS_CALL_H__
+#pragma once
+
 #include <functional>
 #include <map>
-#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -19,7 +18,8 @@ using ToolSchemaGetter = std::string_view (*)();
 using ToolRegisterFunc = void (*)();
 
 /// Register a tool category (called at static init by each tool module).
-bool regist_tool_category(std::string const& name, ToolSchemaGetter schema_getter,
+bool regist_tool_category(std::string const& name,
+                          ToolSchemaGetter schema_getter,
                           ToolRegisterFunc register_func);
 
 /// Return the set of all known tool-category names.
@@ -30,5 +30,3 @@ std::string_view get_tool_schema(std::string const& category);
 
 /// Execute the registration function for every tool in a category.
 void register_tool_category_funcs(std::string const& category);
-
-#endif  // __AI_CLI_TOOLS_CALL_H__

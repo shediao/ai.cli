@@ -1,4 +1,4 @@
-#include "args.h"
+#include "ai/args.h"
 
 #include <algorithm>
 #include <argparse/argparse.hpp>
@@ -14,8 +14,10 @@
 #include <unistd.h>
 #endif
 
-#include "tool_calls.h"
-#include "utils.h"
+#include "ai/tool_calls.h"
+#include "ai/utils.h"
+
+namespace ai {
 
 namespace {
 
@@ -318,3 +320,5 @@ AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
   bind_chat_args(parser, *this);
   bind_model_args(parser, *this);
 }
+
+}  // namespace ai

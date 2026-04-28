@@ -1,4 +1,4 @@
-#include "chat.h"
+#include "ai/chat.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -7,12 +7,16 @@
 #include <string>
 #include <utfx/utfx.hpp>
 
-#include "args.h"
-#include "clip.h"
-#include "logging.h"
-#include "openai.h"
-#include "tool_calls.h"
-#include "utils.h"
+#include "ai/args.h"
+#include "ai/clip.h"
+#include "ai/logging.h"
+#include "ai/openai.h"
+#include "ai/tool_calls.h"
+#include "ai/utils.h"
+
+using json = nlohmann::json;
+
+namespace ai {
 
 int chat() {
   AiArgs const& args = AiArgs::instance();
@@ -155,3 +159,5 @@ int chat() {
     return 1;
   }
 }
+
+}  // namespace ai

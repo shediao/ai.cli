@@ -1,5 +1,4 @@
-#ifndef __GLOB_GLOB_HPP__
-#define __GLOB_GLOB_HPP__
+#pragma once
 
 #include <filesystem>
 #include <stack>
@@ -169,5 +168,3 @@ inline std::vector<std::string> iglob(std::string const& pattern,
 }
 
 }  // namespace glob
-
-#endif  // __GLOB_GLOB_HPP__

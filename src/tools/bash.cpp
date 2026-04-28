@@ -5,8 +5,8 @@
 #include <subprocess/subprocess.hpp>
 
 #include "bash_tools_json.h"
-#include "logging.h"
-#include "tool_calls.h"
+#include "ai/logging.h"
+#include "ai/tool_calls.h"
 
 std::string bash(nlohmann::json const& args) {
   LOG(INFO) << "call bash(" << args.dump() << ")";

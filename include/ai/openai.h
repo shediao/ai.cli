@@ -6,24 +6,25 @@
 #include <string>
 #include <vector>
 
-#include "args.h"
-#include "response.h"
+#include "ai/args.h"
+#include "ai/response.h"
+
+namespace ai {
 
 class OpenAIClient {
  public:
   explicit OpenAIClient();
   ~OpenAIClient();
 
-  // 禁用拷贝
+  // Disable copy
   OpenAIClient(const OpenAIClient&) = delete;
   OpenAIClient& operator=(const OpenAIClient&) = delete;
 
-  // 启用移动
+  // Enable move
   OpenAIClient(OpenAIClient&&) noexcept;
   OpenAIClient& operator=(OpenAIClient&&) noexcept;
 
-  // 发送聊天请求
-  std::optional<ai::openai::Response> chat(
+  std::optional<openai::Response> chat(
       const std::string& system_prompt,
       const std::vector<std::string>& user_prompts,
       nlohmann::json& chat_history) const;
@@ -34,3 +35,5 @@ class OpenAIClient {
   class Impl;
   std::unique_ptr<Impl> pimpl;
 };
+
+}  // namespace ai

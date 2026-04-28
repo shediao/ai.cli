@@ -5,8 +5,8 @@
 #include <vector>
 
 #include "git_tools_json.h"
-#include "logging.h"
-#include "tool_calls.h"
+#include "ai/logging.h"
+#include "ai/tool_calls.h"
 
 namespace {
 

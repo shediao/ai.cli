@@ -1,4 +1,4 @@
-#include "tool_calls.h"
+#include "ai/tool_calls.h"
 
 // ── individual tool (function-level) registry ────────────────────────
 auto& get_all_tools() {
