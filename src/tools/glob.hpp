@@ -56,6 +56,9 @@
  */
 namespace glob {
 namespace detail {
+  inline bool equal(char a, char b, bool ignore_case) {
+    return a == b || (ignore_case && ((a ^ b) == 32 && (unsigned)((a | 32) - 'a') <= 25));
+  }
 
 /**
  * =========================================================================
@@ -115,11 +118,13 @@ namespace detail {
  * -------------------------------------------------------------------------
  * 参数
  * -------------------------------------------------------------------------
- * @param pattern  Glob 模式字符串（如 "*.cpp", "test.?" 等）
- * @param name     待匹配的文件名字符串
- * @return         true 表示匹配成功，false 表示不匹配
+ * @param pattern      Glob 模式字符串（如 "*.cpp", "test.?" 等）
+ * @param name         待匹配的文件名字符串
+ * @param ignore_case  是否忽略大小写（默认 false）
+ * @return             true 表示匹配成功，false 表示不匹配
  */
-inline bool matchglob(const std::string &pattern, const std::string &name) {
+inline bool matchglob(const std::string &pattern, const std::string &name,
+                      bool ignore_case = false) {
   // 使用原始 C 字符串指针进行操作，避免每次索引访问的边界检查开销，
   // 同时便于保存和恢复位置（指针可以直接压栈）。
   const char *p = pattern.c_str(); // 模式指针
@@ -216,7 +221,8 @@ inline bool matchglob(const std::string &pattern, const std::string &name) {
           //      除非文件名已到末尾（此时零匹配是唯一选择）
           //
           //   b) 贪心扫描：向前推进 n 直到遇到与 p[1] 相同的字符
-          //      （或到达文件名末尾）
+          //      （或到达文件名末尾）。若 ignore_case 为 true，
+          //      比较时忽略大小写。
           //
           //   c) 如果找到了匹配的字符，保存一个回溯点表示
           //      "* 消费到了这个位置"
@@ -240,7 +246,7 @@ inline bool matchglob(const std::string &pattern, const std::string &name) {
           //
           // 当 p[1] == '\0' 时，条件 *n != p[1] 等价于 *n != '\0'，
           // 因此扫描会一直跑到文件名末尾（* 匹配所有剩余字符）。
-          while (*n != '\0' && *n != p[1]) {
+          while (*n != '\0' && !equal(*n, p[1], ignore_case)) {
             n++;
           }
 
@@ -272,11 +278,15 @@ inline bool matchglob(const std::string &pattern, const std::string &name) {
       // default: 匹配普通字符（字面量）
       // ==============================================================
       default: {
-        // 首选：精确匹配
+        // 首选：精确匹配（区分大小写）
         if (*n == *p) {
           n++;
         }
-        // 次选：跨平台路径分隔符互相匹配
+        // 次选：忽略大小写匹配（仅当 ignore_case 为 true 时生效）
+        else if (equal(*n, *p, ignore_case)) {
+          n++;
+        }
+        // 再次：跨平台路径分隔符互相匹配
         // Windows 使用 '\'，Unix 使用 '/'，在实际使用中经常混用。
         // 例如，glob 模式可能写成 "src/*.cpp"（Unix 风格），
         // 但 Windows 的文件系统返回 "src\main.cpp"。
@@ -360,11 +370,12 @@ inline bool matchglob(const std::string &pattern, const std::string &name) {
  * -------------------------------------------------------------------------
  * 参数
  * -------------------------------------------------------------------------
- * @param pattern   Glob 模式字符串，用于匹配 文件名（不含路径部分）
- * @param path      要搜索的目录路径
- * @param recursive 是否递归遍历子目录（默认为 false，仅遍历当前目录）
- * @return          std::vector<std::string>
- *                  所有匹配条目的完整路径列表，顺序由文件系统决定
+ * @param pattern      Glob 模式字符串，用于匹配 文件名（不含路径部分）
+ * @param path         要搜索的目录路径
+ * @param recursive    是否递归遍历子目录（默认为 false，仅遍历当前目录）
+ * @param ignore_case  是否忽略大小写（默认 false）
+ * @return             std::vector<std::string>
+ *                     所有匹配条目的完整路径列表，顺序由文件系统决定
  *
  * -------------------------------------------------------------------------
  * 注意事项
@@ -394,6 +405,9 @@ inline bool matchglob(const std::string &pattern, const std::string &name) {
  *   // 递归列出 /tmp 及其所有子目录下的 .txt 文件
  *   auto all_results = glob::glob("*.txt", "/tmp", true);
  *
+ *   // 忽略大小写匹配
+ *   auto case_insensitive = glob::glob("*.txt", "/tmp", false, true);
+ *
  *   for (const auto &path : all_results) {
  *       std::cout << path << std::endl;
  *   }
@@ -401,7 +415,8 @@ inline bool matchglob(const std::string &pattern, const std::string &name) {
  */
 inline std::vector<std::string> glob(std::string const &pattern,
                                      std::string const &path,
-                                     bool recursive = false) {
+                                     bool recursive = false,
+                                     bool ignore_case = false) {
   std::vector<std::string> result;
 
   // ------------------------------------------------------------------
@@ -438,7 +453,8 @@ inline std::vector<std::string> glob(std::string const &pattern,
           ec.clear();
           continue;
         }
-        if (detail::matchglob(pattern, entry.path().filename().string())) {
+        if (detail::matchglob(pattern, entry.path().filename().string(),
+                              ignore_case)) {
           result.push_back(entry.path().string());
         }
       }
@@ -456,7 +472,8 @@ inline std::vector<std::string> glob(std::string const &pattern,
         return result;
       }
       for (auto &entry : it) {
-        if (detail::matchglob(pattern, entry.path().filename().string())) {
+        if (detail::matchglob(pattern, entry.path().filename().string(),
+                              ignore_case)) {
           // 匹配成功：将完整路径添加到结果列表
           result.push_back(entry.path().string());
         }
@@ -467,6 +484,13 @@ inline std::vector<std::string> glob(std::string const &pattern,
   }
 
   return result;
+}
+
+
+inline std::vector<std::string> iglob(std::string const &pattern,
+                                     std::string const &path,
+                                     bool recursive = false) {
+  return glob(pattern, path, recursive, true);
 }
 
 } // namespace glob

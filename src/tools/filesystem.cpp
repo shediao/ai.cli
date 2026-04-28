@@ -468,12 +468,19 @@ std::string search_files(nlohmann::json const& args) {
     recursive = args["recursive"].get<bool>();
   }
 
+  bool ignore_case = true;
+  auto matches = glob::glob(pattern, path, recursive, ignore_case);
+  if (matches.empty() && pattern.find("*") == std::string::npos) {
+    pattern = "*" + pattern + "*";
+    matches = glob::glob(pattern, path, recursive, ignore_case);
+  }
+
   std::string ret;
-  for (auto const& entry : glob::glob(pattern, path, recursive)) {
+  for (auto const& entry : matches) {
     if (std::filesystem::is_directory(entry)) {
-      ret += "[DIR] " + entry;
+      ret += "[DIR] " + entry + "\n";
     } else {
-      ret += "[FILE] " + entry;
+      ret += "[FILE] " + entry + "\n";
     }
   }
 
