@@ -504,71 +504,75 @@ std::string get_file_info(nlohmann::json const& args) {
     return "tool_calls get_file_info arguments is invalid: \"path\" must be a "
            "string.";
   }
-  if (args.is_object() && args.contains("path") && args["path"].is_string()) {
-    std::string path = args["path"].get<std::string>();
-    std::error_code err;
+  std::string path = args["path"].get<std::string>();
+  std::error_code err;
 
-    if (!std::filesystem::exists(path, err)) {
-      return "Error: " + path + " does not exist.";
-    }
-
-    nlohmann::json info;
-    info["path"] = std::filesystem::absolute(path, err).string();
-
-    // Type
-    if (std::filesystem::is_regular_file(path, err)) {
-      info["type"] = "file";
-      info["size"] = std::filesystem::file_size(path, err);
-    } else if (std::filesystem::is_directory(path, err)) {
-      info["type"] = "directory";
-    } else if (std::filesystem::is_symlink(path, err)) {
-      info["type"] = "symlink";
-    } else {
-      info["type"] = "other";
-    }
-
-    // Last modified time (portable conversion to system_clock)
-    auto ftime = std::filesystem::last_write_time(path, err);
-    auto sys_time =
-        std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-            ftime - decltype(ftime)::clock::now() +
-            std::chrono::system_clock::now());
-    std::time_t last_modified = std::chrono::system_clock::to_time_t(sys_time);
-    info["last_modified"] = std::ctime(&last_modified);
-    // Remove trailing newline from ctime
-    if (info["last_modified"].is_string()) {
-      std::string ts = info["last_modified"];
-      if (!ts.empty() && ts.back() == '\n') {
-        ts.pop_back();
-      }
-      info["last_modified"] = ts;
-    }
-
-    // Permissions
-    auto perms = std::filesystem::status(path, err).permissions();
-    auto to_perm_str = [](std::filesystem::perms p, char r, char w, char x) {
-      std::string s;
-      s += (p & std::filesystem::perms::owner_read) !=
-                   std::filesystem::perms::none
-               ? r
-               : '-';
-      s += (p & std::filesystem::perms::owner_write) !=
-                   std::filesystem::perms::none
-               ? w
-               : '-';
-      s += (p & std::filesystem::perms::owner_exec) !=
-                   std::filesystem::perms::none
-               ? x
-               : '-';
-      return s;
-    };
-    std::string perm_str;
-    perm_str += to_perm_str(perms, 'r', 'w', 'x');
-    info["permissions"] = perm_str;
-
-    return info.dump(2);
+  if (!std::filesystem::exists(path, err)) {
+    return "Error: " + path + " does not exist.";
   }
-  return "tool_calls get_file_info arguments is invalid.";
+
+  nlohmann::json info;
+  info["path"] = path;
+
+  // Type
+  if (std::filesystem::is_regular_file(path, err)) {
+    info["type"] = "file";
+    info["size"] = std::filesystem::file_size(path, err);
+  } else if (std::filesystem::is_directory(path, err)) {
+    info["type"] = "directory";
+  } else if (std::filesystem::is_symlink(path, err)) {
+    info["type"] = "symlink";
+    info["target"] = std::filesystem::read_symlink(path, err).string();
+  } else if (std::filesystem::is_block_file(path, err)) {
+    info["type"] = "block";
+  } else if (std::filesystem::is_character_file(path, err)) {
+    info["type"] = "character";
+  } else if (std::filesystem::is_socket(path, err)) {
+    info["type"] = "socket";
+  } else {
+    info["type"] = "other";
+  }
+
+  // Last modified time (portable conversion to system_clock)
+  auto ftime = std::filesystem::last_write_time(path, err);
+  auto sys_time =
+      std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+          ftime - decltype(ftime)::clock::now() +
+          std::chrono::system_clock::now());
+  std::time_t last_modified = std::chrono::system_clock::to_time_t(sys_time);
+  info["last_modified"] = std::ctime(&last_modified);
+  // Remove trailing newline from ctime
+  if (info["last_modified"].is_string()) {
+    std::string ts = info["last_modified"];
+    if (!ts.empty() && ts.back() == '\n') {
+      ts.pop_back();
+    }
+    info["last_modified"] = ts;
+  }
+
+  // Permissions
+  auto perms = std::filesystem::status(path, err).permissions();
+  auto to_perm_str = [](std::filesystem::perms p, char r, char w, char x) {
+    std::string s;
+    s +=
+        (p & std::filesystem::perms::owner_read) != std::filesystem::perms::none
+            ? r
+            : '-';
+    s += (p & std::filesystem::perms::owner_write) !=
+                 std::filesystem::perms::none
+             ? w
+             : '-';
+    s +=
+        (p & std::filesystem::perms::owner_exec) != std::filesystem::perms::none
+            ? x
+            : '-';
+    return s;
+  };
+  std::string perm_str;
+  perm_str += to_perm_str(perms, 'r', 'w', 'x');
+  info["permissions"] = perm_str;
+
+  return info.dump();
 }
 
 std::string move_file(nlohmann::json const& args) {
