@@ -32,9 +32,8 @@ std::string getTempFilePath(std::string const& prefix,
                             std::string const& postfix) {
   auto tmp = std::filesystem::temp_directory_path() /
              (prefix + "ai_cli_temp_" +
-              std::to_string(std::chrono::steady_clock::now()
-                                 .time_since_epoch()
-                                 .count()) +
+              std::to_string(
+                  std::chrono::steady_clock::now().time_since_epoch().count()) +
               postfix);
   return tmp.string();
 }
@@ -44,7 +43,8 @@ bool regist_tool_calls(std::string const&,
                        std::function<std::string(json const&)>) {
   return true;
 }
-bool regist_tool_category(std::string const&, std::string_view (*)(), void (*)()) {
+bool regist_tool_category(std::string const&, std::string_view (*)(),
+                          void (*)()) {
   return true;
 }
 
@@ -64,7 +64,9 @@ TempFile::~TempFile() {
 const std::string& TempFile::path() const { return path_; }
 std::optional<std::string> TempFile::content() const {
   std::ifstream in(path_);
-  if (!in.is_open()) return std::nullopt;
+  if (!in.is_open()) {
+    return std::nullopt;
+  }
   return std::string{std::istreambuf_iterator<char>(in),
                      std::istreambuf_iterator<char>()};
 }
@@ -117,8 +119,9 @@ class TempTestFile {
 // =============================================================================
 class TempTestDir {
  public:
-  TempTestDir() : path_(std::filesystem::temp_directory_path() /
-                        ("ai_cli_test_dir_" + std::to_string(counter_++))) {
+  TempTestDir()
+      : path_(std::filesystem::temp_directory_path() /
+              ("ai_cli_test_dir_" + std::to_string(counter_++))) {
     std::filesystem::create_directories(path_);
   }
 
@@ -366,15 +369,15 @@ TEST(EditFileTest, MultipleSearchReplaceBlocks) {
 TEST(EditFileTest, SearchNotFound) {
   TempTestFile f("original content\n");
   std::string diff =
-      "<<<<<<< SEARCH\nnonexistent text\n=======\nreplacement\n>>>>>>> REPLACE\n";
+      "<<<<<<< SEARCH\nnonexistent text\n=======\nreplacement\n>>>>>>> "
+      "REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = edit_file(args);
   EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
 }
 
 TEST(EditFileTest, FileNotExists) {
-  std::string diff =
-      "<<<<<<< SEARCH\ntext\n=======\nnew\n>>>>>>> REPLACE\n";
+  std::string diff = "<<<<<<< SEARCH\ntext\n=======\nnew\n>>>>>>> REPLACE\n";
   json args = {{"path", "/nonexistent/edit_file_test.txt"}, {"diff", diff}};
   std::string result = edit_file(args);
   EXPECT_TRUE(result.find("Failed to open file") != std::string::npos);
@@ -414,8 +417,7 @@ TEST(EditFileTest, DiffNotString) {
 
 TEST(EditFileTest, MissingSplitLabel) {
   TempTestFile f("content");
-  std::string diff =
-      "<<<<<<< SEARCH\ncontent\n>>>>>>> REPLACE\n";
+  std::string diff = "<<<<<<< SEARCH\ncontent\n>>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = edit_file(args);
   EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
@@ -430,7 +432,8 @@ TEST(CreateDirectoryTest, CreatesDirectory) {
   std::string new_dir = parent.path() + "/subdir";
   json args = {{"path", new_dir}};
   std::string result = create_directory(args);
-  EXPECT_TRUE(result.find("Successfully created directory") != std::string::npos);
+  EXPECT_TRUE(result.find("Successfully created directory") !=
+              std::string::npos);
   EXPECT_TRUE(std::filesystem::exists(new_dir));
   EXPECT_TRUE(std::filesystem::is_directory(new_dir));
 }
@@ -440,7 +443,8 @@ TEST(CreateDirectoryTest, CreatesNestedDirectories) {
   std::string nested = parent.path() + "/a/b/c";
   json args = {{"path", nested}};
   std::string result = create_directory(args);
-  EXPECT_TRUE(result.find("Successfully created directory") != std::string::npos);
+  EXPECT_TRUE(result.find("Successfully created directory") !=
+              std::string::npos);
   EXPECT_TRUE(std::filesystem::exists(nested));
 }
 
@@ -448,7 +452,8 @@ TEST(CreateDirectoryTest, AlreadyExists) {
   TempTestDir dir;
   json args = {{"path", dir.path()}};
   std::string result = create_directory(args);
-  EXPECT_TRUE(result.find("Successfully created directory") != std::string::npos);
+  EXPECT_TRUE(result.find("Successfully created directory") !=
+              std::string::npos);
 }
 
 TEST(CreateDirectoryTest, NotAnObject) {
@@ -555,13 +560,15 @@ TEST(DirectoryTreeTest, NotADirectory) {
   TempTestFile f("content");
   json args = {{"path", f.path()}};
   std::string result = directory_tree(args);
-  EXPECT_TRUE(result.find("not a directory or not exists") != std::string::npos);
+  EXPECT_TRUE(result.find("not a directory or not exists") !=
+              std::string::npos);
 }
 
 TEST(DirectoryTreeTest, NotExists) {
   json args = {{"path", "/nonexistent/dir"}};
   std::string result = directory_tree(args);
-  EXPECT_TRUE(result.find("not a directory or not exists") != std::string::npos);
+  EXPECT_TRUE(result.find("not a directory or not exists") !=
+              std::string::npos);
 }
 
 TEST(DirectoryTreeTest, NotAnObject) {
@@ -632,7 +639,8 @@ TEST(MoveFileTest, SourceNotString) {
 TEST(MoveFileTest, DistinationNotString) {
   json args = {{"source", "/tmp/source.txt"}, {"distination", 2}};
   std::string result = move_file(args);
-  EXPECT_TRUE(result.find("\"distination\" must be a string") != std::string::npos);
+  EXPECT_TRUE(result.find("\"distination\" must be a string") !=
+              std::string::npos);
 }
 
 // =============================================================================
@@ -660,7 +668,8 @@ TEST(SearchFilesTest, NonRecursive) {
   std::filesystem::create_directory(dir.path() + "/sub");
   std::ofstream(dir.path() + "/sub/nested.txt") << "";
 
-  json args = {{"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", false}};
+  json args = {
+      {"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", false}};
   std::string result = search_files(args);
   EXPECT_TRUE(result.find("root.txt") != std::string::npos);
   EXPECT_TRUE(result.find("nested.txt") == std::string::npos);
@@ -670,7 +679,8 @@ TEST(SearchFilesTest, NoMatch) {
   TempTestDir dir;
   json args = {{"path", dir.path()}, {"pattern", "xyz_does_not_exist_*"}};
   std::string result = search_files(args);
-  EXPECT_TRUE(result.find("No files or directories matching") != std::string::npos);
+  EXPECT_TRUE(result.find("No files or directories matching") !=
+              std::string::npos);
 }
 
 TEST(SearchFilesTest, PartialPatternFallback) {
@@ -831,20 +841,16 @@ TEST(ReplaceLinesTest, EndLineOutOfRange) {
 
 TEST(ReplaceLinesTest, StartLineLessThan1) {
   TempTestFile f("content");
-  json args = {{"path", f.path()},
-               {"start_line", 0},
-               {"end_line", 1},
-               {"content", "x"}};
+  json args = {
+      {"path", f.path()}, {"start_line", 0}, {"end_line", 1}, {"content", "x"}};
   std::string result = replace_lines(args);
   EXPECT_TRUE(result.find("\"start_line\" must be >= 1") != std::string::npos);
 }
 
 TEST(ReplaceLinesTest, EndLineLessThanStartLine) {
   TempTestFile f("content");
-  json args = {{"path", f.path()},
-               {"start_line", 3},
-               {"end_line", 1},
-               {"content", "x"}};
+  json args = {
+      {"path", f.path()}, {"start_line", 3}, {"end_line", 1}, {"content", "x"}};
   std::string result = replace_lines(args);
   EXPECT_TRUE(result.find("must be >= \"start_line\"") != std::string::npos);
 }
@@ -872,10 +878,8 @@ TEST(ReplaceLinesTest, MissingPath) {
 
 TEST(ReplaceLinesTest, ContentNotString) {
   TempTestFile f("content");
-  json args = {{"path", f.path()},
-               {"start_line", 1},
-               {"end_line", 1},
-               {"content", 42}};
+  json args = {
+      {"path", f.path()}, {"start_line", 1}, {"end_line", 1}, {"content", 42}};
   std::string result = replace_lines(args);
   EXPECT_TRUE(result.find("\"content\" must be a string") != std::string::npos);
 }
@@ -891,8 +895,7 @@ TEST(ExecuteFileTest, ExecutesScript) {
     std::ofstream script(script_path);
     script << "#!/bin/sh\necho hello\necho error >&2\nexit 42\n";
   }
-  std::filesystem::permissions(script_path,
-                               std::filesystem::perms::owner_exec,
+  std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
                                std::filesystem::perm_options::add);
 
   json args = {{"path", script_path}};
@@ -909,12 +912,10 @@ TEST(ExecuteFileTest, WithArgs) {
     std::ofstream script(script_path);
     script << "#!/bin/sh\necho \"$1\"\n";
   }
-  std::filesystem::permissions(script_path,
-                               std::filesystem::perms::owner_exec,
+  std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
                                std::filesystem::perm_options::add);
 
-  json args = {{"path", script_path},
-               {"args", json::array({"hello_arg"})}};
+  json args = {{"path", script_path}, {"args", json::array({"hello_arg"})}};
   std::string result = execute_file(args);
   EXPECT_TRUE(result.find("hello_arg") != std::string::npos);
 }

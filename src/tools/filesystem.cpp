@@ -265,8 +265,9 @@ std::string edit_file(nlohmann::json const& args) {
         find_by_lables(diff, search_pos + search_label.size(), split_labels);
     if (split_pos == std::string::npos) {
       LOG(ERROR) << "not found label: '\\n=======\\n'";
-      size_t preview_len = (std::min)(
-          size_t(128), diff_view.size() - search_pos - search_label.size());
+      size_t preview_len =
+          (std::min)(size_t(128),
+                     diff_view.size() - search_pos - search_label.size());
       std::string_view search_preview =
           diff_view.substr(search_pos + search_label.size(), preview_len);
       return "Failed to edit file " + path +
