@@ -1,5 +1,8 @@
 # ai
 
+[![CMAKE](https://github.com/shediao/ai.cli/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/shediao/ai.cli/actions/workflows/cmake-multi-platform.yml)
+[![MSYS2](https://github.com/shediao/ai.cli/actions/workflows/msys2.yml/badge.svg)](https://github.com/shediao/ai.cli/actions/workflows/msys2.yml)
+
 A powerful command-line AI chatbot with multi-provider support and tool-calling capabilities. Uses OpenAI-compatible APIs to interact with DeepSeek, OpenAI, Gemini, Qwen, Moonshot, Ollama, and more.
 
 ## Features
@@ -39,11 +42,11 @@ The executable is `build/Release/ai` (or `build/Debug/ai`).
 
 ### Build Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `AICLI_BUILD_TESTS` | ON | Build unit tests |
-| `AICLI_ENABLE_ASAN` | ON | Enable Address/Undefined Sanitizers in Debug |
-| `AICLI_USE_SYSTEM_CURL` | OFF | Use system-installed libcurl instead of fetching it |
+| Option                  | Default | Description                                         |
+| ----------------------- | ------- | --------------------------------------------------- |
+| `AICLI_BUILD_TESTS`     | ON      | Build unit tests                                    |
+| `AICLI_ENABLE_ASAN`     | ON      | Enable Address/Undefined Sanitizers in Debug        |
+| `AICLI_USE_SYSTEM_CURL` | OFF     | Use system-installed libcurl instead of fetching it |
 
 ## Usage
 
@@ -166,12 +169,32 @@ The default config:
 ```json
 {
   "providers": [
-    { "alias": "deepseek", "base_url": "https://api.deepseek.com",              "default_model": "deepseek-v4-pro" },
-    { "alias": "openai",   "base_url": "https://api.openai.com/v1",             "default_model": "gpt-4o" },
-    { "alias": "gemini",   "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/", "default_model": "gemini-flash-latest" },
-    { "alias": "qwen",     "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/",       "default_model": "qwen-max-latest" },
-    { "alias": "moonshot", "base_url": "https://api.moonshot.cn/v1",            "default_model": "kimi-k2.6" },
-    { "alias": "ollama",   "base_url": "http://127.0.0.1:11434/v1" }
+    {
+      "alias": "deepseek",
+      "base_url": "https://api.deepseek.com",
+      "default_model": "deepseek-v4-pro"
+    },
+    {
+      "alias": "openai",
+      "base_url": "https://api.openai.com/v1",
+      "default_model": "gpt-4o"
+    },
+    {
+      "alias": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "default_model": "gemini-flash-latest"
+    },
+    {
+      "alias": "qwen",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/",
+      "default_model": "qwen-max-latest"
+    },
+    {
+      "alias": "moonshot",
+      "base_url": "https://api.moonshot.cn/v1",
+      "default_model": "kimi-k2.6"
+    },
+    { "alias": "ollama", "base_url": "http://127.0.0.1:11434/v1" }
   ]
 }
 ```
@@ -214,52 +237,52 @@ ai chat -x "http://127.0.0.1:8080" "Hello"
 
 ### bash
 
-| Function | Description |
-|----------|-------------|
-| `bash` | Execute arbitrary bash commands (with optional user confirmation for destructive commands) |
+| Function | Description                                                                                |
+| -------- | ------------------------------------------------------------------------------------------ |
+| `bash`   | Execute arbitrary bash commands (with optional user confirmation for destructive commands) |
 
 ### filesystem
 
-| Function | Description |
-|----------|-------------|
-| `read_file` | Read a file's contents, with optional `offset` and `limit` for chunked reading |
-| `read_multiple_files` | Read multiple files at once |
-| `write_file` | Create or overwrite a file |
-| `edit_file` | Apply SEARCH/REPLACE blocks to edit a file (shows diff with delta/diff) |
-| `replace_lines` | Replace a specific range of lines (1-indexed) in a file |
-| `create_directory` | Create directories (including nested) |
-| `list_directory` | List files and directories at a given path |
-| `directory_tree` | Get a recursive JSON tree view of a directory |
-| `search_files` | Search for files matching a pattern (with glob support) |
-| `move_file` | Move or rename files and directories |
-| `get_file_info` | Get detailed metadata (size, type, permissions, modified time) |
-| `disk_space_info` | Get disk capacity, free space, and usage percentage |
-| `execute_file` | Execute a file as a subprocess and capture exit code, stdout, and stderr |
+| Function              | Description                                                                    |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `read_file`           | Read a file's contents, with optional `offset` and `limit` for chunked reading |
+| `read_multiple_files` | Read multiple files at once                                                    |
+| `write_file`          | Create or overwrite a file                                                     |
+| `edit_file`           | Apply SEARCH/REPLACE blocks to edit a file (shows diff with delta/diff)        |
+| `replace_lines`       | Replace a specific range of lines (1-indexed) in a file                        |
+| `create_directory`    | Create directories (including nested)                                          |
+| `list_directory`      | List files and directories at a given path                                     |
+| `directory_tree`      | Get a recursive JSON tree view of a directory                                  |
+| `search_files`        | Search for files matching a pattern (with glob support)                        |
+| `move_file`           | Move or rename files and directories                                           |
+| `get_file_info`       | Get detailed metadata (size, type, permissions, modified time)                 |
+| `disk_space_info`     | Get disk capacity, free space, and usage percentage                            |
+| `execute_file`        | Execute a file as a subprocess and capture exit code, stdout, and stderr       |
 
 ### git
 
-| Function | Description |
-|----------|-------------|
-| `git_status` | Show working tree status (porcelain format) |
-| `git_diff` | Show changes (staged/unstaged, commit ranges, file-specific) |
-| `git_log` | Show commit history (oneline or detailed, configurable count) |
-| `git_add` | Stage files for commit |
-| `git_commit` | Create a commit with a message |
-| `git_branch` | List/create/delete branches (local and remote) |
-| `git_checkout` | Switch branches or restore files |
-| `git_init` | Initialize a new git repository |
-| `git_clone` | Clone a remote repository |
+| Function       | Description                                                   |
+| -------------- | ------------------------------------------------------------- |
+| `git_status`   | Show working tree status (porcelain format)                   |
+| `git_diff`     | Show changes (staged/unstaged, commit ranges, file-specific)  |
+| `git_log`      | Show commit history (oneline or detailed, configurable count) |
+| `git_add`      | Stage files for commit                                        |
+| `git_commit`   | Create a commit with a message                                |
+| `git_branch`   | List/create/delete branches (local and remote)                |
+| `git_checkout` | Switch branches or restore files                              |
+| `git_init`     | Initialize a new git repository                               |
+| `git_clone`    | Clone a remote repository                                     |
 
 ### default
 
-| Function | Description |
-|----------|-------------|
-| `get_working_directory` | Get the current working directory |
-| `set_working_directory` | Change the current working directory |
-| `get_environment_variable` | Read an environment variable |
-| `set_environment_variable` | Set an environment variable |
-| `get_shell` | Get the default shell path |
-| `get_operating_system` | Get OS name, architecture, and version |
+| Function                   | Description                            |
+| -------------------------- | -------------------------------------- |
+| `get_working_directory`    | Get the current working directory      |
+| `set_working_directory`    | Change the current working directory   |
+| `get_environment_variable` | Read an environment variable           |
+| `set_environment_variable` | Set an environment variable            |
+| `get_shell`                | Get the default shell path             |
+| `get_operating_system`     | Get OS name, architecture, and version |
 
 > **Note:** By default, `bash` and `filesystem` tools are enabled. Enable `git` or `default` with `--tools git,default`. Disable all tools with `--no-tools`.
 
