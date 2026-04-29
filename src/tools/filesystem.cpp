@@ -658,6 +658,150 @@ std::string move_file(nlohmann::json const& args) {
   }
 }
 
+std::string replace_lines(nlohmann::json const& args) {
+  LOG(INFO) << "call replace_lines(" << args.dump() << ")";
+
+  // ── argument validation ──
+  if (!args.is_object()) {
+    return "function replace_lines arguments is invalid: expected a JSON "
+           "object.";
+  }
+  if (!args.contains("path")) {
+    return "function replace_lines arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (!args["path"].is_string()) {
+    return "function replace_lines arguments is invalid: \"path\" must be a "
+           "string.";
+  }
+  if (!args.contains("start_line")) {
+    return "function replace_lines arguments is invalid: missing required "
+           "parameter \"start_line\".";
+  }
+  if (!args["start_line"].is_number_integer()) {
+    return "function replace_lines arguments is invalid: \"start_line\" must "
+           "be an integer.";
+  }
+  if (!args.contains("end_line")) {
+    return "function replace_lines arguments is invalid: missing required "
+           "parameter \"end_line\".";
+  }
+  if (!args["end_line"].is_number_integer()) {
+    return "function replace_lines arguments is invalid: \"end_line\" must "
+           "be an integer.";
+  }
+  if (!args.contains("content")) {
+    return "function replace_lines arguments is invalid: missing required "
+           "parameter \"content\".";
+  }
+  if (!args["content"].is_string()) {
+    return "function replace_lines arguments is invalid: \"content\" must be "
+           "a string.";
+  }
+
+  std::string path = args["path"].get<std::string>();
+  int start_line = args["start_line"].get<int>();
+  int end_line = args["end_line"].get<int>();
+  std::string content = args["content"].get<std::string>();
+
+  if (start_line < 1) {
+    return "function replace_lines: \"start_line\" must be >= 1 (1-indexed), "
+           "got " +
+           std::to_string(start_line);
+  }
+  if (end_line < start_line) {
+    return "function replace_lines: \"end_line\" (" +
+           std::to_string(end_line) +
+           ") must be >= \"start_line\" (" + std::to_string(start_line) + ")";
+  }
+
+  // ── read original file ──
+  std::ifstream in(path);
+  if (!in.is_open()) {
+    return "Failed to open file: " + path;
+  }
+  std::string file_content{std::istreambuf_iterator<char>(in),
+                           std::istreambuf_iterator<char>()};
+  in.close();
+
+  // Count total lines
+  int total_lines =
+      static_cast<int>(std::count(file_content.begin(), file_content.end(), '\n'));
+  if (!file_content.empty() && file_content.back() != '\n') {
+    ++total_lines;
+  }
+
+  if (start_line > total_lines) {
+    return "function replace_lines: \"start_line\" " + std::to_string(start_line) +
+           " is out of range. File \"" + path + "\" has only " +
+           std::to_string(total_lines) + " lines.";
+  }
+  if (end_line > total_lines) {
+    return "function replace_lines: \"end_line\" " + std::to_string(end_line) +
+           " is out of range. File \"" + path + "\" has only " +
+           std::to_string(total_lines) + " lines.";
+  }
+
+  // ── locate line boundaries ──
+  // Find the character position of the start of start_line
+  auto line_start_pos = [&](int line) -> std::string::size_type {
+    if (line <= 1) {
+      return 0;
+    }
+    std::string::size_type pos = 0;
+    for (int i = 0; i < line - 1; ++i) {
+      pos = file_content.find('\n', pos);
+      if (pos == std::string::npos) {
+        return file_content.size();
+      }
+      ++pos;  // skip past the newline
+    }
+    return pos;
+  };
+
+  std::string::size_type start_pos = line_start_pos(start_line);
+  std::string::size_type end_pos = line_start_pos(end_line + 1);
+
+  // ── perform replacement ──
+  std::string new_content;
+  new_content.reserve(file_content.size() + content.size());
+  new_content.append(file_content, 0, start_pos);
+  new_content.append(content);
+  if (end_pos < file_content.size()) {
+    new_content.append(file_content, end_pos, std::string::npos);
+  }
+
+  // ── show diff between original file and modified content ──
+  {
+    TempFile temp("", std::filesystem::path(path).filename().string());
+    if (std::ofstream ftemp(temp.path()); ftemp.is_open()) {
+      ftemp.write(new_content.data(), new_content.size());
+      ftemp.flush();
+    }
+    using namespace subprocess::named_arguments;
+    using subprocess::run;
+    if (0 == run(std::string("which"), "delta", std_out > devnull,
+                 std_err > devnull)) {
+      run("delta", "--paging=never", path, temp.path());
+    } else {
+      run("diff", "-U0", "--color=always", path, temp.path());
+    }
+  }
+
+  // ── persist modified content back to the original file ──
+  {
+    std::ofstream out(path);
+    if (!out.is_open()) {
+      return "Failed to write to file: " + path;
+    }
+    out.write(new_content.data(), new_content.size());
+    out.flush();
+  }
+
+  return "Successfully replaced lines " + std::to_string(start_line) + "-" +
+         std::to_string(end_line) + " in " + path;
+}
+
 std::string execute_file(nlohmann::json const& args) {
   LOG(INFO) << "call execute_file(" << args.dump() << ")";
   if (!args.is_object()) {
@@ -727,6 +871,7 @@ void regist_filesystem_tools() {
   regist_tool_calls("get_file_info", get_file_info);
   regist_tool_calls("disk_space_info", disk_space_info);
   regist_tool_calls("execute_file", execute_file);
+  regist_tool_calls("replace_lines", replace_lines);
 }
 
 // Self-register the category at static-init time
