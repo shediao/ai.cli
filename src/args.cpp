@@ -34,14 +34,6 @@ static const ProviderConfig* find_provider(const std::string& alias) {
   return app_config().find_provider(alias);
 }
 
-// Get the base URL for a provider alias
-static std::string get_provider_base_url(const std::string& alias) {
-  if (auto* p = find_provider(alias)) {
-    return p->base_url;
-  }
-  return "";
-}
-
 // Get the default model for a provider alias (from config)
 static std::optional<std::string> get_provider_default_model(
     const std::string& alias) {
