@@ -46,6 +46,9 @@ struct AiArgs {
   std::string api_key;
   ChatArgs chat_args;
   ModelsArgs models_args;
+  bool print_bash_completion{false};
+  bool print_zsh_completion{false};
+  bool print_fish_completion{false};
 
 #if defined(_WIN32)
   argparse::Command& parse(int argc, wchar_t* argv[]);
