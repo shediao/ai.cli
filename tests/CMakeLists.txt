@@ -45,3 +45,9 @@ endfunction()
 add_ai_cli_test(
   test_response
   "test_response.cc;test_stream_response.cc;test_tool_calls_stream_response.cc;../src/response.cpp")
+
+add_ai_cli_test(
+  test_filesystem
+  "test_filesystem.cc;../src/tools/filesystem.cpp")
+target_link_libraries(test_filesystem PRIVATE
+  subprocess::subprocess argparse::argparse environment::environment)
