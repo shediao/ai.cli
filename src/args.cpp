@@ -14,6 +14,7 @@
 #include <unistd.h>
 #endif
 
+#include "ai/config.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 
@@ -21,56 +22,134 @@ namespace ai {
 
 namespace {
 
-static const std::string gemini_base_url =
-    "https://generativelanguage.googleapis.com/v1beta/openai";
-static const std::string qwen_base_url =
-    "https://dashscope.aliyuncs.com/compatible-mode/v1";
-static const std::string deepseek_base_url = "https://api.deepseek.com";
-static const std::string openai_base_url = "https://api.openai.com/v1";
-static const std::string moonshot_base_url = "https://api.moonshot.cn/v1";
-static const std::string ollama_base_url = "http://127.0.0.1:11434/v1";
-static std::map<std::string, std::string> url_env_prefix{
-    {deepseek_base_url, "DEEPSEEK"}, {openai_base_url, "OPENAI"},
-    {gemini_base_url, "GEMINI"},     {qwen_base_url, "QWEN"},
-    {moonshot_base_url, "MOONSHOT"}, {ollama_base_url, "OLLAMA"}};
+// Lazily loaded application config (cached after first access)
+static AppConfig& app_config() {
+  static AppConfig config = load_config();
+  return config;
+}
 
-static std::optional<std::string> getEnvironmentConfig(
-    std::string const& url, std::string const& config_postfix) {
-  auto it = std::find_if(url_env_prefix.begin(), url_env_prefix.end(),
-                         [&url](auto const& entry) {
-                           return url.find(entry.first) != std::string::npos;
-                         });
-  if (it != url_env_prefix.end()) {
-    return env::get(it->second + config_postfix);
+// Look up a provider by alias; returns nullptr if not found
+static const ProviderConfig* find_provider(const std::string& alias) {
+  return app_config().find_provider(alias);
+}
+
+// Get the base URL for a provider alias
+static std::string get_provider_base_url(const std::string& alias) {
+  if (auto* p = find_provider(alias)) {
+    return p->base_url;
+  }
+  return "";
+}
+
+// Get the default model for a provider alias (from config)
+static std::optional<std::string> get_provider_default_model(
+    const std::string& alias) {
+  if (auto* p = find_provider(alias)) {
+    return p->default_model;
   }
   return std::nullopt;
 }
 
-std::optional<std::string> getDefaultModelForUrl(std::string const& url) {
-  if (url == qwen_base_url + "chat/completions") {
-    return "qwen-turbo-latest";  // qwen-plus,qwen-turbo
-  } else if (url == gemini_base_url + "chat/completions") {
-    return "gemini-2.0-flash";
-  } else if (url == deepseek_base_url + "chat/completions") {
-    return "deepseek-chat";  // deepseek-reasoner
-  } else if (url == moonshot_base_url + "chat/completions") {
-    return "moonshot-v1-auto";
+// Get the API key for a provider alias (from config)
+static std::optional<std::string> get_provider_api_key(
+    const std::string& alias) {
+  if (auto* p = find_provider(alias)) {
+    return p->api_key;
   }
   return std::nullopt;
+}
+
+// Find the provider alias that matches a URL prefix
+static std::string find_alias_for_url(const std::string& url) {
+  for (auto& p : app_config().providers) {
+    if (url.find(p.base_url) != std::string::npos) {
+      return p.alias;
+    }
+  }
+  return "";
+}
+
+// Get environment config using the provider's alias as env prefix
+static std::optional<std::string> getEnvironmentConfig(
+    std::string const& url, std::string const& config_postfix) {
+  auto alias = find_alias_for_url(url);
+  if (!alias.empty()) {
+    std::string env_prefix;
+    for (auto& c : alias) {
+      env_prefix += static_cast<char>(std::toupper(c));
+    }
+    return env::get(env_prefix + config_postfix);
+  }
+  return std::nullopt;
+}
+
+// Get default model: first try env var, then config, then hardcoded fallback
+static std::optional<std::string> getDefaultModelForUrl(
+    std::string const& url) {
+  // First try environment variable
+  auto env_model = getEnvironmentConfig(url, "_API_MODEL");
+  if (env_model.has_value()) {
+    return env_model;
+  }
+  // Then try config's default_model
+  auto alias = find_alias_for_url(url);
+  if (!alias.empty()) {
+    auto config_model = get_provider_default_model(alias);
+    if (config_model.has_value()) {
+      return config_model;
+    }
+  }
+  return std::nullopt;
+}
+
+// Get API key: first try command line, then env var, then config
+static void resolve_api_key(AiArgs& args, const std::string& url) {
+  if (!args.api_key.empty()) {
+    return;  // Already set via command line
+  }
+  // Try environment variable
+  auto env_key = getEnvironmentConfig(url, "_API_KEY");
+  if (env_key.has_value()) {
+    args.api_key = env_key.value();
+    return;
+  }
+  // Try config
+  auto alias = find_alias_for_url(url);
+  if (!alias.empty()) {
+    auto config_key = get_provider_api_key(alias);
+    if (config_key.has_value()) {
+      args.api_key = config_key.value();
+    }
+  }
+}
+
+// Get proxy: first try command line, then env var
+static void resolve_proxy(AiArgs& args, const std::string& url) {
+  if (args.proxy.has_value()) {
+    return;  // Already set via command line
+  }
+  auto proxy = getEnvironmentConfig(url, "_API_PROXY");
+  if (proxy.has_value()) {
+    args.proxy = proxy.value();
+  }
 }
 
 static void add_alias_options(argparse::Command& command) {
-  command.add_alias("qwen", "base-url", qwen_base_url);
-  command.add_alias("gemini", "base-url", gemini_base_url);
-  command.add_alias("google", "base-url", gemini_base_url);
-  command.add_alias("deepseek", "base-url", deepseek_base_url);
-  command.add_alias("openai", "base-url", openai_base_url);
-  command.add_alias("moonshot", "base-url", moonshot_base_url);
-  command.add_alias("ollama", "base-url", ollama_base_url);
+  for (auto& p : app_config().providers) {
+    if (!p.alias.empty() && !p.base_url.empty()) {
+      command.add_alias(p.alias, "base-url", p.base_url);
+    }
+  }
 }
 
 static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
   auto& models = parser.add_command("models", "list models");
+
+  // Default base URL: use the first configured provider, or deepseek as
+  // fallback
+  const auto default_base = app_config().providers.empty()
+                                ? "https://api.deepseek.com"
+                                : app_config().providers.front().base_url;
 
   auto& models_args = args.models_args;
   models.add_option("u,url", "OpenAI API Compatible URL", models_args.api_url)
@@ -78,7 +157,7 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
   models
       .add_option("base-url", "OpenAI API Compatible URL(<base_url>/models)",
                   models_args.api_url)
-      .default_value(deepseek_base_url)
+      .default_value(default_base)
       .callback([&models_args](std::string const& base_url) {
         if (!base_url.empty()) {
           models_args.api_url =
@@ -90,19 +169,8 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
 
   models.callback([&args]() -> void {
     auto& models_args = args.models_args;
-    if (args.api_key.empty() && !models_args.api_url.empty()) {
-      auto key = getEnvironmentConfig(models_args.api_url, "_API_KEY");
-      if (key.has_value()) {
-        args.api_key = key.value();
-      }
-    }
-
-    if (!args.proxy.has_value()) {
-      auto proxy = getEnvironmentConfig(models_args.api_url, "_API_PROXY");
-      if (proxy.has_value()) {
-        args.proxy = proxy.value();
-      }
-    }
+    resolve_api_key(args, models_args.api_url);
+    resolve_proxy(args, models_args.api_url);
   });
 }
 
@@ -147,6 +215,13 @@ inline static bool stdin_is_file() {
 static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
   auto& chat = parser.add_command("chat", "ai chatbot");
   auto& chat_args = args.chat_args;
+
+  // Default base URL: use the first configured provider, or deepseek as
+  // fallback
+  const auto default_base = app_config().providers.empty()
+                                ? "https://api.deepseek.com"
+                                : app_config().providers.front().base_url;
+
   chat.add_flag("stream", "Enable streaming mode", chat_args.stream)
       .negatable();
   chat.add_flag("stream-include-usage", "print usage in streaming mode",
@@ -172,7 +247,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
   chat.add_option("base-url",
                   "OpenAI API Compatible URL(<base_url>/chat/completions)",
                   chat_args.api_url)
-      .default_value(deepseek_base_url)
+      .default_value(default_base)
       .callback([&args](std::string const& base_url) {
         if (!base_url.empty()) {
           args.chat_args.api_url =
@@ -187,11 +262,10 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                   chat_args.reasoning_effort)
       .choices({"low", "medium", "high", "none"});
 
-  chat.add_option("tools", "tools call", chat_args.tools)
-      .choices([&]() {
-        auto cats = get_tool_categories();
-        return std::vector<std::string>(cats.begin(), cats.end());
-      }());
+  chat.add_option("tools", "tools call", chat_args.tools).choices([&]() {
+    auto cats = get_tool_categories();
+    return std::vector<std::string>(cats.begin(), cats.end());
+  }());
   chat.add_option("tool-choice",
                   "tool choice(none: if no tools, auto: if has tools)",
                   chat_args.tool_choice)
@@ -205,10 +279,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     auto& chat_args = args.chat_args;
 
     if (chat_args.model.empty()) {
-      auto model = getEnvironmentConfig(chat_args.api_url, "_API_MODEL");
-      if (!model) {
-        model = getDefaultModelForUrl(chat_args.api_url);
-      }
+      auto model = getDefaultModelForUrl(chat_args.api_url);
       if (model.has_value()) {
         chat_args.model = model.value();
       }
@@ -249,19 +320,8 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       exit(EXIT_FAILURE);
     }
 
-    if (args.api_key.empty() && !chat_args.api_url.empty()) {
-      auto key = getEnvironmentConfig(chat_args.api_url, "_API_KEY");
-      if (key.has_value()) {
-        args.api_key = key.value();
-      }
-    }
-
-    if (!args.proxy.has_value()) {
-      auto proxy = getEnvironmentConfig(chat_args.api_url, "_API_PROXY");
-      if (proxy.has_value()) {
-        args.proxy = proxy.value();
-      }
-    }
+    resolve_api_key(args, chat_args.api_url);
+    resolve_proxy(args, chat_args.api_url);
   });
 }
 

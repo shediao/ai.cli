@@ -98,6 +98,7 @@ add_executable(
   src/main.cpp
   src/chat.cpp
   src/args.cpp
+  src/config.cpp
   src/logging.cpp
   src/models.cpp
   src/openai.cpp

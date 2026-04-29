@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI CLI Configuration",
+  "description": "Configuration for AI CLI tool with multiple AI provider settings",
+  "type": "object",
+  "properties": {
+    "providers": {
+      "type": "array",
+      "description": "List of AI providers",
+      "items": {
+        "type": "object",
+        "properties": {
+          "alias": {
+            "type": "string",
+            "description": "Command-line alias for this provider (e.g., --deepseek)"
+          },
+          "base_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Base URL for the OpenAI-compatible API endpoint"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "API key for authentication (optional, can also use environment variable ALIAS_API_KEY)"
+          },
+          "default_model": {
+            "type": "string",
+            "description": "Default model to use for this provider (optional, can also use environment variable ALIAS_API_MODEL)"
+          }
+        },
+        "required": ["alias", "base_url"]
+      }
+    }
+  },
+  "required": ["providers"]
+}
