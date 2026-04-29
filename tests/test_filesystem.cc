@@ -888,6 +888,7 @@ TEST(ReplaceLinesTest, ContentNotString) {
 // execute_file tests
 // =============================================================================
 
+#ifndef _WIN32
 TEST(ExecuteFileTest, ExecutesScript) {
   TempTestDir dir;
   std::string script_path = dir.path() + "/test_script.sh";
@@ -919,6 +920,7 @@ TEST(ExecuteFileTest, WithArgs) {
   std::string result = execute_file(args);
   EXPECT_TRUE(result.find("hello_arg") != std::string::npos);
 }
+#endif  // _WIN32
 
 TEST(ExecuteFileTest, NotAnObject) {
   json args = json::array();

@@ -289,7 +289,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                 chat_args.no_tools);
   chat.add_option(
           "tools",
-          "Tool categories to enable for the AI (e.g., bash, filesystem, git)",
+          "Tool categories to enable for the AI (e.g., bash, filesystem)",
           chat_args.tools)
       .choices([&]() {
         auto cats = get_tool_categories();

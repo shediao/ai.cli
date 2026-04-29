@@ -94,9 +94,6 @@ file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/powershell.json
      POWERSHELL_TOOLS_JSON_DATA)
 configure_file(src/tools/powershell_tools_json.h.in powershell_tools_json.h)
 
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/git.json GIT_TOOLS_JSON_DATA)
-configure_file(src/tools/git_tools_json.h.in git_tools_json.h)
-
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/default.json
      DEFAULT_TOOLS_JSON_DATA)
 configure_file(src/tools/default_tools_json.h.in default_tools_json.h)
@@ -117,7 +114,6 @@ add_executable(
   src/tools/bash.cpp
   src/tools/cmd.cpp
   src/tools/powershell.cpp
-  src/tools/git.cpp
   src/tools/default.cpp
   src/tool_calls.cpp
   src/utils.cpp

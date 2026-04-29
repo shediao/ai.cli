@@ -1,3 +1,0 @@
-constexpr char git_tools_json_str[] = R"===(
-@GIT_TOOLS_JSON_DATA@
-)===";
