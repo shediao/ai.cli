@@ -247,8 +247,11 @@ std::string edit_file(nlohmann::json const& args) {
   // --- parse diff and apply each SEARCH/REPLACE block ---
   std::string_view diff_view(diff);
   size_t cursor = 0;
+  int block_num = 0;
 
   while (true) {
+    ++block_num;
+
     // 1. locate next SEARCH marker
     auto [search_pos, search_label] =
         find_by_lables(diff, cursor, search_labels);
@@ -261,7 +264,14 @@ std::string edit_file(nlohmann::json const& args) {
         find_by_lables(diff, search_pos + search_label.size(), split_labels);
     if (split_pos == std::string::npos) {
       LOG(ERROR) << "not found label: '\\n=======\\n'";
-      return "Failed to edit file " + path;
+      size_t preview_len = std::min(
+          size_t(128), diff_view.size() - search_pos - search_label.size());
+      std::string_view search_preview =
+          diff_view.substr(search_pos + search_label.size(), preview_len);
+      return "Failed to edit file " + path +
+             ": missing '=======' delimiter in block #" +
+             std::to_string(block_num) + ". SEARCH content starts with:\n" +
+             std::string(search_preview);
     }
 
     // 3. locate REPLACE marker after the split
@@ -269,7 +279,14 @@ std::string edit_file(nlohmann::json const& args) {
         find_by_lables(diff, split_pos + split_label.size(), replace_labels);
     if (replace_pos == std::string::npos) {
       LOG(ERROR) << "not found label: '>>>>>>> REPLACE'";
-      return "Failed to edit file " + path;
+      size_t preview_len =
+          std::min(size_t(500), split_pos - search_pos - search_label.size());
+      std::string_view search_preview =
+          diff_view.substr(search_pos + search_label.size(), preview_len);
+      return "Failed to edit file " + path +
+             ": missing '>>>>>>> REPLACE' marker in block #" +
+             std::to_string(block_num) + ". SEARCH content:\n" +
+             std::string(search_preview);
     }
 
     // 4. extract search & replace strings (string_view avoids copies)
@@ -284,7 +301,9 @@ std::string edit_file(nlohmann::json const& args) {
     size_t found = file_content.find(search);
     if (found == std::string::npos) {
       LOG(ERROR) << "Not Found: " << search;
-      return "Failed edited file " + path;
+      return "Failed to edit file " + path +
+             ": SEARCH string not found in block #" +
+             std::to_string(block_num) + ".\nSEARCH:\n" + std::string(search);
     }
     file_content.replace(found, search.size(), replace);
 
