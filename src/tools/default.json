@@ -1,0 +1,88 @@
+[
+  {
+    "type": "function",
+    "name": "get_working_directory",
+    "description": "Get the current session working directory path. Returns the absolute path of the current working directory for the CLI session. Use this when you need to know where the user is currently working.",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  {
+    "type": "function",
+    "name": "set_working_directory",
+    "description": "Change the current session working directory. Changes the process working directory to the specified path. This affects relative path resolution for all subsequent operations. Use this when the user wants to work in a different directory.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The target directory path. Can be an absolute path or a relative path (resolved against the current working directory)."
+        }
+      },
+      "required": [
+        "path"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "name": "get_environment_variable",
+    "description": "Get the value of an environment variable from the current session. Returns the value of the specified environment variable, or an empty string if not set.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the environment variable to retrieve (e.g., 'HOME', 'PATH', 'USER')."
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "name": "set_environment_variable",
+    "description": "Set or update an environment variable for the current session. This only affects the current CLI process and any child processes spawned from it. The change is not permanent and will be lost when the session ends.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the environment variable to set."
+        },
+        "value": {
+          "type": "string",
+          "description": "The value to assign to the environment variable."
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ]
+    }
+  },
+  {
+    "type": "function",
+    "name": "get_shell",
+    "description": "Get the default shell for the current session. Returns the path to the default shell executable (e.g., '/bin/bash', '/bin/zsh'). Use this to know which shell syntax to use when executing commands.",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  {
+    "type": "function",
+    "name": "get_operating_system",
+    "description": "Get information about the operating system of the current session. Returns the OS name, version, and architecture. Use this to make OS-specific decisions when helping the user.",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  }
+]

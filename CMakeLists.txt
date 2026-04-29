@@ -92,6 +92,10 @@ file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/git.json
      GIT_TOOLS_JSON_DATA)
 configure_file(src/tools/git_tools_json.h.in git_tools_json.h)
 
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/default.json
+     DEFAULT_TOOLS_JSON_DATA)
+configure_file(src/tools/default_tools_json.h.in default_tools_json.h)
+
 # ── Source files ───────────────────────────────────────────────────────────
 add_executable(
   ai
@@ -107,6 +111,7 @@ add_executable(
   src/tools/filesystem.cpp
   src/tools/bash.cpp
   src/tools/git.cpp
+  src/tools/default.cpp
   src/tool_calls.cpp
   src/utils.cpp
   src/base64.cpp)

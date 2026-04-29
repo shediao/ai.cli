@@ -1,0 +1,4 @@
+
+constexpr char default_tools_json_str[] = R"===(
+@DEFAULT_TOOLS_JSON_DATA@
+)===";
