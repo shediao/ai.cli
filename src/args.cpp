@@ -144,7 +144,7 @@ static void add_alias_options(argparse::Command& command) {
 }
 
 static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
-  auto& models = parser.add_command("models", "list models");
+  auto& models = parser.add_command("models", "List available AI models from the configured API endpoint");
 
   // Default base URL: use the first configured provider, or deepseek as
   // fallback
@@ -153,10 +153,10 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
                                 : app_config().providers.front().base_url;
 
   auto& models_args = args.models_args;
-  models.add_option("u,url", "OpenAI API Compatible URL", models_args.api_url)
+  models.add_option("u,url", "OpenAI API-compatible base URL for listing models", models_args.api_url)
       .hidden();
   models
-      .add_option("base-url", "OpenAI API Compatible URL(<base_url>/models)",
+      .add_option("base-url", "OpenAI API-compatible base URL (appends /models to form the full endpoint)",
                   models_args.api_url)
       .default_value(default_base)
       .callback([&models_args](std::string const& base_url) {
@@ -214,7 +214,7 @@ inline static bool stdin_is_file() {
 }
 
 static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
-  auto& chat = parser.add_command("chat", "ai chatbot");
+  auto& chat = parser.add_command("chat", "Start an interactive chat session with the AI assistant");
   auto& chat_args = args.chat_args;
 
   // Default base URL: use the first configured provider, or deepseek as
@@ -223,31 +223,33 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                                 ? "https://api.deepseek.com"
                                 : app_config().providers.front().base_url;
 
-  chat.add_flag("stream", "Enable streaming mode", chat_args.stream)
+  chat.add_flag("stream", "Enable streaming mode (tokens are displayed as they are generated)", chat_args.stream)
       .negatable();
-  chat.add_flag("stream-include-usage", "print usage in streaming mode",
+  chat.add_flag("stream-include-usage", "Include token usage statistics at the end of streaming output",
                 chat_args.stream_include_usage)
       .negatable();
 
-  chat.add_flag("C", "continue with last history",
+  chat.add_flag("C", "Continue conversation from the last saved chat history",
                 chat_args.continue_with_last_history);
 
-  chat.add_option("m,model", "Model to use", chat_args.model)
+  chat.add_option("m,model", "AI model name to use for chat completion (e.g., gpt-4o, deepseek-chat)", chat_args.model)
       .validator([](const std::string& model) {
         return std::pair<bool, std::string>{!model.empty(),
-                                            "model is non empty string"};
+                                            "model must be a non-empty string"};
       });
-  chat.add_option("s,system-prompt", "System prompt", chat_args.system_prompt)
+  chat.add_option("s,system-prompt", "System prompt that sets the behavior, role, and context for the AI",
+                  chat_args.system_prompt)
       .default_value(build_default_system_prompt());
-  chat.add_option("t,temperature", "Model temperature[0.0~2.0",
+  chat.add_option("t,temperature", "Sampling temperature [0.0–2.0]: lower values produce more focused/deterministic output, higher values produce more creative/varied output",
                   chat_args.temperature)
       .range(0.0, 2.0);
-  chat.add_option("top-p", "Model top-p parameter [0.0~1.0]", chat_args.top_p)
+  chat.add_option("top-p", "Nucleus sampling parameter [0.0–1.0]: considers only the smallest set of tokens whose cumulative probability exceeds this value",
+                  chat_args.top_p)
       .range(0.0, 1.0);
-  chat.add_option("u,url", "OpenAI API Compatible URL", chat_args.api_url)
+  chat.add_option("u,url", "OpenAI API-compatible base URL for chat completions", chat_args.api_url)
       .hidden();
   chat.add_option("base-url",
-                  "OpenAI API Compatible URL(<base_url>/chat/completions)",
+                  "OpenAI API-compatible base URL (appends /chat/completions to form the full endpoint)",
                   chat_args.api_url)
       .default_value(default_base)
       .callback([&args](std::string const& base_url) {
@@ -259,25 +261,26 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         }
       });
 
-  chat.add_option("max-tokens", "max tokens", chat_args.max_tokens);
-  chat.add_option("reasoning-effort", "reasoning effort",
+  chat.add_option("max-tokens", "Maximum number of tokens to generate in the response", chat_args.max_tokens);
+  chat.add_option("reasoning-effort", "Control the model's reasoning depth before responding",
                   chat_args.reasoning_effort)
       .choices({"low", "medium", "high", "none"});
 
-  chat.add_option("tools", "tools call", chat_args.tools)
+  chat.add_option("tools", "Tool categories to enable for the AI (e.g., bash, filesystem, git)",
+                  chat_args.tools)
       .choices([&]() {
         auto cats = get_tool_categories();
         return std::vector<std::string>(cats.begin(), cats.end());
       }())
       .default_value({"bash", "filesystem"});
   chat.add_option("tool-choice",
-                  "tool choice(none: if no tools, auto: if has tools)",
+                  "Control how the AI selects and uses tools: 'none' (never call tools), 'auto' (let the AI decide), 'required' (force a tool call)",
                   chat_args.tool_choice)
       .choices({"none", "auto", "required"});
 
   add_alias_options(chat);
 
-  chat.add_positional("prompts", "user prompts", chat_args.prompts);
+  chat.add_positional("prompts", "User message(s) to send to the AI; use '-' to read from stdin", chat_args.prompts);
 
   chat.callback([&args]() -> void {
     auto& chat_args = args.chat_args;
@@ -358,19 +361,20 @@ argparse::Command& AiArgs::parse(int argc, char* argv[]) {
 }
 #endif
 
-AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
-  parser.add_flag("version", "Print version information", version)
+AiArgs::AiArgs() : parser("ai", "OpenAI API-compatible multi-provider CLI chatbot with tool-calling capabilities") {
+  parser.add_flag("version", "Print version information and exit", version)
       .callback([](bool v) {
         if (v) {
           std::cout << "ai version " << GIT_VERSION << "\n";
           std::exit(0);
         }
       });
-  parser.add_option("x,proxy", "Use proxy(curl)", proxy)
+  parser.add_option("x,proxy", "HTTP/HTTPS proxy URL for API requests (e.g., http://127.0.0.1:8080)", proxy)
       .value_placeholder("PROXY");
-  parser.add_option("k,key", "API key", api_key).value_placeholder("key");
+  parser.add_option("k,key", "API key used for authenticating with the AI provider", api_key)
+      .value_placeholder("KEY");
   parser
-      .add_option("log-level", "set logging level", log_level)
+      .add_option("log-level", "Set logging verbosity level (lower values are more verbose)", log_level)
 #if defined(NDEBUG)
       .default_value("4")
 #else
@@ -382,11 +386,11 @@ AiArgs::AiArgs() : parser("ai", "OpenAI API Compatible Command Line Chatbot") {
                             {"2", "WARNING"},
                             {"3", "ERROR"},
                             {"4", "FATAL"}});
-  parser.add_negative_flag("v", "decrement log level", log_level);
-  parser.add_option("enable-logging", "log output to stderr/file", log_type)
+  parser.add_negative_flag("v", "Decrease log verbosity (each use makes output less verbose)", log_level);
+  parser.add_option("enable-logging", "Enable logging and choose output destination", log_type)
       .default_value("stderr")
       .choices({"file", "stderr", "all"});
-  parser.add_option("log-file", "log file path", log_file)
+  parser.add_option("log-file", "Path to the log file when file-based logging is enabled", log_file)
       .default_value("debug.log");
   bind_chat_args(parser, *this);
   bind_model_args(parser, *this);
