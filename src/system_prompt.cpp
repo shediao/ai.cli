@@ -69,9 +69,15 @@ std::string make_tree(std::filesystem::path const& root, int max_depth = 2,
 std::optional<std::string> find_git_root() {
   std::error_code ec;
   auto current = std::filesystem::current_path(ec);
-  for (auto p = current; p.has_parent_path(); p = p.parent_path()) {
+  for (auto p = current;; p = p.parent_path()) {
     if (std::filesystem::exists(p / ".git", ec)) {
       return p.string();
+    }
+    // has_parent_path() is unreliable: parent_path() of "/" can return "/" on
+    // some implementations, causing an infinite loop. Compare instead.
+    auto parent = p.parent_path();
+    if (p == parent) {
+      break; // reached the filesystem root
     }
   }
   return std::nullopt;

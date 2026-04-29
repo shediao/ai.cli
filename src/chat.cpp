@@ -10,7 +10,6 @@
 #include "ai/clip.h"
 #include "ai/logging.h"
 #include "ai/openai.h"
-#include "ai/system_prompt.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 
@@ -43,11 +42,6 @@ int chat() {
 
     try {
       std::string system_prompt = chat_args.system_prompt.value_or("");
-      // If user didn't provide a system prompt, build a default one
-      // with useful context (cwd, os, git repo structure, etc.)
-      if (system_prompt.empty()) {
-        system_prompt = build_default_system_prompt();
-      }
       auto user_prompt = chat_args.prompts;
       if (!utfx::is_utf8(system_prompt.c_str(), system_prompt.size())) {
         LOG(ERROR) << "system prompt not an utf8 string";

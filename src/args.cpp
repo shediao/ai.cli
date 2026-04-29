@@ -15,6 +15,7 @@
 #endif
 
 #include "ai/config.h"
+#include "ai/system_prompt.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 
@@ -236,7 +237,8 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         return std::pair<bool, std::string>{!model.empty(),
                                             "model is non empty string"};
       });
-  chat.add_option("s,system-prompt", "System prompt", chat_args.system_prompt);
+  chat.add_option("s,system-prompt", "System prompt", chat_args.system_prompt)
+      .default_value(build_default_system_prompt());
   chat.add_option("t,temperature", "Model temperature[0.0~2.0",
                   chat_args.temperature)
       .range(0.0, 2.0);
