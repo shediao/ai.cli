@@ -782,9 +782,12 @@ std::string replace_lines(nlohmann::json const& args) {
 
   // ── perform replacement ──
   std::string new_content;
-  new_content.reserve(file_content.size() + content.size());
+  new_content.reserve(file_content.size() + content.size() + 1);
   new_content.append(file_content, 0, start_pos);
   new_content.append(content);
+  if (!content.empty() && content.back() != '\n') {
+    new_content.append("\n");
+  }
   if (end_pos < file_content.size()) {
     new_content.append(file_content, end_pos, std::string::npos);
   }
