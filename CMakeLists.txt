@@ -97,6 +97,7 @@ add_executable(
   ai
   src/main.cpp
   src/chat.cpp
+  src/system_prompt.cpp
   src/args.cpp
   src/config.cpp
   src/logging.cpp
