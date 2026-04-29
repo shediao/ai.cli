@@ -888,9 +888,15 @@ TEST(ReplaceLinesTest, ContentNotString) {
 // execute_file tests
 // =============================================================================
 
-#ifndef _WIN32
 TEST(ExecuteFileTest, ExecutesScript) {
   TempTestDir dir;
+#if defined(_WIN32)
+  std::string script_path = dir.path() + "/test_script.bat";
+  {
+    std::ofstream script(script_path);
+    script << "@echo off\r\necho hello\r\necho error>&2\r\nexit /b 42\r\n";
+  }
+#else
   std::string script_path = dir.path() + "/test_script.sh";
   {
     std::ofstream script(script_path);
@@ -898,6 +904,7 @@ TEST(ExecuteFileTest, ExecutesScript) {
   }
   std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
                                std::filesystem::perm_options::add);
+#endif
 
   json args = {{"path", script_path}};
   std::string result = execute_file(args);
@@ -908,6 +915,13 @@ TEST(ExecuteFileTest, ExecutesScript) {
 
 TEST(ExecuteFileTest, WithArgs) {
   TempTestDir dir;
+#if defined(_WIN32)
+  std::string script_path = dir.path() + "/echo_args.bat";
+  {
+    std::ofstream script(script_path);
+    script << "@echo off\r\necho \"%1\"\r\n";
+  }
+#else
   std::string script_path = dir.path() + "/echo_args.sh";
   {
     std::ofstream script(script_path);
@@ -915,12 +929,12 @@ TEST(ExecuteFileTest, WithArgs) {
   }
   std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
                                std::filesystem::perm_options::add);
+#endif
 
   json args = {{"path", script_path}, {"args", json::array({"hello_arg"})}};
   std::string result = execute_file(args);
   EXPECT_TRUE(result.find("hello_arg") != std::string::npos);
 }
-#endif  // _WIN32
 
 TEST(ExecuteFileTest, NotAnObject) {
   json args = json::array();
