@@ -11,12 +11,12 @@
 #include <string_view>
 #include <subprocess/subprocess.hpp>
 
-#include "ai/args.h"
-#include "filesystem_tools_json.h"
 #include "./glob.hpp"
+#include "ai/args.h"
 #include "ai/logging.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
+#include "filesystem_tools_json.h"
 
 std::string read_file(nlohmann::json const& args) {
   LOG(INFO) << "call read_file(" << args.dump() << ")";
@@ -238,10 +238,10 @@ std::string edit_file(nlohmann::json const& args) {
   in.close();
 
   // --- static label tables (avoid re-allocation every call) ---
-  static const std::vector<std::string_view> search_labels{"\n<<<<<<< SEARCH\n",
-                                                           "<<<<<<< SEARCH\n"};
+  static const std::vector<std::string_view> search_labels{
+      "\n<<<<<<< SEARCH\n", "<<<<<<< SEARCH\n", "<<<<<<< SEARCH"};
   static const std::vector<std::string_view> replace_labels{
-      "\n>>>>>>> REPLACE\n", "\n>>>>>>> REPLACE"};
+      "\n>>>>>>> REPLACE\n", "\n>>>>>>> REPLACE", ">>>>>>> REPLACE"};
   static const std::vector<std::string_view> split_labels{"\n=======\n"};
 
   // --- parse diff and apply each SEARCH/REPLACE block ---
@@ -710,8 +710,7 @@ std::string replace_lines(nlohmann::json const& args) {
            std::to_string(start_line);
   }
   if (end_line < start_line) {
-    return "function replace_lines: \"end_line\" (" +
-           std::to_string(end_line) +
+    return "function replace_lines: \"end_line\" (" + std::to_string(end_line) +
            ") must be >= \"start_line\" (" + std::to_string(start_line) + ")";
   }
 
@@ -725,16 +724,16 @@ std::string replace_lines(nlohmann::json const& args) {
   in.close();
 
   // Count total lines
-  int total_lines =
-      static_cast<int>(std::count(file_content.begin(), file_content.end(), '\n'));
+  int total_lines = static_cast<int>(
+      std::count(file_content.begin(), file_content.end(), '\n'));
   if (!file_content.empty() && file_content.back() != '\n') {
     ++total_lines;
   }
 
   if (start_line > total_lines) {
-    return "function replace_lines: \"start_line\" " + std::to_string(start_line) +
-           " is out of range. File \"" + path + "\" has only " +
-           std::to_string(total_lines) + " lines.";
+    return "function replace_lines: \"start_line\" " +
+           std::to_string(start_line) + " is out of range. File \"" + path +
+           "\" has only " + std::to_string(total_lines) + " lines.";
   }
   if (end_line > total_lines) {
     return "function replace_lines: \"end_line\" " + std::to_string(end_line) +
