@@ -266,6 +266,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                   chat_args.reasoning_effort)
       .choices({"low", "medium", "high", "none"});
 
+  chat.add_flag("no-tools", "Disable all tool calling capabilities", chat_args.no_tools);
   chat.add_option("tools", "Tool categories to enable for the AI (e.g., bash, filesystem, git)",
                   chat_args.tools)
       .choices([&]() {
@@ -295,6 +296,11 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     if (chat_args.model.empty()) {
       std::cerr << "Error: Must provide an ai model." << std::endl;
       exit(EXIT_FAILURE);
+    }
+
+    if (chat_args.no_tools) {
+      chat_args.tools.clear();
+      chat_args.tool_choice = "none";
     }
 
     // read from stdin
