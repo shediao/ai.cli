@@ -1,0 +1,3 @@
+constexpr char powershell_tools_json_str[] = R"===(
+@POWERSHELL_TOOLS_JSON_DATA@
+)===";

@@ -87,6 +87,13 @@ configure_file(src/tools/filesystem_tools_json.h.in filesystem_tools_json.h)
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/bash.json BASH_TOOLS_JSON_DATA)
 configure_file(src/tools/bash_tools_json.h.in bash_tools_json.h)
 
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/cmd.json CMD_TOOLS_JSON_DATA)
+configure_file(src/tools/cmd_tools_json.h.in cmd_tools_json.h)
+
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/powershell.json
+     POWERSHELL_TOOLS_JSON_DATA)
+configure_file(src/tools/powershell_tools_json.h.in powershell_tools_json.h)
+
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/git.json GIT_TOOLS_JSON_DATA)
 configure_file(src/tools/git_tools_json.h.in git_tools_json.h)
 
@@ -108,6 +115,8 @@ add_executable(
   src/response.cpp
   src/tools/filesystem.cpp
   src/tools/bash.cpp
+  src/tools/cmd.cpp
+  src/tools/powershell.cpp
   src/tools/git.cpp
   src/tools/default.cpp
   src/tool_calls.cpp

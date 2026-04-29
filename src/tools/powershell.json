@@ -1,0 +1,23 @@
+[
+  {
+    "type": "function",
+    "name": "powershell",
+    "description": "Execute a PowerShell command and return the output. This tool allows running arbitrary PowerShell commands. The command is executed via 'powershell -NoProfile -Command', so all PowerShell features like cmdlets, pipelines, object manipulation, scripting constructs, and modules are available. Use this tool for advanced Windows system administration, scripting, JSON/XML processing, and any PowerShell tasks. Returns both stdout and stderr output.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "The PowerShell command to execute. This will be passed to 'powershell -NoProfile -Command'. Can include pipelines, cmdlets, variables with $var, and any valid PowerShell syntax. Examples: 'Get-Process | Where-Object {$_.CPU -gt 10}', 'Get-ChildItem -Recurse | Measure-Object', 'Test-Path C:\\Windows'."
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "description": "Set to true if the command is potentially dangerous or destructive and should require user confirmation before execution. Commands that modify files (Remove-Item, Move-Item), change system settings (Set-ExecutionPolicy, Set-Service), install packages, make network requests, or any other sensitive operations should have this set to true. Set to false for safe read-only operations like Get-ChildItem, Get-Process, Test-Path, etc."
+        }
+      },
+      "required": [
+        "command"
+      ]
+    }
+  }
+]
