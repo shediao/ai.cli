@@ -14,7 +14,8 @@ project(
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE
       Debug
-      CACHE STRING
+      CACHE
+        STRING
         "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel..."
         FORCE)
 endif()
@@ -46,7 +47,8 @@ if(AICLI_ENABLE_ASAN
    AND CMAKE_HOST_SYSTEM_NAME MATCHES "Linux|Darwin")
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     set(CMAKE_CXX_FLAGS_DEBUG
-        "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls")
+        "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls"
+    )
   endif()
 endif()
 
@@ -67,9 +69,7 @@ execute_process(
   COMMAND git describe --tags --always --dirty
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_VERSION
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-  ERROR_QUIET
-)
+  OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 if(NOT GIT_VERSION)
   set(GIT_VERSION "unknown")
 endif()
@@ -84,12 +84,10 @@ file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/filesystem.json
      FILESYSTEM_TOOLS_JSON_DATA)
 configure_file(src/tools/filesystem_tools_json.h.in filesystem_tools_json.h)
 
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/bash.json
-     BASH_TOOLS_JSON_DATA)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/bash.json BASH_TOOLS_JSON_DATA)
 configure_file(src/tools/bash_tools_json.h.in bash_tools_json.h)
 
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/git.json
-     GIT_TOOLS_JSON_DATA)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/git.json GIT_TOOLS_JSON_DATA)
 configure_file(src/tools/git_tools_json.h.in git_tools_json.h)
 
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/default.json
@@ -132,8 +130,7 @@ set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 # ── Include directories ────────────────────────────────────────────────────
 target_include_directories(
   ai
-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
-          ${CMAKE_CURRENT_SOURCE_DIR}/src
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src
           ${CMAKE_CURRENT_SOURCE_DIR}/third_party/json/include
           ${CMAKE_CURRENT_BINARY_DIR})
 

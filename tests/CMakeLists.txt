@@ -6,7 +6,9 @@ include(FetchContent)
 
 # Disable pthreads in gtest on non-Windows non-MSVC platforms
 if(NOT CMAKE_HOST_SYSTEM_NAME MATCHES "Windows" AND NOT MSVC)
-  set(gtest_disable_pthreads ON CACHE BOOL "" FORCE)
+  set(gtest_disable_pthreads
+      ON
+      CACHE BOOL "" FORCE)
 endif()
 
 FetchContent_Declare(
@@ -44,10 +46,11 @@ endfunction()
 
 add_ai_cli_test(
   test_response
-  "test_response.cc;test_stream_response.cc;test_tool_calls_stream_response.cc;../src/response.cpp")
+  "test_response.cc;test_stream_response.cc;test_tool_calls_stream_response.cc;../src/response.cpp"
+)
 
-add_ai_cli_test(
-  test_filesystem
-  "test_filesystem.cc;../src/tools/filesystem.cpp")
-target_link_libraries(test_filesystem PRIVATE
-  subprocess::subprocess argparse::argparse environment::environment)
+add_ai_cli_test(test_filesystem
+                "test_filesystem.cc;../src/tools/filesystem.cpp")
+target_link_libraries(
+  test_filesystem PRIVATE subprocess::subprocess argparse::argparse
+                          environment::environment)

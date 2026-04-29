@@ -57,40 +57,104 @@ else()
     UPDATE_DISCONNECTED ON)
 
   # Configure curl build options for minimal footprint
-  set(BUILD_CURL_EXE OFF CACHE BOOL "Don't build curl executable")
-  set(HTTP_ONLY ON CACHE BOOL "Only enable HTTP protocol")
-  set(CURL_WERROR OFF CACHE BOOL "Turn compiler warnings into errors")
-  set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries")
-  set(BUILD_STATIC_LIBS ON CACHE BOOL "Build static libraries")
-  set(ENABLE_ARES OFF CACHE BOOL "Enable c-ares support")
+  set(BUILD_CURL_EXE
+      OFF
+      CACHE BOOL "Don't build curl executable")
+  set(HTTP_ONLY
+      ON
+      CACHE BOOL "Only enable HTTP protocol")
+  set(CURL_WERROR
+      OFF
+      CACHE BOOL "Turn compiler warnings into errors")
+  set(BUILD_SHARED_LIBS
+      OFF
+      CACHE BOOL "Build shared libraries")
+  set(BUILD_STATIC_LIBS
+      ON
+      CACHE BOOL "Build static libraries")
+  set(ENABLE_ARES
+      OFF
+      CACHE BOOL "Enable c-ares support")
 
   # Disable unused protocols and features
-  foreach(_proto IN ITEMS ALTSVC SRP COOKIES AWS DICT DOH FILE FTP GETOPTIONS
-                        GOPHER HSTS IMAP LDAP LDAPS MQTT BINDLOCAL NETRC NTLM
-                        POP3 PROGRESS_METER IPFS RTSP SMB SMTP WEBSOCKETS TELNET
-                        TFTP VERBOSE_STRINGS)
-    set(CURL_DISABLE_${_proto} ON CACHE BOOL "Disable ${_proto}")
+  foreach(
+    _proto IN
+    ITEMS ALTSVC
+          SRP
+          COOKIES
+          AWS
+          DICT
+          DOH
+          FILE
+          FTP
+          GETOPTIONS
+          GOPHER
+          HSTS
+          IMAP
+          LDAP
+          LDAPS
+          MQTT
+          BINDLOCAL
+          NETRC
+          NTLM
+          POP3
+          PROGRESS_METER
+          IPFS
+          RTSP
+          SMB
+          SMTP
+          WEBSOCKETS
+          TELNET
+          TFTP
+          VERBOSE_STRINGS)
+    set(CURL_DISABLE_${_proto}
+        ON
+        CACHE BOOL "Disable ${_proto}")
   endforeach()
 
-  set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "Build libcurl man pages")
-  set(BUILD_MISC_DOCS OFF CACHE BOOL "Build misc man pages")
-  set(ENABLE_CURL_MANUAL OFF CACHE BOOL "Build the man page for curl")
-  set(CURL_USE_LIBSSH2 OFF CACHE BOOL "Use libssh2")
+  set(BUILD_LIBCURL_DOCS
+      OFF
+      CACHE BOOL "Build libcurl man pages")
+  set(BUILD_MISC_DOCS
+      OFF
+      CACHE BOOL "Build misc man pages")
+  set(ENABLE_CURL_MANUAL
+      OFF
+      CACHE BOOL "Build the man page for curl")
+  set(CURL_USE_LIBSSH2
+      OFF
+      CACHE BOOL "Use libssh2")
 
   # Platform-specific SSL backends
   if(APPLE)
-    set(CURL_USE_SECTRANSP ON CACHE BOOL "Enable Apple OS native SSL/TLS")
-    set(CURL_USE_OPENSSL OFF CACHE BOOL "Enable OpenSSL for SSL/TLS")
+    set(CURL_USE_SECTRANSP
+        ON
+        CACHE BOOL "Enable Apple OS native SSL/TLS")
+    set(CURL_USE_OPENSSL
+        OFF
+        CACHE BOOL "Enable OpenSSL for SSL/TLS")
   endif()
   if(WIN32)
-    set(CURL_USE_SCHANNEL ON CACHE BOOL "Enable Windows native SSL/TLS (Schannel)")
-    set(CURL_USE_OPENSSL OFF CACHE BOOL "Enable OpenSSL for SSL/TLS")
+    set(CURL_USE_SCHANNEL
+        ON
+        CACHE BOOL "Enable Windows native SSL/TLS (Schannel)")
+    set(CURL_USE_OPENSSL
+        OFF
+        CACHE BOOL "Enable OpenSSL for SSL/TLS")
   endif()
-  set(CURL_USE_SSL ON CACHE BOOL "Enable SSL/TLS")
+  set(CURL_USE_SSL
+      ON
+      CACHE BOOL "Enable SSL/TLS")
 
-  set(USE_LIBIDN2 OFF CACHE BOOL "Use libidn2 for IDN support")
-  set(USE_APPLE_IDN OFF CACHE BOOL "Use Apple built-in IDN support")
-  set(USE_WIN32_IDN OFF CACHE BOOL "Use WinIDN for IDN support")
+  set(USE_LIBIDN2
+      OFF
+      CACHE BOOL "Use libidn2 for IDN support")
+  set(USE_APPLE_IDN
+      OFF
+      CACHE BOOL "Use Apple built-in IDN support")
+  set(USE_WIN32_IDN
+      OFF
+      CACHE BOOL "Use WinIDN for IDN support")
 
   FetchContent_MakeAvailable(curl)
 endif()
