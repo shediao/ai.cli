@@ -369,7 +369,7 @@ TEST(EditFileTest, SearchNotFound) {
       "<<<<<<< SEARCH\nnonexistent text\n=======\nreplacement\n>>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = edit_file(args);
-  EXPECT_TRUE(result.find("Failed edited file") != std::string::npos);
+  EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
 }
 
 TEST(EditFileTest, FileNotExists) {
