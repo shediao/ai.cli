@@ -305,7 +305,7 @@ class OpenAIClient::Impl {
         << stream_response.raw_string();
 
     LOG_IF(INFO, !args_.chat_args.stream) << "Response:" << response_string;
-    LOG_IF(INFO, args_.chat_args.stream)
+    LOG_IF(DEBUG, args_.chat_args.stream)
         << "Response:" << stream_response.raw_string();
     auto response = args_.chat_args.stream
                         ? stream_response.toResponse()
