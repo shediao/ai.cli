@@ -100,7 +100,7 @@ int chat() {
                                   reasoning_content.value_or("") +
                                   "\n</thinking>\n\n" + content;
             save_to_clipboard(merged_content);
-            LOG(INFO) << merged_content;
+            std::cout << merged_content << std::endl;
           } else {
             if (!content.empty()) {
               save_to_clipboard(content);
