@@ -10,6 +10,7 @@
 #include "ai/clip.h"
 #include "ai/logging.h"
 #include "ai/openai.h"
+#include "ai/system_prompt.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 
@@ -47,6 +48,10 @@ int chat() {
         LOG(ERROR) << "system prompt not an utf8 string";
         return 1;
       }
+      if (system_prompt.empty()) {
+        system_prompt = build_default_system_prompt();
+      }
+      LOG(INFO) << "system prompt: " << system_prompt;
 #if defined(_WIN32)
       for (auto& s : user_prompt) {
         if (!utfx::is_utf8(s.data(), s.size())) {

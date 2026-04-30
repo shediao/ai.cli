@@ -15,7 +15,6 @@
 #endif
 
 #include "ai/config.h"
-#include "ai/system_prompt.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 
@@ -243,10 +242,9 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                                             "model must be a non-empty string"};
       });
   chat.add_option(
-          "s,system-prompt",
-          "System prompt that sets the behavior, role, and context for the AI",
-          chat_args.system_prompt)
-      .default_value(build_default_system_prompt());
+      "s,system-prompt",
+      "System prompt that sets the behavior, role, and context for the AI",
+      chat_args.system_prompt);
   chat.add_option("t,temperature",
                   "Sampling temperature [0.0–2.0]: lower values produce more "
                   "focused/deterministic output, higher values produce more "
