@@ -86,6 +86,31 @@ int chat() {
         auto& content = response.value().choices().back().message.content;
         auto finish_reason = response.value().choices().back().finish_reason;
 
+        if (!args.chat_args.stream) {
+          if (reasoning_content.has_value()) {
+            auto merged_content = "<thinking>\n" +
+                                  reasoning_content.value_or("") +
+                                  "\n</thinking>\n\n" + content;
+            save_to_clipboard(merged_content);
+            LOG(INFO) << merged_content;
+            std::cout << merged_content << std::endl;
+          } else {
+            if (!content.empty()) {
+              save_to_clipboard(content);
+              std::cout << content << std::endl;
+              LOG(INFO) << content;
+            }
+          }
+        } else {
+          LOG_IF(INFO, reasoning_content.has_value())
+              << "<thinking>\n" + reasoning_content.value_or("") +
+                     "\n</thinking>\n\n" + content;
+          LOG_IF(INFO, !content.empty()) << content;
+          if (!content.empty()) {
+            save_to_clipboard(content);
+          }
+        }
+
         LOG_IF(INFO,
                !response.value().choices().back().message.tool_calls.empty())
             << response.value().choices().back().message.tool_calls_json().dump(
@@ -93,25 +118,6 @@ int chat() {
 
         LOG_IF(INFO, !finish_reason.empty())
             << "finish_reason: " << finish_reason;
-
-        if (!args.chat_args.stream) {
-          if (reasoning_content.has_value()) {
-            auto merged_content = "<thinking>\n" +
-                                  reasoning_content.value_or("") +
-                                  "\n</thinking>\n\n" + content;
-            save_to_clipboard(merged_content);
-            std::cout << merged_content << std::endl;
-          } else {
-            if (!content.empty()) {
-              save_to_clipboard(content);
-              std::cout << content << std::endl;
-            }
-          }
-        } else {
-          if (!content.empty()) {
-            save_to_clipboard(content);
-          }
-        }
 
         if (response.value().choices().back().message.tool_calls.empty() &&
             finish_reason == "tool_calls") {
