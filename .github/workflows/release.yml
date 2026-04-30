@@ -1,0 +1,153 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            os: ubuntu-latest
+          - target: linux-arm64
+            os: ubuntu-24.04-arm
+          - target: windows-x64
+            os: windows-latest
+          - target: windows-arm64
+            os: windows-11-arm
+          - target: darwin-x64
+            os: macos-13
+          - target: darwin-arm64
+            os: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Install libcurl development files
+      # -----------------------------------------------------------------------
+      - name: Install libcurl (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libcurl4-gnutls-dev
+
+      - name: Install libcurl (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install curl
+
+      - name: Install libcurl (Windows)
+        if: runner.os == 'Windows'
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgArguments: 'curl'
+
+      # -----------------------------------------------------------------------
+      # Configure & Build
+      # -----------------------------------------------------------------------
+      - name: Configure CMake
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DAICLI_BUILD_TESTS=OFF
+          -S ${{ github.workspace }}
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      # -----------------------------------------------------------------------
+      # Package binary → zip it with the target name
+      # -----------------------------------------------------------------------
+      - name: Prepare artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            powershell -Command "Compress-Archive -Path 'build/Release/ai.exe' -DestinationPath 'dist/ai-${{ matrix.target }}.zip'"
+          else
+            zip -j "dist/ai-${{ matrix.target }}.zip" build/ai
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-${{ matrix.target }}
+          path: dist/
+
+  # =========================================================================
+  # MINGW64 build (MinGW-w64 via MSYS2)
+  # =========================================================================
+  build-mingw64:
+    name: mingw64-x64
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-curl
+
+      - name: Configure CMake
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DAICLI_BUILD_TESTS=OFF
+          -G Ninja
+          -S "${{ github.workspace }}"
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p dist
+          zip -j "dist/ai-mingw64-x64.zip" build/ai.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-mingw64-x64
+          path: dist/
+
+  # =========================================================================
+  # Create the GitHub Release and attach all binaries
+  # =========================================================================
+  release:
+    name: Create Release
+    needs: [build, build-mingw64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
