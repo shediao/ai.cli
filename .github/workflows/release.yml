@@ -44,17 +44,20 @@ jobs:
       # Configure & Build
       # -----------------------------------------------------------------------
       - name: Configure CMake
-        shell: bash
-        run: |
-          CMAKE_EXTRA_FLAGS=""
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            CMAKE_EXTRA_FLAGS="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
-          fi
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DAICLI_BUILD_TESTS=OFF \
-            ${CMAKE_EXTRA_FLAGS} \
-            -S ${{ github.workspace }}
+        if: runner.os != 'macOS'
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DAICLI_BUILD_TESTS=OFF
+          -S ${{ github.workspace }}
+
+      - name: Configure CMake (MacOS)
+        if: runner.os == 'macOS'
+        run: >
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          -DCMAKE_BUILD_TYPE=Release
+          -DAICLI_BUILD_TESTS=OFF
+          -S ${{ github.workspace }}
 
       - name: Build
         run: cmake --build build --config Release
