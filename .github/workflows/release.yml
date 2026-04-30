@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -45,12 +45,6 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew install curl
-
-      - name: Install libcurl (Windows)
-        if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgArguments: 'curl'
 
       # -----------------------------------------------------------------------
       # Configure & Build
