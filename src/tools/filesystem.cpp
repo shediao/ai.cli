@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -553,15 +552,15 @@ std::string get_file_info(nlohmann::json const& args) {
           ftime - decltype(ftime)::clock::now() +
           std::chrono::system_clock::now());
   std::time_t last_modified = std::chrono::system_clock::to_time_t(sys_time);
-  std::tm tm_buf{};
-#ifdef _WIN32
-  localtime_s(&tm_buf, &last_modified);
-#else
-  localtime_r(&last_modified, &tm_buf);
-#endif
-  char time_buf[64];
-  std::strftime(time_buf, sizeof(time_buf), "%a %b %d %H:%M:%S %Y", &tm_buf);
-  info["last_modified"] = time_buf;
+  info["last_modified"] = std::ctime(&last_modified);
+  // Remove trailing newline from ctime
+  if (info["last_modified"].is_string()) {
+    std::string ts = info["last_modified"];
+    if (!ts.empty() && ts.back() == '\n') {
+      ts.pop_back();
+    }
+    info["last_modified"] = ts;
+  }
 
   // Permissions
   auto perms = std::filesystem::status(path, err).permissions();
