@@ -2,6 +2,7 @@
 
 [![CMAKE](https://github.com/shediao/ai.cli/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/shediao/ai.cli/actions/workflows/cmake-multi-platform.yml)
 [![MSYS2](https://github.com/shediao/ai.cli/actions/workflows/msys2.yml/badge.svg)](https://github.com/shediao/ai.cli/actions/workflows/msys2.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A powerful command-line AI chatbot with multi-provider support and tool-calling capabilities. Uses OpenAI-compatible APIs to interact with DeepSeek, OpenAI, Gemini, Qwen, Moonshot, Ollama, and more.
 
