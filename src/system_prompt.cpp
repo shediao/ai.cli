@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <ctime>
+#include <environment/environment.hpp>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -77,7 +78,7 @@ std::optional<std::string> find_git_root() {
     // some implementations, causing an infinite loop. Compare instead.
     auto parent = p.parent_path();
     if (p == parent) {
-      break; // reached the filesystem root
+      break;  // reached the filesystem root
     }
   }
   return std::nullopt;
@@ -106,6 +107,9 @@ std::string build_default_system_prompt() {
   std::string os_name;
 #if defined(_WIN32) || defined(_WIN64)
   os_name = "Windows";
+  if (auto msys = env::get("MSYSTEM"); msys.has_value()) {
+    os_name += " (MSYS2/" + msys.value() + ")";
+  }
 #elif defined(__APPLE__)
   os_name = "macOS (Darwin)";
 #elif defined(__linux__)
@@ -122,15 +126,23 @@ std::string build_default_system_prompt() {
   // ── 4. Shell ─────────────────────────────────────────────────────
   std::string shell = "unknown";
 #if defined(_WIN32) || defined(_WIN64)
-  if (auto* comspec = std::getenv("COMSPEC")) {
-    shell = comspec;
+  if (auto comspec = env::get("COMSPEC"); env.has_value()) {
+    shell = comspec.value();
   }
-  if (auto* ps = std::getenv("PSModulePath"); ps && ps[0] != '\0') {
+  if (auto ps = env.get("PSModulePath");
+      ps.has_value() && ps.value()[0] != '\0') {
     shell = "PowerShell";
   }
+
+  if (auto sh = env::get("SHELL"); sh.has_value()) {
+    // bash, zsh, fish, dash, sh
+    if (auto& s = sh.value(); s.ends_with("sh.exe") || s.ends_with("sh")) {
+      shell = sh.value();
+    }
+  }
 #else
-  if (auto* sh = std::getenv("SHELL")) {
-    shell = sh;
+  if (auto sh = env::get("SHELL"); sh.has_value()) {
+    shell = sh.value();
   }
 #endif
   prompt += "Default shell: " + shell + "\n\n";
@@ -167,11 +179,6 @@ std::string build_default_system_prompt() {
     prompt += "\nRepository structure:\n" +
               make_tree(std::filesystem::path(git_root.value()), 2, 60,
                         {".git", "build", "_deps", "third_party"});
-  } else {
-    prompt += "Not inside a git repository.\n";
-    prompt +=
-        "\nCurrent directory structure:\n" +
-        make_tree(std::filesystem::current_path(ec), 2, 40, {".git", "build"});
   }
 
   return prompt;

@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <environment/environment.hpp>
 #include <filesystem>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -70,11 +71,11 @@ std::string get_environment_variable(nlohmann::json const& args) {
   }
 
   std::string name = args["name"].get<std::string>();
-  const char* value = std::getenv(name.c_str());
-  if (value == nullptr) {
+  auto value = env::get(name);
+  if (!value.has_value()) {
     return "Environment variable \"" + name + "\" is not set.";
   }
-  return std::string(value);
+  return value.value();
 }
 
 // ── set_environment_variable ──────────────────────────────────────────
@@ -128,18 +129,17 @@ std::string get_shell(nlohmann::json const& args) {
   }
 
 #if defined(_WIN32)
-  const char* shell = std::getenv("COMSPEC");
-  if (shell == nullptr) {
-    shell = "cmd.exe";
+  auto shell = env::get("COMSPEC").value_or("cmd.exe");
+  if (auto sh = env::get("SHELL"); sh.has_value()) {
+    if (auto& s = sh.value(); s.ends_with("sh.exe") || s.ends_with("sh")) {
+      shell = s;
+    }
   }
 #else
-  const char* shell = std::getenv("SHELL");
-  if (shell == nullptr) {
-    shell = "/bin/sh";
-  }
+  auto shell = env::get("SHELL").value_or("/bin/bash");
 #endif
 
-  return std::string(shell);
+  return shell;
 }
 
 // ── get_operating_system ──────────────────────────────────────────────

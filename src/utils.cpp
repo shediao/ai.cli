@@ -22,7 +22,7 @@
 #include "ai/args.h"
 #include "ai/utils.h"
 
-TempFile::TempFile(std::string const &prefix, std::string const &postfix)
+TempFile::TempFile(std::string const& prefix, std::string const& postfix)
     : path_{getTempFilePath(prefix, postfix)} {}
 TempFile::TempFile() : TempFile("", "") {}
 TempFile::~TempFile() {
@@ -30,7 +30,7 @@ TempFile::~TempFile() {
     std::filesystem::remove(path_);
   }
 }
-std::string const &TempFile::path() const { return path_; }
+std::string const& TempFile::path() const { return path_; }
 std::optional<std::string> TempFile::content() const {
   if (std::ifstream file(path_); file.is_open()) {
     std::string file_content{std::istreambuf_iterator<char>(file),
@@ -41,8 +41,8 @@ std::optional<std::string> TempFile::content() const {
   return std::nullopt;
 }
 
-std::string getTempFilePath(std::string const &prefix,
-                            std::string const &postfix) {
+std::string getTempFilePath(std::string const& prefix,
+                            std::string const& postfix) {
   std::string temp_file_path;
 
 #ifdef _WIN32
@@ -113,13 +113,13 @@ std::string getUserInputViaEditor() {
     std::vector<std::string> editors{"/usr/bin/nano", "/usr/bin/vim",
                                      "/usr/bin/vi"};
 #if defined(__CYGWIN__) || defined(__MSYS__)
-    for (auto &e : editors) {
+    for (auto& e : editors) {
       e += ".exe";
     }
 #endif
     auto it = std::find_if(
         editors.begin(), editors.end(),
-        [](const std::string &e) { return access(e.c_str(), X_OK) == 0; });
+        [](const std::string& e) { return access(e.c_str(), X_OK) == 0; });
     if (it != editors.end()) {
       editor = *it;
     } else {
@@ -155,11 +155,11 @@ std::string getUserInputViaEditor() {
 // size: 每个数据单元的大小（通常是1）
 // nmemb: 数据单元的数量
 // userdata: 用户自定义指针，这里我们将传递一个 std::ofstream*
-static size_t write_data_to_file(void *ptr, size_t size, size_t nmemb,
-                                 void *stream) {
-  std::ofstream *out_file = static_cast<std::ofstream *>(stream);
+static size_t write_data_to_file(void* ptr, size_t size, size_t nmemb,
+                                 void* stream) {
+  std::ofstream* out_file = static_cast<std::ofstream*>(stream);
   if (out_file && out_file->is_open()) {
-    out_file->write(static_cast<char *>(ptr), size * nmemb);
+    out_file->write(static_cast<char*>(ptr), size * nmemb);
     if (out_file->fail()) {
       // 写入失败，返回0会使libcurl中止传输并返回CURLE_WRITE_ERROR
       return 0;
@@ -169,9 +169,9 @@ static size_t write_data_to_file(void *ptr, size_t size, size_t nmemb,
   return 0;  // 如果文件流无效，也中止传输
 }
 
-bool download_image(std::string const &image_url, std::string const &image_path,
-                    std::string &memi_type) {
-  CURL *curl_handle;
+bool download_image(std::string const& image_url, std::string const& image_path,
+                    std::string& memi_type) {
+  CURL* curl_handle;
   CURLcode res;
   std::ofstream outfile;
 
@@ -218,7 +218,7 @@ bool download_image(std::string const &image_url, std::string const &image_path,
   curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS,
                    3000L);  // 3 秒连接超时
 
-  if (auto &args = ai::AiArgs::instance(); args.proxy.has_value()) {
+  if (auto& args = ai::AiArgs::instance(); args.proxy.has_value()) {
     curl_easy_setopt(curl_handle, CURLOPT_PROXY, args.proxy.value().c_str());
   }
 
@@ -242,7 +242,7 @@ bool download_image(std::string const &image_url, std::string const &image_path,
   } else {
     // Request was successful, try to get content type
     std::string content_type_str;
-    char *ct = nullptr;
+    char* ct = nullptr;
     CURLcode info_res =
         curl_easy_getinfo(curl_handle, CURLINFO_CONTENT_TYPE, &ct);
     if (info_res == CURLE_OK && ct) {
@@ -284,7 +284,7 @@ bool download_image(std::string const &image_url, std::string const &image_path,
 }
 
 // Helper function to trim leading/trailing whitespace
-static std::string trim(const std::string &str) {
+static std::string trim(const std::string& str) {
   size_t first = str.find_first_not_of(" \t\n\r\f\v");
   if (std::string::npos == first) {
     return str;
@@ -295,11 +295,11 @@ static std::string trim(const std::string &str) {
 
 // Callback function to process received headers
 // It specifically looks for the Content-Type header
-static size_t header_callback(char *buffer, size_t size, size_t nitems,
-                              void *userdata) {
+static size_t header_callback(char* buffer, size_t size, size_t nitems,
+                              void* userdata) {
   size_t total_size = size * nitems;
   std::string header_line(buffer, total_size);
-  std::string *content_type_ptr = static_cast<std::string *>(userdata);
+  std::string* content_type_ptr = static_cast<std::string*>(userdata);
 
   // Convert header name to lowercase for case-insensitive comparison
   std::string header_name;
@@ -340,8 +340,8 @@ static size_t header_callback(char *buffer, size_t size, size_t nitems,
  *         or an empty string if the Content-Type header is not found or an
  * error occurs.
  */
-std::string getMEMI(std::string const &url) {
-  CURL *curl = nullptr;
+std::string getMEMI(std::string const& url) {
+  CURL* curl = nullptr;
   CURLcode res = CURLE_OK;
   std::string content_type;  // This will store the result
 
@@ -372,7 +372,7 @@ std::string getMEMI(std::string const &url) {
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS,
                    3000L);  // 3 秒连接超时
 
-  if (auto &args = ai::AiArgs::instance(); args.proxy.has_value()) {
+  if (auto& args = ai::AiArgs::instance(); args.proxy.has_value()) {
     curl_easy_setopt(curl, CURLOPT_PROXY, args.proxy.value().c_str());
   }
 
@@ -416,19 +416,19 @@ std::string getMEMI(std::string const &url) {
   return content_type;
 }
 
-std::string app_data_dir(const std::string &app,
-                         [[maybe_unused]] const std::string &author) {
+std::string app_data_dir(const std::string& app,
+                         [[maybe_unused]] const std::string& author) {
 #if defined(_WIN32)
   auto userprofile = env::get("USERPROFILE");
   if (userprofile) {
     return userprofile.value() + R"(\AppData\Local\)" +
-           (author.empty() ? "Shediao\\" : author + "\\") + app;
+           (author.empty() ? "Ai\\" : author + "\\") + app;
   }
   auto home_drive = env::get("HOMEDRIVE");
   auto home_path = env::get("HOMEPATH");
   if (home_drive.has_value() && home_path.has_value()) {
     return home_drive.value() + home_path.value() + R"(\AppData\Local\)" +
-           (author.empty() ? "Shediao\\" : author + "\\") + app;
+           (author.empty() ? "Ai\\" : author + "\\") + app;
   }
 #elif defined(__APPLE__)
   auto home_dir = env::get("HOME");
@@ -444,8 +444,8 @@ std::string app_data_dir(const std::string &app,
   return std::filesystem::current_path().string();
 }
 
-void write_to_history(nlohmann::json const &chat_history,
-                      std::string const &history_file) {
+void write_to_history(nlohmann::json const& chat_history,
+                      std::string const& history_file) {
   if (!chat_history.is_array() || chat_history.empty()) {
     return;
   }
@@ -458,7 +458,7 @@ void write_to_history(nlohmann::json const &chat_history,
 }
 
 std::optional<nlohmann::json> get_last_history(
-    std::string const &history_file) {
+    std::string const& history_file) {
   std::ifstream input{history_file,
                       std::ios::ate | std::ios::binary | std::ios::in};
   if (!input.is_open()) {
@@ -512,7 +512,7 @@ std::optional<nlohmann::json> get_last_history(
 #if defined(_WIN32)
 namespace {
 // Helper function to convert a UTF-8 std::string to a UTF-16 std::wstring
-inline std::wstring to_wstring(const std::string &utf8str,
+inline std::wstring to_wstring(const std::string& utf8str,
                                const UINT from_codepage = CP_UTF8) {
   if (utf8str.empty()) {
     return {};
@@ -530,7 +530,7 @@ inline std::wstring to_wstring(const std::string &utf8str,
 }
 
 // Helper function to convert a UTF-16 std::wstring to a UTF-8 std::string
-inline std::string to_string(const std::wstring &utf16str,
+inline std::string to_string(const std::wstring& utf16str,
                              const UINT to_codepage = CP_UTF8) {
   if (utf16str.empty()) {
     return {};
@@ -547,7 +547,7 @@ inline std::string to_string(const std::wstring &utf16str,
   return utf8str;
 }
 }  // namespace
-std::optional<std::string> toUtf8(const std::string &s) {
+std::optional<std::string> toUtf8(const std::string& s) {
   auto u8 = to_string(to_wstring(s, GetACP()), CP_UTF8);
   if (!u8.empty()) {
     return u8;
