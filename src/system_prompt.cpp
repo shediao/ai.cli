@@ -126,10 +126,10 @@ std::string build_default_system_prompt() {
   // ── 4. Shell ─────────────────────────────────────────────────────
   std::string shell = "unknown";
 #if defined(_WIN32) || defined(_WIN64)
-  if (auto comspec = env::get("COMSPEC"); env.has_value()) {
+  if (auto comspec = env::get("COMSPEC"); comspec.has_value()) {
     shell = comspec.value();
   }
-  if (auto ps = env.get("PSModulePath");
+  if (auto ps = env::get("PSModulePath");
       ps.has_value() && ps.value()[0] != '\0') {
     shell = "PowerShell";
   }
