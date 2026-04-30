@@ -474,6 +474,8 @@ AiArgs::AiArgs()
       .hidden();
   bind_chat_args(parser, *this);
   bind_model_args(parser, *this);
+
+  parser.usage_footer("\nConfig file:\n  " + config_file_path() + "\n");
 }
 
 }  // namespace ai
