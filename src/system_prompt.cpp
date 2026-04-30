@@ -92,7 +92,14 @@ std::string build_default_system_prompt() {
   // ── 1. Current date & time ───────────────────────────────────────
   auto now = std::chrono::system_clock::now();
   std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+#if defined(_WIN32)
+  char buf[64]{0};
+  ::ctime_s(buf, std::size(buf), &now_time);
+  buf[std::size(buf) - 1] = '\0';
+  std::string time_str = buf;
+#else
   std::string time_str = std::ctime(&now_time);
+#endif
   if (!time_str.empty() && time_str.back() == '\n') {
     time_str.pop_back();
   }
