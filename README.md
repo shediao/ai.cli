@@ -164,7 +164,7 @@ ai chat --tool-choice required --tools bash "List the current directory"
 
 - **Linux**: `~/.local/share/ai.cli/config.json`
 - **macOS**: `~/Library/Application Support/ai.cli/config.json`
-- **Windows**: `%USERPROFILE%\AppData\Local\Shediao\ai.cli\config.json`
+- **Windows**: `%USERPROFILE%\AppData\Local\Ai\ai.cli\config.json`
 
 The default config:
 
