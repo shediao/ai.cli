@@ -552,7 +552,14 @@ std::string get_file_info(nlohmann::json const& args) {
           ftime - decltype(ftime)::clock::now() +
           std::chrono::system_clock::now());
   std::time_t last_modified = std::chrono::system_clock::to_time_t(sys_time);
+#if defined(_WIN32)
+  char buf[64]{0};
+  ctime_s(buf, std::size(buf), &last_modified);
+  buf[std::size(buf) - 1] = '\0';
+  info["last_modified"] = buf;
+#else
   info["last_modified"] = std::ctime(&last_modified);
+#endif
   // Remove trailing newline from ctime
   if (info["last_modified"].is_string()) {
     std::string ts = info["last_modified"];
