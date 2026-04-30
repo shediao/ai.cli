@@ -24,16 +24,15 @@ jobs:
             os: windows-latest
           - target: windows-arm64
             os: windows-11-arm
-          - target: darwin-x64
-            os: macos-13
-          - target: darwin-arm64
+          - target: darwin-universal
             os: macos-latest
 
     steps:
       - uses: actions/checkout@v4
 
       # -----------------------------------------------------------------------
-      # Install libcurl development files
+      # Install libcurl development files (Linux only; macOS builds curl from
+      # source via FetchContent, Windows uses Schannel)
       # -----------------------------------------------------------------------
       - name: Install libcurl (Linux)
         if: runner.os == 'Linux'
@@ -41,23 +40,33 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y libcurl4-gnutls-dev
 
-      - name: Install libcurl (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install curl
-
       # -----------------------------------------------------------------------
       # Configure & Build
       # -----------------------------------------------------------------------
       - name: Configure CMake
-        run: >
-          cmake -B build
-          -DCMAKE_BUILD_TYPE=Release
-          -DAICLI_BUILD_TESTS=OFF
-          -S ${{ github.workspace }}
+        shell: bash
+        run: |
+          CMAKE_EXTRA_FLAGS=""
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            CMAKE_EXTRA_FLAGS="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+          fi
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DAICLI_BUILD_TESTS=OFF \
+            ${CMAKE_EXTRA_FLAGS} \
+            -S ${{ github.workspace }}
 
       - name: Build
         run: cmake --build build --config Release
+
+      # -----------------------------------------------------------------------
+      # Verify universal binary (macOS)
+      # -----------------------------------------------------------------------
+      - name: Verify universal binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "Architectures in binary:"
+          lipo -info build/ai
 
       # -----------------------------------------------------------------------
       # Package binary → zip it with the target name
