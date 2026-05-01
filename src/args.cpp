@@ -336,6 +336,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         if (auto shell = env::get("SHELL");
             shell.has_value() && (shell.value().ends_with("bash") ||
                                   shell.value().ends_with("bash.exe"))) {
+          chat_args.tools.insert("bash");
         }
         chat_args.tools.insert("cmd");
         chat_args.tools.insert("powershell");
