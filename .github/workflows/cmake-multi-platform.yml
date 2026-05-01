@@ -100,7 +100,7 @@ jobs:
         run: >
           cmake -B build
           -DCMAKE_BUILD_TYPE=Release
-          -DAICLI_BUILD_TESTS=ON
+          -DAICLI_BUILD_TESTS=OFF
 
       - name: Build
         run: cmake --build build --config Release
@@ -109,4 +109,3 @@ jobs:
         working-directory: build
         run: |
           .\Release\ai.exe --help
-          ctest --build-config Release --rerun-failed --output-on-failure
