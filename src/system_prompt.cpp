@@ -185,7 +185,7 @@ std::string build_default_system_prompt() {
     // Repository structure (top 2 levels, skip .git and build dirs)
     prompt += "\nRepository structure:\n" +
               make_tree(std::filesystem::path(git_root.value()), 2, 60,
-                        {".git", "build", "_deps", "third_party"});
+                        {".cache", ".git", "build", "_deps", "third_party"});
   }
 
   return prompt;
