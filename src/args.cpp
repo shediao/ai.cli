@@ -128,7 +128,10 @@ static void resolve_proxy(AiArgs& args, const std::string& url) {
 
 static void add_alias_options(argparse::Command& command) {
   for (auto& p : app_config().providers) {
-    if (!p.alias.empty() && !p.base_url.empty()) {
+    if (!p.alias.empty() && !p.base_url.empty() &&
+        std::all_of(p.alias.begin(), p.alias.end(), [](char c) {
+          return std::isalnum(c) || c == '-' || c == '_' || c == '.';
+        })) {
       command.add_alias(p.alias, "base-url", p.base_url);
     }
   }
