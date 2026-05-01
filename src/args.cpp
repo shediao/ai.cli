@@ -295,8 +295,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       .choices([&]() {
         auto cats = get_tool_categories();
         return std::vector<std::string>(cats.begin(), cats.end());
-      }())
-      .default_value({"bash", "filesystem"});
+      }());
   chat.add_option(
           "tool-choice",
           "Control how the AI selects and uses tools: 'none' (never call "
@@ -329,6 +328,21 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     if (chat_args.no_tools) {
       chat_args.tools.clear();
       chat_args.tool_choice = "none";
+    } else {
+      if (chat_args.tools.empty()) {
+        chat_args.tools.insert("default");
+        chat_args.tools.insert("filesystem");
+#if defined(_WIN32)
+        if (auto shell = env::get("SHELL");
+            shell.has_value() && (shell.value().ends_with("bash") ||
+                                  shell.value().ends_with("bash.exe"))) {
+        }
+        chat_args.tools.insert("cmd");
+        chat_args.tools.insert("powershell");
+#else
+        chat_args.tools.insert("bash");
+#endif
+      }
     }
 
     // read from stdin
