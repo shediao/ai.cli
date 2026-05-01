@@ -184,12 +184,21 @@ class OpenAIClient::Impl {
       }
     }
 
+    // 当前对话成为新的历史内容
+    chat_history = messages;
+
+    bool contain_tool_calls_message =
+        std::any_of(messages.begin(), messages.end(),
+                    [](auto const& msg) { return msg.contains("tool_calls"); });
+    if (!contain_tool_calls_message) {
+      for (auto& message : messages) {
+        message.erase("reasoning_content");
+      }
+    }
+
     nlohmann::json request = {{"model", args_.chat_args.model},
                               {"messages", messages},
                               {"stream", args_.chat_args.stream}};
-
-    // 当前对话成为新的历史内容
-    chat_history = messages;
 
     if (args_.chat_args.stream && args_.chat_args.stream_include_usage) {
       nlohmann::json obj;
@@ -318,12 +327,10 @@ class OpenAIClient::Impl {
       if (!choice.message.content.empty()) {
         message["content"] = choice.message.content;
       }
+      if (choice.message.reasoning_content.has_value()) {
+        message["reasoning_content"] = choice.message.reasoning_content.value();
+      }
       if (choice.finish_reason == "tool_calls") {
-        if (choice.message.reasoning_content.has_value()) {
-          message["reasoning_content"] = choice.message.reasoning_content;
-        } else {
-          message["reasoning_content"] = std::string();
-        }
         message["tool_calls"] = choice.message.tool_calls_json();
       }
       chat_history.push_back(message);
