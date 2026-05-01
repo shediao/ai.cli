@@ -18,9 +18,9 @@ namespace ai {
 ///
 /// Usage:
 ///   HistoryDB db("/path/to/chat_history.db");
-///   std::string session_id = db.create_session();        // new conversation
-///   auto msgs = db.get_last_conversation();              // resume last one
-///   db.save_conversation(session_id, messages);          // persist
+///   std::string session_id = db.create_session();        // new session
+///   auto msgs = db.get_last_messages();              // resume last one
+///   db.save_messages(session_id, messages);          // persist
 class HistoryDB {
  public:
   /// Open (or create) the database at @p db_path.
@@ -33,22 +33,22 @@ class HistoryDB {
   HistoryDB(HistoryDB&&) = delete;
   HistoryDB& operator=(HistoryDB&&) = delete;
 
-  /// Create a new conversation session.
+  /// Create a new session.
   /// @return A unique session_id string.
   std::string create_session();
 
-  /// Retrieve the most recently updated conversation.
+  /// Retrieve the most recently updated messages.
   /// @return The messages JSON array, or std::nullopt if the database is empty.
-  std::optional<nlohmann::json> get_last_conversation();
+  std::optional<nlohmann::json> get_last_messages();
 
-  /// Retrieve a specific conversation by its session_id.
+  /// Retrieve specific messages by session_id.
   /// @return The messages JSON array, or std::nullopt if not found.
-  std::optional<nlohmann::json> get_conversation(std::string const& session_id);
+  std::optional<nlohmann::json> get_messages(std::string const& session_id);
 
-  /// Save (insert or update) a conversation's messages.
+  /// Save (insert or update) messages for a session.
   /// Automatically updates the `updated_at` timestamp.
-  void save_conversation(std::string const& session_id,
-                         nlohmann::json const& messages);
+  void save_messages(std::string const& session_id,
+                     nlohmann::json const& messages);
 
   /// List all saved session IDs, ordered by most recent first.
   std::vector<std::string> list_sessions();

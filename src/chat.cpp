@@ -34,21 +34,21 @@ int chat() {
     std::string session_id;
 
     if (chat_args.continue_with_last_history) {
-      auto last_history = history_db.get_last_conversation();
+      auto last_history = history_db.get_last_messages();
       if (last_history.has_value()) {
         chat_history = std::move(last_history.value());
-        LOG(INFO) << "Continuing from last conversation ("
-                  << chat_history.size() << " messages)";
+        LOG(INFO) << "Continuing from last messages (" << chat_history.size()
+                  << " messages)";
       }
     }
 
     // Always create a session so we have a session_id for saving.
-    // If we loaded a previous conversation, create_session() starts a new
-    // session that inherits the loaded chat_history via save_conversation().
+    // If we loaded previous messages, create_session() starts a new
+    // session that inherits the loaded chat_history via save_messages().
     session_id = history_db.create_session();
 
     AutoRun scope_exit_runner([&chat_history, &history_db, &session_id]() {
-      history_db.save_conversation(session_id, chat_history);
+      history_db.save_messages(session_id, chat_history);
     });
 
     try {

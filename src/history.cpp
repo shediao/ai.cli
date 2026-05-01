@@ -147,7 +147,7 @@ std::string HistoryDB::create_session() {
 
   std::string session_id = generate_session_id();
 
-  // Insert an empty conversation row
+  // Insert an empty messages row
   const char* insert_sql =
       "INSERT INTO conversations (session_id, messages) VALUES (?1, ?2);";
   sqlite3_stmt* stmt = nullptr;
@@ -177,7 +177,7 @@ std::string HistoryDB::create_session() {
   return session_id;
 }
 
-std::optional<nlohmann::json> HistoryDB::get_last_conversation() {
+std::optional<nlohmann::json> HistoryDB::get_last_messages() {
   if (!db_) {
     return std::nullopt;
   }
@@ -201,10 +201,9 @@ std::optional<nlohmann::json> HistoryDB::get_last_conversation() {
     if (text && text_len > 0) {
       try {
         result = nlohmann::json::parse(std::string_view(text, text_len));
-        LOG(INFO) << "Loaded last conversation (" << result->size()
-                  << " messages)";
+        LOG(INFO) << "Loaded last messages (" << result->size() << " messages)";
       } catch (nlohmann::json::parse_error const& e) {
-        LOG(ERROR) << "Failed to parse conversation JSON: " << e.what();
+        LOG(ERROR) << "Failed to parse messages JSON: " << e.what();
       }
     }
   }
@@ -213,7 +212,7 @@ std::optional<nlohmann::json> HistoryDB::get_last_conversation() {
   return result;
 }
 
-std::optional<nlohmann::json> HistoryDB::get_conversation(
+std::optional<nlohmann::json> HistoryDB::get_messages(
     std::string const& session_id) {
   if (!db_) {
     return std::nullopt;
@@ -241,7 +240,7 @@ std::optional<nlohmann::json> HistoryDB::get_conversation(
       try {
         result = nlohmann::json::parse(std::string_view(text, text_len));
       } catch (nlohmann::json::parse_error const& e) {
-        LOG(ERROR) << "Failed to parse conversation JSON: " << e.what();
+        LOG(ERROR) << "Failed to parse messages JSON: " << e.what();
       }
     }
   }
@@ -250,8 +249,8 @@ std::optional<nlohmann::json> HistoryDB::get_conversation(
   return result;
 }
 
-void HistoryDB::save_conversation(std::string const& session_id,
-                                  nlohmann::json const& messages) {
+void HistoryDB::save_messages(std::string const& session_id,
+                              nlohmann::json const& messages) {
   if (!db_) {
     return;
   }
@@ -290,10 +289,10 @@ void HistoryDB::save_conversation(std::string const& session_id,
 
   if (rc == SQLITE_DONE) {
     exec_sql(db_, "COMMIT;");
-    LOG(INFO) << "Saved conversation " << session_id << " (" << messages.size()
+    LOG(INFO) << "Saved messages " << session_id << " (" << messages.size()
               << " messages)";
   } else {
-    LOG(ERROR) << "Failed to save conversation: " << sqlite3_errmsg(db_);
+    LOG(ERROR) << "Failed to save messages: " << sqlite3_errmsg(db_);
     exec_sql(db_, "ROLLBACK;");
   }
 }
