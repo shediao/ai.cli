@@ -10,6 +10,7 @@
 
 #include "ai/args.h"
 #include "ai/clip.h"
+#include "ai/history.h"
 #include "ai/logging.h"
 #include "ai/openai.h"
 #include "ai/system_prompt.h"
@@ -27,21 +28,28 @@ int chat() {
     OpenAIClient client;
 
     nlohmann::json chat_history = nlohmann::json::array();
-    auto history_file =
-        std::filesystem::path(app_data_dir("ai.cli")) / "chat.history";
-    AutoRun scope_exit_runner([&chat_history, &history_file]() {
-      std::filesystem::path p{history_file};
-      if (!exists(p.parent_path())) {
-        std::filesystem::create_directories(p.parent_path());
-      }
-      write_to_history(chat_history, history_file.string());
-    });
+    auto history_db_path =
+        std::filesystem::path(app_data_dir("ai.cli")) / "chat_history.db";
+    HistoryDB history_db(history_db_path.string());
+    std::string session_id;
+
     if (chat_args.continue_with_last_history) {
-      auto last_history = get_last_history(history_file.string());
+      auto last_history = history_db.get_last_conversation();
       if (last_history.has_value()) {
         chat_history = std::move(last_history.value());
+        LOG(INFO) << "Continuing from last conversation ("
+                  << chat_history.size() << " messages)";
       }
     }
+
+    // Always create a session so we have a session_id for saving.
+    // If we loaded a previous conversation, create_session() starts a new
+    // session that inherits the loaded chat_history via save_conversation().
+    session_id = history_db.create_session();
+
+    AutoRun scope_exit_runner([&chat_history, &history_db, &session_id]() {
+      history_db.save_conversation(session_id, chat_history);
+    });
 
     try {
       std::string system_prompt = chat_args.system_prompt.value_or("");

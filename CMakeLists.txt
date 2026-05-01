@@ -8,7 +8,7 @@ endif()
 project(
   ai_cli
   VERSION 0.1.0
-  LANGUAGES CXX)
+  LANGUAGES CXX C)
 
 # ── Default build type ─────────────────────────────────────────────────────
 if(NOT CMAKE_BUILD_TYPE)
@@ -117,7 +117,8 @@ add_executable(
   src/tools/default.cpp
   src/tool_calls.cpp
   src/utils.cpp
-  src/base64.cpp)
+  src/base64.cpp
+  src/history.cpp)
 
 # Platform-specific clipboard implementation
 if(APPLE)
@@ -165,8 +166,14 @@ endif()
 
 # ── Link dependencies ──────────────────────────────────────────────────────
 target_link_libraries(
-  ai PRIVATE argparse::argparse base64::base64 subprocess::subprocess
-             environment::environment utfx::utfx CURL::libcurl)
+  ai
+  PRIVATE argparse::argparse
+          base64::base64
+          subprocess::subprocess
+          environment::environment
+          utfx::utfx
+          CURL::libcurl
+          SQLite3::SQLite3)
 
 # ── Tests ──────────────────────────────────────────────────────────────────
 if(AICLI_BUILD_TESTS)

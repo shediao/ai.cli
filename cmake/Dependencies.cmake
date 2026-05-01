@@ -158,3 +158,35 @@ else()
 
   FetchContent_MakeAvailable(curl)
 endif()
+
+# ── SQLite3 (chat history database) ────────────────────────────────────────
+find_package(SQLite3 QUIET)
+if(SQLite3_FOUND)
+  message(STATUS "Found system SQLite3: ${SQLite3_VERSION}")
+else()
+  message(STATUS "System SQLite3 not found; downloading amalgamation...")
+  # Use a known SQLite amalgamation (3.53.0, released 2026-04-09)
+  set(SQLITE_ARCHIVE "sqlite-amalgamation-3530000.zip")
+  set(SQLITE_URL "https://sqlite.org/2026/${SQLITE_ARCHIVE}")
+
+  FetchContent_Declare(sqlite3_amalgamation URL ${SQLITE_URL}
+                                                DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+
+  FetchContent_GetProperties(sqlite3_amalgamation)
+  if(NOT sqlite3_amalgamation_POPULATED)
+    FetchContent_MakeAvailable(sqlite3_amalgamation)
+
+    add_library(sqlite3 STATIC "${sqlite3_amalgamation_SOURCE_DIR}/sqlite3.c")
+    target_include_directories(sqlite3
+                               PUBLIC "${sqlite3_amalgamation_SOURCE_DIR}")
+    target_compile_definitions(
+      sqlite3 PRIVATE SQLITE_THREADSAFE=1 SQLITE_ENABLE_FTS5
+                      SQLITE_OMIT_LOAD_EXTENSION)
+    if(MSVC)
+      target_compile_definitions(sqlite3 PRIVATE _CRT_SECURE_NO_WARNINGS)
+    endif()
+
+    # Create the canonical imported-target alias that find_package would provide
+    add_library(SQLite3::SQLite3 ALIAS sqlite3)
+  endif()
+endif()
