@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <environment/environment.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -17,6 +18,17 @@
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 #include "filesystem_tools_json.h"
+
+static std::string expand_tilde(std::string const& path) {
+  if (!path.empty() &&
+      ((path.length() == 1 && path[0] == '~') ||
+       (path.length() > 1 && path[0] == '~' && path[1] == '/'))) {
+    if (auto home = env::get("HOME"); home.has_value()) {
+      return home.value() + path.substr(1);
+    }
+  }
+  return path;
+}
 
 std::string read_file(nlohmann::json const& args) {
   LOG(INFO) << "call read_file(" << args.dump() << ")";
@@ -50,6 +62,7 @@ std::string read_file(nlohmann::json const& args) {
   if (path.empty()) {
     return "function read_file arguments is invalid.";
   }
+  path = expand_tilde(path);
   std::ifstream in(path);
   if (!in.is_open()) {
     return path + " is not exists.";
@@ -131,14 +144,15 @@ std::string read_multiple_files(nlohmann::json const& args) {
   }
   std::string contents;
   for (auto const& path : paths) {
+    std::string expanded_path = expand_tilde(path);
     if (!contents.empty()) {
       contents += "\n------\n";
     }
-    std::ifstream in(path);
+    std::ifstream in(expanded_path);
     if (in.is_open()) {
       std::string file_content{std::istreambuf_iterator<char>(in),
                                std::istreambuf_iterator<char>()};
-      contents += path;
+      contents += expanded_path;
       contents += "\n";
       if (!file_content.empty()) {
         contents += file_content;
@@ -146,7 +160,7 @@ std::string read_multiple_files(nlohmann::json const& args) {
         contents += "(empty)";
       }
     } else {
-      contents += path + " (failed to read)";
+      contents += expanded_path + " (failed to read)";
     }
   }
   return contents;
@@ -175,6 +189,7 @@ std::string write_file(nlohmann::json const& args) {
            "string.";
   }
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   std::string content = args["content"].get<std::string>();
   std::ofstream out(path);
   if (out.is_open()) {
@@ -226,6 +241,7 @@ std::string edit_file(nlohmann::json const& args) {
   }
 
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   std::string diff = args["diff"].get<std::string>();
 
   // --- read original file ---
@@ -357,6 +373,7 @@ std::string create_directory(nlohmann::json const& args) {
            "a string.";
   }
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   std::error_code err;
   std::filesystem::create_directories(path, err);
   if (err) {
@@ -381,6 +398,7 @@ std::string list_directory(nlohmann::json const& args) {
            "string.";
   }
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   std::error_code err;
   if (!std::filesystem::exists(path, err) ||
       !std::filesystem::is_directory(path, err) || err) {
@@ -441,6 +459,7 @@ std::string directory_tree(nlohmann::json const& args) {
            "string.";
   }
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   std::error_code err;
   if (!std::filesystem::exists(path, err) ||
       !std::filesystem::is_directory(path, err) || err) {
@@ -472,6 +491,7 @@ std::string search_files(nlohmann::json const& args) {
            "a string.";
   }
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   std::string pattern = args["pattern"].get<std::string>();
 
   bool recursive = false;
@@ -517,6 +537,7 @@ std::string get_file_info(nlohmann::json const& args) {
            "string.";
   }
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   std::error_code err;
 
   if (!std::filesystem::exists(path, err)) {
@@ -609,6 +630,7 @@ std::string disk_space_info(nlohmann::json const& args) {
            "a string.";
   }
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   std::error_code err;
   auto space = std::filesystem::space(path, err);
   if (err) {
@@ -674,7 +696,9 @@ std::string move_file(nlohmann::json const& args) {
            "a string.";
   }
   std::string source = args["source"].get<std::string>();
+  source = expand_tilde(source);
   std::string distination = args["distination"].get<std::string>();
+  distination = expand_tilde(distination);
   std::error_code err;
   std::filesystem::rename(source, distination, err);
 
@@ -727,6 +751,7 @@ std::string replace_lines(nlohmann::json const& args) {
   }
 
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
   int start_line = args["start_line"].get<int>();
   int end_line = args["end_line"].get<int>();
   std::string content = args["content"].get<std::string>();
@@ -847,6 +872,7 @@ std::string execute_file(nlohmann::json const& args) {
   }
 
   std::string path = args["path"].get<std::string>();
+  path = expand_tilde(path);
 
   // Build the command vector
   std::vector<std::string> cmd_args;
