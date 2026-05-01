@@ -40,8 +40,7 @@ struct AiArgs {
 #else
   int log_level = ::ai::logging::LOGGING_ERROR;
 #endif
-  std::string log_type{"stderr"};
-  std::string log_file;
+  std::optional<std::string> log_file;
   std::optional<std::string> proxy;
   std::string api_key;
   ChatArgs chat_args;

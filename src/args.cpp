@@ -432,16 +432,7 @@ AiArgs::AiArgs()
   parser.add_negative_flag(
       "v", "Decrease log verbosity (each use makes output less verbose)",
       log_level);
-  parser
-      .add_option("enable-logging",
-                  "Enable logging and choose output destination", log_type)
-      .default_value("stderr")
-      .choices({"file", "stderr", "all"});
-  parser
-      .add_option("log-file",
-                  "Path to the log file when file-based logging is enabled",
-                  log_file)
-      .default_value("debug.log");
+  parser.add_option("log-to", "Path to the log file", log_file);
   parser
       .add_flag("print-bash-complete", "Print bash completion script",
                 print_bash_completion)

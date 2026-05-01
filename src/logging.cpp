@@ -25,17 +25,16 @@ const char* GetSeverityName(int severity) {
   }
   return "UNKNOWN";
 }
-std::string GetLogFilePath() { return AiArgs::instance().log_file; }
+std::string GetLogFilePath() {
+  return AiArgs::instance().log_file.value_or("");
+}
 
 LoggingDestination GetLogDestination() {
   static LoggingDestination g_logging_destination = []() {
-    auto& log_type = AiArgs::instance().log_type;
-    if (log_type == "stderr") {
-      return LOG_TO_STDERR;
-    } else if (log_type == "file") {
+    if (!AiArgs::instance().log_file.value_or("").empty()) {
       return LOG_TO_FILE;
     }
-    return LOG_TO_ALL;
+    return LOG_TO_STDERR;
   }();
   return g_logging_destination;
 }
