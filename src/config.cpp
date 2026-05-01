@@ -23,8 +23,8 @@ std::string config_file_path() {
   return dir + "/config.json";
 }
 
-static AppConfig default_config() {
-  AppConfig config;
+static AppConfig const& default_config() {
+  static AppConfig config;
   config.providers = {
       {"deepseek", "https://api.deepseek.com", std::nullopt, "deepseek-v4-pro"},
       {"openai", "https://api.openai.com/v1", std::nullopt, "gpt-4o"},
@@ -63,6 +63,7 @@ void write_default_config_if_not_exists(const std::string& path) {
     providers.push_back(provider);
   }
   j["providers"] = providers;
+  j["version"] = default_config().version;
 
   std::ofstream out(path);
   if (out.is_open()) {
@@ -109,6 +110,15 @@ AppConfig load_config() {
           config.providers.push_back(std::move(pc));
         }
       }
+    }
+
+    if (j.contains("version") && j["version"].is_number()) {
+      config.version = j["version"].get<int>();
+      if (config.version > default_config().version) {
+        std::cerr << "Warning: Config file is from a newer version.\n";
+      }
+    } else {
+      config.version = 0;
     }
 
     if (config.providers.empty()) {

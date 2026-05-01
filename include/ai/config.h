@@ -15,6 +15,7 @@ struct ProviderConfig {
 
 struct AppConfig {
   std::vector<ProviderConfig> providers;
+  int version{0};
 
   // Look up a provider by alias
   const ProviderConfig* find_provider(const std::string& alias) const;
