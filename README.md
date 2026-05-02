@@ -21,7 +21,7 @@ A powerful command-line AI chatbot with multi-provider support and tool-calling 
 - **Shell completions** — built-in generation for bash, zsh, and fish
 - **Adjustable parameters** — temperature, top-p, max tokens, reasoning effort
 - **Config file** — manage providers, default models, and API keys in `config.json`
-- **Logging** — configurable log levels and output destinations (stderr / file / both)
+- **Logging** — configurable log levels; direct output to a file via `--log-to` (defaults to stderr)
 
 ## Build Requirements
 
@@ -304,9 +304,7 @@ Options:
      --log-level <0..4>          Set logging verbosity level (lower values are more verbose)
                                  [0:DEBUG, 1:INFO, 2:WARNING, 3:ERROR, 4:FATAL]
  -v                              Decrease log verbosity
-     --enable-logging <arg>      Enable logging and choose output destination
-                                 [file, stderr, all] (default: stderr)
-     --log-file <arg>            Path to log file (default: debug.log)
+     --log-to <arg>              Path to the log file
 
 Available Commands:
  chat                            Start an interactive chat session with the AI assistant
