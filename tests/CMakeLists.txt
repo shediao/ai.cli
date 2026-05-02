@@ -51,6 +51,7 @@ add_ai_cli_test(
 
 add_ai_cli_test(test_filesystem
                 "test_filesystem.cc;../src/tools/filesystem.cpp")
+find_package(Threads REQUIRED)
 target_link_libraries(
   test_filesystem PRIVATE subprocess::subprocess argparse::argparse
-                          environment::environment)
+                          environment::environment Threads::Threads)
