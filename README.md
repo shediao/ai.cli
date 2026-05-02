@@ -16,7 +16,6 @@ A powerful command-line AI chatbot with multi-provider support and tool-calling 
 - **Chat history** — conversation is persisted to disk; continue previous sessions with `-C`
 - **Editor input** — if no prompt is given and stdin is a TTY, opens `$EDITOR` for composing the prompt
 - **Pipe / stdin** — read prompts from stdin; use `-` as a positional to read from the pipe
-- **Clipboard** — responses are automatically copied to the clipboard
 - **Configurable system prompt** — automatic context injection (CWD, git status, directory tree, OS, shell)
 - **Shell completions** — built-in generation for bash, zsh, and fish
 - **Adjustable parameters** — temperature, top-p, max tokens, reasoning effort
