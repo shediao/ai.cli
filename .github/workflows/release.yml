@@ -138,11 +138,51 @@ jobs:
           path: dist/
 
   # =========================================================================
+  # FreeBSD builds (via VM on ubuntu-latest)
+  # =========================================================================
+  build-freebsd:
+    name: ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: freebsd-x64
+            arch: x86_64
+          - target: freebsd-arm64
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build on FreeBSD VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          arch: ${{ matrix.arch }}
+          prepare: |
+            pkg install -y cmake git zip
+          run: |
+            cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DAICLI_BUILD_TESTS=OFF
+            cmake --build build
+
+      - name: Prepare artifact
+        shell: bash
+        run: |
+          mkdir -p dist
+          zip -j "dist/ai-${{ matrix.target }}.zip" build/ai
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-${{ matrix.target }}
+          path: dist/
+
+  # =========================================================================
   # Create the GitHub Release and attach all binaries
   # =========================================================================
   release:
     name: Create Release
-    needs: [build, build-mingw64]
+    needs: [build, build-mingw64, build-freebsd]
     runs-on: ubuntu-latest
     permissions:
       contents: write
