@@ -109,3 +109,23 @@ jobs:
         working-directory: build
         run: |
           .\Release\ai.exe --help
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # FreeBSD build
+  # ─────────────────────────────────────────────────────────────────────────
+  freebsd-build:
+    runs-on: ubuntu-latest
+    name: FreeBSD Build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build on FreeBSD vm
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y cmake
+          run: |
+            cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+            cmake --build build
+            ctest --test-dir build --output-on-failure
