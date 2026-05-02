@@ -53,12 +53,11 @@ if(AICLI_ENABLE_ASAN
 endif()
 
 # ── Testing ────────────────────────────────────────────────────────────────
-option(AICLI_BUILD_TESTS "Build unit tests" ON)
-
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-  set(_default_tests ON)
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME
+   AND (NOT MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+  option(AICLI_BUILD_TESTS "Build unit tests" ON)
 else()
-  set(_default_tests OFF)
+  option(AICLI_BUILD_TESTS "Build unit tests" OFF)
 endif()
 
 # ── Options ────────────────────────────────────────────────────────────────
@@ -119,8 +118,6 @@ add_executable(
   src/utils.cpp
   src/base64.cpp
   src/history.cpp)
-
-
 
 set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 
