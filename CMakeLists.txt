@@ -120,16 +120,7 @@ add_executable(
   src/base64.cpp
   src/history.cpp)
 
-# Platform-specific clipboard implementation
-if(APPLE)
-  target_sources(ai PRIVATE src/clip_macos.mm)
-elseif(WIN32)
-  target_sources(ai PRIVATE src/clip_win.cpp)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_sources(ai PRIVATE src/clip_linux.cpp)
-else()
-  target_sources(ai PRIVATE src/clip_other.cpp)
-endif()
+
 
 set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 
@@ -145,14 +136,6 @@ target_compile_definitions(ai PRIVATE GIT_VERSION="${GIT_VERSION}")
 # ── Platform-specific settings ─────────────────────────────────────────────
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   target_compile_definitions(ai PRIVATE UNICODE _UNICODE)
-endif()
-
-if(APPLE)
-  target_link_libraries(ai PRIVATE "-framework AppKit" "-framework Foundation")
-endif()
-
-if(WIN32)
-  target_link_libraries(ai PRIVATE "-luser32")
 endif()
 
 if(MINGW)

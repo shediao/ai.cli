@@ -9,7 +9,6 @@
 #include <utfx/utfx.hpp>
 
 #include "ai/args.h"
-#include "ai/clip.h"
 #include "ai/history.h"
 #include "ai/logging.h"
 #include "ai/openai.h"
@@ -100,12 +99,10 @@ int chat() {
             auto merged_content = "<thinking>\n" +
                                   reasoning_content.value_or("") +
                                   "\n</thinking>\n\n" + content;
-            save_to_clipboard(merged_content);
             LOG(INFO) << merged_content;
             std::cout << merged_content << std::endl;
           } else {
             if (!content.empty()) {
-              save_to_clipboard(content);
               std::cout << content << std::endl;
               LOG(INFO) << content;
             }
@@ -115,9 +112,6 @@ int chat() {
               << "<thinking>\n" + reasoning_content.value_or("") +
                      "\n</thinking>\n\n" + content;
           LOG_IF(INFO, !content.empty()) << content;
-          if (!content.empty()) {
-            save_to_clipboard(content);
-          }
         }
 
         LOG_IF(INFO,
