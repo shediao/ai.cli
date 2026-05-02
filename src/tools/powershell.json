@@ -13,11 +13,13 @@
         "requires_confirmation": {
           "type": "boolean",
           "description": "Set to true if the command is potentially dangerous or destructive and should require user confirmation before execution. Commands that modify files (Remove-Item, Move-Item), change system settings (Set-ExecutionPolicy, Set-Service), install packages, make network requests, or any other sensitive operations should have this set to true. Set to false for safe read-only operations like Get-ChildItem, Get-Process, Test-Path, etc. Also set to false when the user has explicitly and directly requested the command to be executed - direct user instructions do not require additional confirmation."
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Optional timeout in seconds. If the command does not complete within this time, it will be terminated. If not provided, no timeout is applied."
         }
       },
-      "required": [
-        "command"
-      ]
+      "required": ["command"]
     }
   }
 ]

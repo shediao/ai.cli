@@ -18,9 +18,7 @@
           "description": "The number of lines to read. Only provide if the file is too large to read at once."
         }
       },
-      "required": [
-        "path"
-      ]
+      "required": ["path"]
     }
   },
   {
@@ -37,9 +35,7 @@
           }
         }
       },
-      "required": [
-        "paths"
-      ]
+      "required": ["paths"]
     }
   },
   {
@@ -56,10 +52,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "path",
-        "content"
-      ]
+      "required": ["path", "content"]
     }
   },
   {
@@ -91,9 +84,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "path"
-      ]
+      "required": ["path"]
     }
   },
   {
@@ -106,9 +97,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "path"
-      ]
+      "required": ["path"]
     }
   },
   {
@@ -121,9 +110,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "path"
-      ]
+      "required": ["path"]
     }
   },
   {
@@ -139,10 +126,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "source",
-        "distination"
-      ]
+      "required": ["source", "distination"]
     }
   },
   {
@@ -162,10 +146,7 @@
           "description": "Whether to search recursively into subdirectories. Defaults to false (only search the immediate directory). Set to true to search through all nested subdirectories."
         }
       },
-      "required": [
-        "path",
-        "pattern"
-      ]
+      "required": ["path", "pattern"]
     }
   },
   {
@@ -185,11 +166,13 @@
             "type": "string"
           },
           "description": "Optional arguments to pass to the executable."
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Optional timeout in seconds. If the executable does not complete within this time, it will be terminated. If not provided, no timeout is applied."
         }
       },
-      "required": [
-        "path"
-      ]
+      "required": ["path"]
     }
   },
   {
@@ -202,9 +185,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "path"
-      ]
+      "required": ["path"]
     }
   },
   {
@@ -218,9 +199,7 @@
           "description": "Any path on the filesystem to query. The disk space for the filesystem containing this path will be returned."
         }
       },
-      "required": [
-        "path"
-      ]
+      "required": ["path"]
     }
   },
   {
@@ -247,12 +226,7 @@
           "description": "The new content to insert in place of the specified line range. Can be an empty string to delete lines, a single line, or multiple lines."
         }
       },
-      "required": [
-        "path",
-        "start_line",
-        "end_line",
-        "content"
-      ]
+      "required": ["path", "start_line", "end_line", "content"]
     }
   }
 ]

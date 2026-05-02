@@ -44,7 +44,11 @@ std::string bash(nlohmann::json const& args) {
   using namespace subprocess::named_arguments;
   using subprocess::run;
 
-  int ret = run("bash", "-c", command, std_out > out_buf, std_err > err_buf);
+  int ret = run("bash", "-c", command, std_out > out_buf, std_err > err_buf,
+                timeout = args.contains("timeout") &&
+                                  args["timeout"].is_number_integer()
+                              ? args["timeout"].get<int>()
+                              : timeout_infinite);
 
   std::string result;
   if (!out_buf.empty()) {

@@ -21,9 +21,7 @@
           "description": "The target directory path. Can be an absolute path or a relative path (resolved against the current working directory)."
         }
       },
-      "required": [
-        "path"
-      ]
+      "required": ["path"]
     }
   },
   {
@@ -38,9 +36,7 @@
           "description": "The name of the environment variable to retrieve (e.g., 'HOME', 'PATH', 'USER')."
         }
       },
-      "required": [
-        "name"
-      ]
+      "required": ["name"]
     }
   },
   {
@@ -59,10 +55,7 @@
           "description": "The value to assign to the environment variable."
         }
       },
-      "required": [
-        "name",
-        "value"
-      ]
+      "required": ["name", "value"]
     }
   },
   {
