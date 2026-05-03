@@ -125,7 +125,7 @@ jobs:
         with:
           usesh: true
           prepare: |
-            pkg install -y cmake git zip
+            pkg install -y cmake git zip bash
           run: |
             printenv
             cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
