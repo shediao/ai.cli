@@ -37,17 +37,11 @@ std::string cmd(nlohmann::json const& args) {
     }
   }
 
-  subprocess::buffer out_buf;
-  subprocess::buffer err_buf;
-
-  using namespace subprocess::named_arguments;
-  using subprocess::run;
-
-  int ret = run("cmd", "/c", command, std_out > out_buf, std_err > err_buf,
-                timeout = args.contains("timeout") &&
-                                  args["timeout"].is_number_integer()
-                              ? args["timeout"].get<int>()
-                              : timeout_infinite);
+  auto [ret, out_buf, err_buf] = subprocess::capture_run(
+      "cmd", "/c", command,
+      $timeout = args.contains("timeout") && args["timeout"].is_number_integer()
+                     ? args["timeout"].get<int>()
+                     : $timeout_infinite);
 
   std::string result;
   if (!out_buf.empty()) {

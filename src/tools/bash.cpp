@@ -4,9 +4,9 @@
 #include <string_view>
 #include <subprocess/subprocess.hpp>
 
-#include "bash_tools_json.h"
 #include "ai/logging.h"
 #include "ai/tool_calls.h"
+#include "bash_tools_json.h"
 
 std::string bash(nlohmann::json const& args) {
   LOG(INFO) << "call bash(" << args.dump() << ")";
@@ -32,23 +32,16 @@ std::string bash(nlohmann::json const& args) {
               << "   Execute? (y/n): ";
     std::string answer;
     std::getline(std::cin, answer);
-    if (answer != "y" && answer != "Y" && answer != "yes" &&
-        answer != "Yes") {
+    if (answer != "y" && answer != "Y" && answer != "yes" && answer != "Yes") {
       return "Command cancelled by user: " + command;
     }
   }
 
-  subprocess::buffer out_buf;
-  subprocess::buffer err_buf;
-
-  using namespace subprocess::named_arguments;
-  using subprocess::run;
-
-  int ret = run("bash", "-c", command, std_out > out_buf, std_err > err_buf,
-                timeout = args.contains("timeout") &&
-                                  args["timeout"].is_number_integer()
-                              ? args["timeout"].get<int>()
-                              : timeout_infinite);
+  auto [ret, out_buf, err_buf] = subprocess::capture_run(
+      "bash", "-c", command,
+      $timeout = args.contains("timeout") && args["timeout"].is_number_integer()
+                     ? args["timeout"].get<int>()
+                     : $timeout_infinite);
 
   std::string result;
   if (!out_buf.empty()) {
