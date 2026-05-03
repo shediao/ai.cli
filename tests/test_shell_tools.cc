@@ -79,40 +79,40 @@ TEST(BashTest, CommandNotString) {
 TEST(BashTest, EchoCommand) {
   json args = {{"command", "echo hello"}};
   std::string result = bash(args);
-  EXPECT_TRUE(result.find("hello") != std::string::npos);
+  EXPECT_TRUE(result.find("hello") != std::string::npos) << result;
 }
 
 TEST(BashTest, StderrCapture) {
   json args = {{"command", "echo error >&2"}};
   std::string result = bash(args);
-  EXPECT_TRUE(result.find("error") != std::string::npos);
+  EXPECT_TRUE(result.find("error") != std::string::npos) << result;
 }
 
 TEST(BashTest, StdoutAndStderrCombined) {
   json args = {{"command", "echo stdout; echo stderr >&2"}};
   std::string result = bash(args);
-  EXPECT_TRUE(result.find("stdout") != std::string::npos);
-  EXPECT_TRUE(result.find("stderr") != std::string::npos);
+  EXPECT_TRUE(result.find("stdout") != std::string::npos) << result;
+  EXPECT_TRUE(result.find("stderr") != std::string::npos) << result;
 }
 
 TEST(BashTest, EmptyOutput) {
   json args = {{"command", "exit 0"}};
   std::string result = bash(args);
-  EXPECT_TRUE(result.find("Exit code: 0") != std::string::npos);
+  EXPECT_TRUE(result.find("Exit code: 0") != std::string::npos) << result;
 }
 
 TEST(BashTest, NonZeroExitCode) {
   json args = {{"command", "exit 42"}};
   std::string result = bash(args);
-  EXPECT_TRUE(result.find("Exit code: 42") != std::string::npos);
+  EXPECT_TRUE(result.find("Exit code: 42") != std::string::npos) << result;
 }
 
 TEST(BashTest, MultilineOutput) {
   json args = {{"command", "echo line1; echo line2; echo line3"}};
   std::string result = bash(args);
-  EXPECT_TRUE(result.find("line1") != std::string::npos);
-  EXPECT_TRUE(result.find("line2") != std::string::npos);
-  EXPECT_TRUE(result.find("line3") != std::string::npos);
+  EXPECT_TRUE(result.find("line1") != std::string::npos) << result;
+  EXPECT_TRUE(result.find("line2") != std::string::npos) << result;
+  EXPECT_TRUE(result.find("line3") != std::string::npos) << result;
 }
 
 TEST(BashTest, PipeAndRedirect) {
@@ -120,14 +120,14 @@ TEST(BashTest, PipeAndRedirect) {
   std::string result = bash(args);
   // "hello world\n" = 12 characters
   // Trim the result and check it's a number >= 1
-  EXPECT_FALSE(result.empty());
+  EXPECT_FALSE(result.empty()) << result;
 }
 
 TEST(BashTest, CommandNotFound) {
   json args = {{"command", "nonexistent_command_xyz_123"}};
   std::string result = bash(args);
   // Should have non-zero exit code or stderr output
-  EXPECT_FALSE(result.empty());
+  EXPECT_FALSE(result.empty()) << result;
 }
 
 TEST(BashTest, Timeout) {
@@ -136,7 +136,7 @@ TEST(BashTest, Timeout) {
   std::string result = bash(args);
   // On timeout, the subprocess library generally returns non-zero exit code
   // and may have error output. We just verify we get some result back quickly.
-  EXPECT_FALSE(result.empty());
+  EXPECT_FALSE(result.empty()) << result;
 }
 
 // =============================================================================
