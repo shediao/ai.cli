@@ -414,7 +414,7 @@ AiArgs::AiArgs()
     : parser("ai",
              "OpenAI API-compatible multi-provider CLI chatbot with "
              "tool-calling capabilities") {
-  parser.add_flag("version", "Print version information and exit", version)
+  parser.add_flag("v,version", "Print version information and exit", version)
       .callback([](bool v) {
         if (v) {
           std::cout << "ai version " << GIT_VERSION << "\n";
@@ -447,9 +447,12 @@ AiArgs::AiArgs()
                             {"2", "WARNING"},
                             {"3", "ERROR"},
                             {"4", "FATAL"}});
-  parser.add_negative_flag(
-      "v", "Decrease log verbosity (each use makes output less verbose)",
-      log_level);
+  parser.add_alias("verbose", "log-level", "-1");
+  parser.add_alias("debug", "log-level", "0");
+  parser.add_alias("info", "log-level", "1");
+  parser.add_alias("warn", "log-level", "2");
+  parser.add_alias("error", "log-level", "3");
+  parser.add_alias("fatal", "log-level", "4");
   parser.add_option("log-to", "Path to the log file", log_file);
   parser
       .add_flag("print-bash-complete", "Print bash completion script",
