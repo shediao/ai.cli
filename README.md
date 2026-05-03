@@ -238,9 +238,9 @@ ai chat -x "http://127.0.0.1:8080" "Hello"
 
 ### bash
 
-| Function | Description                                                                                |
-| -------- | ------------------------------------------------------------------------------------------ |
-| `bash`   | Execute arbitrary bash commands (with optional user confirmation for destructive commands) |
+| Function | Description                                                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `bash`   | Execute arbitrary bash commands. Supports `requires_confirmation` (bool) for destructive commands and optional `timeout` (integer, seconds) |
 
 ### filesystem
 
@@ -258,7 +258,7 @@ ai chat -x "http://127.0.0.1:8080" "Hello"
 | `move_file`           | Move or rename files and directories                                           |
 | `get_file_info`       | Get detailed metadata (size, type, permissions, modified time)                 |
 | `disk_space_info`     | Get disk capacity, free space, and usage percentage                            |
-| `execute_file`        | Execute a file as a subprocess and capture exit code, stdout, and stderr       |
+| `execute_file`        | Execute a file as a subprocess and capture exit code, stdout, and stderr. Supports optional `timeout` (integer, seconds) |
 
 ### git
 
@@ -297,12 +297,17 @@ Usage:
   ai [options]... [cmd] [options]...
 
 Options:
-     --version                   Print version information and exit
+ -v, --version                   Print version information and exit
  -x, --proxy <PROXY>             HTTP/HTTPS proxy URL for API requests
  -k, --key <KEY>                 API key used for authenticating with the AI provider
      --log-level <0..4>          Set logging verbosity level (lower values are more verbose)
                                  [0:DEBUG, 1:INFO, 2:WARNING, 3:ERROR, 4:FATAL]
- -v                              Decrease log verbosity
+     --verbose                   Same as --log-level -1 (maximum verbosity)
+     --debug                     Same as --log-level 0
+     --info                      Same as --log-level 1
+     --warn                      Same as --log-level 2
+     --error                     Same as --log-level 3
+     --fatal                     Same as --log-level 4
      --log-to <arg>              Path to the log file
 
 Available Commands:
