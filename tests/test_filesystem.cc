@@ -423,6 +423,100 @@ TEST(EditFileTest, MissingSplitLabel) {
   EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
 }
 
+
+TEST(EditFileTest, DiffNotStartWithSearchLabel) {
+  TempTestFile f("content");
+  // diff is just random text, does not start with "<<<<<<< SEARCH\n"
+  std::string diff = "not a valid diff";
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = edit_file(args);
+  EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
+}
+
+TEST(EditFileTest, DiffEmpty) {
+  TempTestFile f("content");
+  std::string diff = "";
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = edit_file(args);
+  EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
+}
+
+TEST(EditFileTest, DiffSearchLabelNotFollowedByNewline) {
+  TempTestFile f("content");
+  // starts with "<<<<<<< SEARCH" but not followed by newline
+  std::string diff = "<<<<<<< SEARCH old content";
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = edit_file(args);
+  EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
+}
+
+TEST(EditFileTest, MismatchedLabelCounts) {
+  TempTestFile f("line A\nline B\n");
+  // 2 SEARCH blocks but only 1 SEPARATOR and 1 REPLACE
+  std::string diff =
+      "<<<<<<< SEARCH\nline A\n=======\nreplaced A\n>>>>>>> REPLACE\n"
+      "<<<<<<< SEARCH\nline B\n";
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = edit_file(args);
+  EXPECT_TRUE(result.find("mismatched number of SEARCH/SEPARATOR/REPLACE "
+                          "labels") != std::string::npos);
+}
+
+TEST(EditFileTest, LabelsOutOfOrder) {
+  TempTestFile f("foo\nbar\n");
+  // REPLACE label appears before SEPARATOR label in the block
+  std::string diff =
+      "<<<<<<< SEARCH\nfoo\n>>>>>>> REPLACE\n=======\nbar\n";
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = edit_file(args);
+  EXPECT_TRUE(result.find("labels are out of order") != std::string::npos);
+}
+
+TEST(EditFileTest, EmptyReplaceBlock) {
+  TempTestFile f("hello world\nfoo bar\nbaz qux\n");
+  // adjacent "=======" and ">>>>>>> REPLACE" means delete the SEARCH content
+  std::string diff =
+      "<<<<<<< SEARCH\nfoo bar\n=======\n>>>>>>> REPLACE\n";
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = edit_file(args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path());
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  // "foo bar\n" should have been deleted
+  EXPECT_EQ(content, "hello world\nbaz qux\n");
+}
+
+TEST(EditFileTest, MixedEmptyAndNonEmptyBlocks) {
+  TempTestFile f("keep this\nremove me\nreplace this\nlast line\n");
+  // Block 1: delete "remove me\n"
+  // Block 2: replace "replace this\n" with "new content\n"
+  std::string diff =
+      "<<<<<<< SEARCH\nremove me\n=======\n>>>>>>> REPLACE\n"
+      "<<<<<<< SEARCH\nreplace this\n=======\nnew content\n>>>>>>> REPLACE\n";
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = edit_file(args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path());
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "keep this\nnew content\nlast line\n");
+}
+
+TEST(EditFileTest, MismatchedLabelCountsExtraReplace) {
+  TempTestFile f("content A\ncontent B\n");
+  // Extra REPLACE label without corresponding SEARCH/SEPARATOR
+  std::string diff =
+      "<<<<<<< SEARCH\ncontent A\n=======\nnew A\n>>>>>>> REPLACE\n"
+      ">>>>>>> REPLACE\n";
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = edit_file(args);
+  EXPECT_TRUE(result.find("mismatched number of SEARCH/SEPARATOR/REPLACE "
+                          "labels") != std::string::npos);
+}
+
 // =============================================================================
 // create_directory tests
 // =============================================================================
