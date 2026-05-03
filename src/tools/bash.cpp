@@ -1,5 +1,7 @@
+#include <environment/environment.hpp>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <subprocess/subprocess.hpp>
@@ -36,9 +38,24 @@ std::string bash(nlohmann::json const& args) {
       return "Command cancelled by user: " + command;
     }
   }
+  std::string bash_cmd = "bash";
+#if defined(_WIN32)
+  if (auto shell = env::get("SHELL").value_or("");
+      (shell.ends_with("sh") || shell.ends_with("sh.exe"))) {
+    if (shell.ends_with("bash") || shell.ends_with("bash.exe")) {
+      bash_cmd = shell;
+    }
 
+    for (auto const& path : env::path()) {
+      if (auto p = std::filesystem::path(path) / "bash.exe"; exists(p)) {
+        bash_cmd = p.string();
+        break;
+      }
+    }
+  }
+#endif
   auto [ret, out_buf, err_buf] = subprocess::capture_run(
-      "bash", "-c", command,
+      bash_cmd, "-c", command,
       $timeout = args.contains("timeout") && args["timeout"].is_number_integer()
                      ? args["timeout"].get<int>()
                      : $timeout_infinite);
