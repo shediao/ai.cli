@@ -46,6 +46,7 @@ jobs:
         id: strings
         shell: bash
         run: |
+          printenv
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
       # -------------------------------------------------------------------------
@@ -126,6 +127,7 @@ jobs:
           prepare: |
             pkg install -y cmake git zip
           run: |
+            printenv
             cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
             cmake --build build
             ctest --test-dir build --output-on-failure
