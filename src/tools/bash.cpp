@@ -52,6 +52,19 @@ std::string bash(nlohmann::json const& args) {
       }
     }
   }
+#else
+  bool bash_exists = false;
+  for (auto const& path : env::path()) {
+    if (auto p = std::filesystem::path(path) / "bash"; exists(p)) {
+      bash_exists = true;
+      break;
+    }
+  }
+  if (!bash_exists) {
+    if (auto shell = env::get("SHELL"); shell.has_value()) {
+      bash_cmd = shell.value();
+    }
+  }
 #endif
   auto [ret, out_buf, err_buf] = subprocess::capture_run(
       bash_cmd, "-c", command,
