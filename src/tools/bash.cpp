@@ -1,7 +1,6 @@
 #include <environment/environment.hpp>
 #include <iostream>
 #include <nlohmann/json.hpp>
-#include <ranges>
 #include <string>
 #include <string_view>
 #include <subprocess/subprocess.hpp>
