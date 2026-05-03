@@ -7,6 +7,7 @@
 #include <iterator>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -253,79 +254,83 @@ std::string edit_file(nlohmann::json const& args) {
                            std::istreambuf_iterator<char>()};
   in.close();
 
-  // --- static label tables (avoid re-allocation every call) ---
-  static const std::vector<std::string_view> search_labels{
-      "\n<<<<<<< SEARCH\n", "<<<<<<< SEARCH\n", "<<<<<<< SEARCH"};
-  static const std::vector<std::string_view> replace_labels{
-      "\n>>>>>>> REPLACE\n", "\n>>>>>>> REPLACE", ">>>>>>> REPLACE"};
-  static const std::vector<std::string_view> split_labels{"\n=======\n"};
+#define SEARCH_LABLE "<<<<<<< SEARCH"
+#define SEPARATOR_LABLE "======="
+#define REPLACE_LABLE ">>>>>>> REPLACE"
 
-  // --- parse diff and apply each SEARCH/REPLACE block ---
-  std::string_view diff_view(diff);
-  size_t cursor = 0;
-  int block_num = 0;
+  // 1. 确认是否以 '<<<<<<< SEARCH' 开头
+  if (!diff.starts_with(SEARCH_LABLE "\n")) {
+    return "Failed to edit file " + path +
+           ": diff must start with \"<<<<<<< SEARCH\" followed by a "
+           "newline.";
+  }
+  // 2. 是否以 '
 
-  while (true) {
-    ++block_num;
+  std::vector<std::string::size_type> search_indexes;     // <<<<<<< SEARCH
+  std::vector<std::string::size_type> separator_indexes;  // =======
+  std::vector<std::string::size_type> replace_indexes;    // >>>>>>> REPLACE
 
-    // 1. locate next SEARCH marker
-    auto [search_pos, search_label] =
-        find_by_lables(diff, cursor, search_labels);
-    if (search_pos == std::string::npos) {
-      break;  // no more blocks
-    }
+  auto it = diff.find(SEARCH_LABLE "\n", 0);
+  while (it != std::string::npos) {
+    search_indexes.push_back(it);
+    it = diff.find(SEARCH_LABLE "\n", it + 15);
+  }
 
-    // 2. locate SPLIT marker (natural order: SEARCH → SPLIT → REPLACE)
-    auto [split_pos, split_label] =
-        find_by_lables(diff, search_pos + search_label.size(), split_labels);
-    if (split_pos == std::string::npos) {
-      LOG(ERROR) << "not found label: '\\n=======\\n'";
-      size_t preview_len =
-          (std::min)(size_t(128),
-                     diff_view.size() - search_pos - search_label.size());
-      std::string_view search_preview =
-          diff_view.substr(search_pos + search_label.size(), preview_len);
+  it = diff.find("\n" SEPARATOR_LABLE "\n", 0);
+  while (it != std::string::npos) {
+    separator_indexes.push_back(it + 1);
+    it = diff.find("\n" SEPARATOR_LABLE "\n", it + 9);
+  }
+
+  it = diff.find("\n" REPLACE_LABLE, 0);
+  while (it != std::string::npos) {
+    replace_indexes.push_back(it + 1);
+    it = diff.find("\n" REPLACE_LABLE, it + 16);
+  }
+
+  it = diff.find("\n" SEPARATOR_LABLE REPLACE_LABLE, 0);
+  while (it != std::string::npos) {
+    separator_indexes.push_back(it + 1);
+    replace_indexes.push_back(it + 1 + 7);
+    it = diff.find("\n" SEPARATOR_LABLE REPLACE_LABLE, it + 23);
+  }
+
+  // 3. 三个标签的个数应该一样
+  if (search_indexes.size() != separator_indexes.size() ||
+      separator_indexes.size() != replace_indexes.size()) {
+    return "Failed to edit file " + path +
+           ": mismatched number of SEARCH/SEPARATOR/REPLACE labels in "
+           "diff. Found " +
+           std::to_string(search_indexes.size()) + " SEARCH, " +
+           std::to_string(separator_indexes.size()) + " separator, " +
+           std::to_string(replace_indexes.size()) + " REPLACE labels.";
+  }
+
+  // 4. 检测每个标签组是否匹配
+  for (size_t i = 0; i < search_indexes.size(); i++) {
+    if (search_indexes[i] >= separator_indexes[i] ||
+        separator_indexes[i] >= replace_indexes[i]) {
       return "Failed to edit file " + path +
-             ": missing '=======' delimiter in block #" +
-             std::to_string(block_num) + ". SEARCH content starts with:\n" +
-             std::string(search_preview);
+             ": SEARCH/SEPARATOR/REPLACE labels are out of order in "
+             "diff block " +
+             std::to_string(i + 1) + ".";
     }
+  }
 
-    // 3. locate REPLACE marker after the split
-    auto [replace_pos, replace_label] =
-        find_by_lables(diff, split_pos + split_label.size(), replace_labels);
-    if (replace_pos == std::string::npos) {
-      LOG(ERROR) << "not found label: '>>>>>>> REPLACE'";
-      size_t preview_len =
-          (std::min)(size_t(500), split_pos - search_pos - search_label.size());
-      std::string_view search_preview =
-          diff_view.substr(search_pos + search_label.size(), preview_len);
+  for (size_t i = 0; i < search_indexes.size(); i++) {
+    std::string_view search{diff.data() + search_indexes[i] + 15,
+                            separator_indexes[i] - search_indexes[i] - 15};
+    std::string_view replace{diff.data() + separator_indexes[i] + 8,
+                             replace_indexes[i] - separator_indexes[i] - 8};
+    auto search_it = file_content.find(search);
+    if (search_it != std::string::npos) {
+      file_content.replace(search_it, search.size(), replace);
+    } else {
       return "Failed to edit file " + path +
-             ": missing '>>>>>>> REPLACE' marker in block #" +
-             std::to_string(block_num) + ". SEARCH content:\n" +
-             std::string(search_preview);
+             ": SEARCH block " + std::to_string(i + 1) +
+             " was not found in the file. The content to replace may "
+             "have already been modified or does not exactly match.";
     }
-
-    // 4. extract search & replace strings (string_view avoids copies)
-    std::string_view search =
-        diff_view.substr(search_pos + search_label.size(),
-                         split_pos - search_pos - search_label.size());
-    std::string_view replace =
-        diff_view.substr(split_pos + split_label.size(),
-                         replace_pos - split_pos - split_label.size());
-
-    // 5. apply the replacement
-    size_t found = file_content.find(search);
-    if (found == std::string::npos) {
-      LOG(ERROR) << "Not Found: " << search;
-      return "Failed to edit file " + path +
-             ": SEARCH string not found in block #" +
-             std::to_string(block_num) + ".\nSEARCH:\n" + std::string(search);
-    }
-    file_content.replace(found, search.size(), replace);
-
-    // 6. advance past this block for the next iteration
-    cursor = replace_pos + replace_label.size();
   }
 
   // --- show diff between original file and modified content ---
