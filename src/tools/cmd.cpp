@@ -1,4 +1,3 @@
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
@@ -29,8 +28,8 @@ std::string cmd(nlohmann::json const& args) {
       args["requires_confirmation"].is_boolean() &&
       args["requires_confirmation"].get<bool>()) {
     std::string answer = ai::utils::getUserInputFromTerminal(
-        "\n⚠️  CMD command requires confirmation:\n   " +
-        command + "\n   Execute? (y/n): ");
+        "\n⚠️  CMD command requires confirmation:\n   " + command +
+        "\n   Execute? (y/n): ");
     if (answer != "y" && answer != "Y" && answer != "yes" && answer != "Yes") {
       return "Command cancelled by user: " + command;
     }
