@@ -105,7 +105,7 @@ jobs:
 
       - name: Test
         shell: bash
-        run: ctest --test-dir build --build-config Release
+        run: ctest --test-dir build --build-config Release --rerun-failed --output-on-failure
 
   # ─────────────────────────────────────────────────────────────────────────
   # FreeBSD build
