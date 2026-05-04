@@ -41,7 +41,7 @@ class TempTestFile {
       : path_(std::filesystem::temp_directory_path() /
               ("ai_cli_test_" + std::to_string(counter_++) + suffix)) {
     std::ofstream out(path_);
-    out << content;
+    out.write(content.data(), static_cast<std::streamsize>(content.size()));
     out.close();
   }
 
