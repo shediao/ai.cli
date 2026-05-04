@@ -11,6 +11,7 @@
 #include <thread>
 
 #include "ai/logging.h"
+#include "ai/utils.h"
 
 namespace ai {
 
@@ -123,19 +124,8 @@ void HistoryDB::init_db() {
 
 std::string HistoryDB::generate_session_id() const {
   // Format: "YYYYMMDD-HHMMSS-<16hex>"
-  auto now = std::chrono::system_clock::now();
-  auto time_t_now = std::chrono::system_clock::to_time_t(now);
-
-#if defined(_WIN32)
-  struct tm tm_buf;
-  localtime_s(&tm_buf, &time_t_now);
-  auto& tm = tm_buf;
-#else
-  auto tm = *std::localtime(&time_t_now);
-#endif
-
   std::ostringstream oss;
-  oss << std::put_time(&tm, "%Y%m%d-%H%M%S");
+  oss << ai::utils::timestamp("%Y%m%d-%H%M%S");
   oss << '-' << random_hex(8);
   return oss.str();
 }

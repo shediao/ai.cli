@@ -430,7 +430,10 @@ std::string timestamp(const char* format) {
   auto tm = *std::localtime(&time_t_now);
 #endif
   char buf[128];
-  std::strftime(buf, std::size(buf), format, &tm);
+  auto const ret = std::strftime(buf, std::size(buf), format, &tm);
+  if (ret == 0) {
+    buf[0] = '\0';
+  }
   return std::string(buf);
 }
 
