@@ -1,7 +1,6 @@
 #include "ai/config.h"
 
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 
 #include "ai/utils.h"
@@ -65,9 +64,7 @@ void write_default_config_if_not_exists(const std::string& path) {
   j["providers"] = providers;
   j["version"] = default_config().version;
 
-  std::ofstream out(path);
-  if (out.is_open()) {
-    out << j.dump(2) << '\n';
+  if (ai::utils::write_file(path, j.dump(2) + '\n')) {
     std::cerr << "Config file created at: " << path
               << "\nPlease edit it to set your API keys.\n";
   }
@@ -82,14 +79,13 @@ AppConfig load_config() {
   AppConfig config;
 
   try {
-    std::ifstream in(path);
-    if (!in.is_open()) {
+    auto content_opt = ai::utils::read_file(path);
+    if (!content_opt.has_value()) {
       std::cerr << "Warning: Could not open config file: " << path << "\n";
       return default_config();
     }
 
-    nlohmann::json j;
-    in >> j;
+    nlohmann::json j = nlohmann::json::parse(content_opt.value());
 
     if (j.contains("providers") && j["providers"].is_array()) {
       for (auto& pj : j["providers"]) {

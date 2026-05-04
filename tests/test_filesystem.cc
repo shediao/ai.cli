@@ -27,10 +27,9 @@ LogMessage::~LogMessage() = default;
 bool ShouldCreateLogMessage(LogSeverity) { return false; }
 }  // namespace ai::logging
 
-// --- TempFile / getTempFilePath stubs (used by edit_file / replace_lines) ---
+// --- TempFile / getTempFilePath / read_file / write_file stubs ---
 #include "ai/utils.h"
 
-// --- getTempFilePath (used by ai::utils::TempFile) ---
 std::string ai::utils::getTempFilePath(std::string const& prefix,
                                        std::string const& postfix) {
   auto tmp = std::filesystem::temp_directory_path() /
@@ -39,6 +38,40 @@ std::string ai::utils::getTempFilePath(std::string const& prefix,
                   std::chrono::steady_clock::now().time_since_epoch().count()) +
               postfix);
   return tmp.string();
+}
+ai::utils::TempFile::TempFile() {}
+ai::utils::TempFile::TempFile(std::string const& prefix,
+                              std::string const& postfix)
+    : path_(ai::utils::getTempFilePath(prefix, postfix)) {}
+ai::utils::TempFile::~TempFile() {
+  std::error_code ec;
+  std::filesystem::remove(path_, ec);
+}
+const std::string& ai::utils::TempFile::path() const { return path_; }
+std::optional<std::string> ai::utils::TempFile::content() const {
+  return ai::utils::read_file(path_);
+}
+std::optional<std::string> ai::utils::read_file(std::string const& path) {
+  std::ifstream in(path, std::ios::binary | std::ios::ate);
+  if (!in.is_open()) {
+    return std::nullopt;
+  }
+  auto const size = in.tellg();
+  in.seekg(0, std::ios::beg);
+  std::string content(static_cast<std::size_t>(size), '\0');
+  if (!in.read(content.data(), size)) {
+    return std::nullopt;
+  }
+  return content;
+}
+bool ai::utils::write_file(std::string const& path,
+                           std::string const& content) {
+  std::ofstream out(path, std::ios::binary | std::ios::trunc);
+  if (!out.is_open()) {
+    return false;
+  }
+  out.write(content.data(), static_cast<std::streamsize>(content.size()));
+  return out.good();
 }
 
 // --- tool_calls stubs (for static init in filesystem.cpp) ---
@@ -53,24 +86,6 @@ bool regist_tool_category(std::string const&, std::string_view (*)(),
 
 // --- filesystem_tools_json_str ---
 [[maybe_unused]] constexpr std::string_view filesystem_tools_json_str = "{}";
-
-ai::utils::TempFile::TempFile() {}
-ai::utils::TempFile::TempFile(std::string const& prefix,
-                              std::string const& postfix)
-    : path_(ai::utils::getTempFilePath(prefix, postfix)) {}
-ai::utils::TempFile::~TempFile() {
-  std::error_code ec;
-  std::filesystem::remove(path_, ec);
-}
-const std::string& ai::utils::TempFile::path() const { return path_; }
-std::optional<std::string> ai::utils::TempFile::content() const {
-  std::ifstream in(path_);
-  if (!in.is_open()) {
-    return std::nullopt;
-  }
-  return std::string{std::istreambuf_iterator<char>(in),
-                     std::istreambuf_iterator<char>()};
-}
 
 // =============================================================================
 // Forward declarations of all testable functions from filesystem.cpp

@@ -2,14 +2,13 @@
 #include "ai/base64.h"
 
 #include <base64/base64.hpp>
-#include <fstream>
+
+#include "ai/utils.h"
 
 std::string base64_encode(std::string const& input_file) {
-  std::ifstream input{input_file};
-  if (input.is_open()) {
-    std::vector<char> content{std::istreambuf_iterator<char>(input),
-                              std::istreambuf_iterator<char>()};
-
+  auto content_opt = ai::utils::read_file(input_file);
+  if (content_opt.has_value()) {
+    auto& content = content_opt.value();
     return base64::encode(std::string_view{content.data(), content.size()});
   } else {
     return "";

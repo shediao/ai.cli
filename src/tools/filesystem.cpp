@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <environment/environment.hpp>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <iterator>
 #include <nlohmann/json.hpp>
@@ -61,12 +60,11 @@ std::string read_file(nlohmann::json const& args) {
     return "function read_file arguments is invalid.";
   }
   path = expand_tilde(path);
-  std::ifstream in(path);
-  if (!in.is_open()) {
+  auto content_opt = ai::utils::read_file(path);
+  if (!content_opt.has_value()) {
     return path + " is not exists.";
   }
-  std::string content{std::istreambuf_iterator<char>(in),
-                      std::istreambuf_iterator<char>()};
+  std::string content = std::move(content_opt.value());
   if (content.empty()) {
     return path + " is empty.";
   }
@@ -146,10 +144,9 @@ std::string read_multiple_files(nlohmann::json const& args) {
     if (!contents.empty()) {
       contents += "\n------\n";
     }
-    std::ifstream in(expanded_path);
-    if (in.is_open()) {
-      std::string file_content{std::istreambuf_iterator<char>(in),
-                               std::istreambuf_iterator<char>()};
+    auto file_content_opt = ai::utils::read_file(expanded_path);
+    if (file_content_opt.has_value()) {
+      std::string file_content = std::move(file_content_opt.value());
       contents += expanded_path;
       contents += "\n";
       if (!file_content.empty()) {
@@ -189,10 +186,8 @@ std::string write_file(nlohmann::json const& args) {
   std::string path = args["path"].get<std::string>();
   path = expand_tilde(path);
   std::string content = args["content"].get<std::string>();
-  std::ofstream out(path);
-  if (out.is_open()) {
-    out.write(content.data(), content.size());
-    out.flush();
+  if (!ai::utils::write_file(path, content)) {
+    return "Failed to write to " + path;
   }
   return "Successfully wrote to " + path;
 }
@@ -243,13 +238,11 @@ std::string edit_file(nlohmann::json const& args) {
   std::string diff = args["diff"].get<std::string>();
 
   // --- read original file ---
-  std::ifstream in(path);
-  if (!in.is_open()) {
+  auto file_content_opt = ai::utils::read_file(path);
+  if (!file_content_opt.has_value()) {
     return "Failed to open file: " + path;
   }
-  std::string file_content{std::istreambuf_iterator<char>(in),
-                           std::istreambuf_iterator<char>()};
-  in.close();
+  std::string file_content = std::move(file_content_opt.value());
 
 #define SEARCH_LABLE "<<<<<<< SEARCH"
 #define SEPARATOR_LABLE "======="
@@ -334,10 +327,7 @@ std::string edit_file(nlohmann::json const& args) {
   {
     ai::utils::TempFile temp("",
                              std::filesystem::path(path).filename().string());
-    if (std::ofstream ftemp(temp.path()); ftemp.is_open()) {
-      ftemp.write(file_content.data(), file_content.size());
-      ftemp.flush();
-    }
+    ai::utils::write_file(temp.path(), file_content);
     using namespace subprocess::named_arguments;
     using subprocess::run;
     if (0 == run(std::string("which"), "delta", std_out > devnull,
@@ -349,13 +339,8 @@ std::string edit_file(nlohmann::json const& args) {
   }
 
   // --- persist modified content back to the original file ---
-  {
-    std::ofstream out(path);
-    if (!out.is_open()) {
-      return "Failed to write to file: " + path;
-    }
-    out.write(file_content.data(), file_content.size());
-    out.flush();
+  if (!ai::utils::write_file(path, file_content)) {
+    return "Failed to write to file: " + path;
   }
 
   return "Successfully edited file " + path;
@@ -770,13 +755,11 @@ std::string replace_lines(nlohmann::json const& args) {
   }
 
   // ── read original file ──
-  std::ifstream in(path);
-  if (!in.is_open()) {
+  auto file_content_opt = ai::utils::read_file(path);
+  if (!file_content_opt.has_value()) {
     return "Failed to open file: " + path;
   }
-  std::string file_content{std::istreambuf_iterator<char>(in),
-                           std::istreambuf_iterator<char>()};
-  in.close();
+  std::string file_content = std::move(file_content_opt.value());
 
   // Count total lines
   int total_lines = static_cast<int>(
@@ -832,10 +815,7 @@ std::string replace_lines(nlohmann::json const& args) {
   {
     ai::utils::TempFile temp("",
                              std::filesystem::path(path).filename().string());
-    if (std::ofstream ftemp(temp.path()); ftemp.is_open()) {
-      ftemp.write(new_content.data(), new_content.size());
-      ftemp.flush();
-    }
+    ai::utils::write_file(temp.path(), new_content);
     using namespace subprocess::named_arguments;
     using subprocess::run;
     if (0 == run(std::string("which"), "delta", std_out > devnull,
@@ -847,13 +827,8 @@ std::string replace_lines(nlohmann::json const& args) {
   }
 
   // ── persist modified content back to the original file ──
-  {
-    std::ofstream out(path);
-    if (!out.is_open()) {
-      return "Failed to write to file: " + path;
-    }
-    out.write(new_content.data(), new_content.size());
-    out.flush();
+  if (!ai::utils::write_file(path, new_content)) {
+    return "Failed to write to file: " + path;
   }
 
   return "Successfully replaced lines " + std::to_string(start_line) + "-" +

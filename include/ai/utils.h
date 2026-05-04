@@ -56,6 +56,10 @@ std::string app_data_dir(const std::string& app,
                          const std::string& author = "");
 std::string timestamp(const char* format = "%Y/%m/%d %H:%M:%S %z");
 
+// Fast file I/O: single-shot binary read/write with preallocated buffer.
+std::optional<std::string> read_file(std::string const& path);
+bool write_file(std::string const& path, std::string const& content);
+
 #if defined(_WIN32)
 std::optional<std::string> toUtf8(const std::string& s);
 #endif

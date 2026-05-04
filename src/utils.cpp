@@ -36,13 +36,7 @@ TempFile::~TempFile() {
 }
 std::string const& TempFile::path() const { return path_; }
 std::optional<std::string> TempFile::content() const {
-  if (std::ifstream file(path_); file.is_open()) {
-    std::string file_content{std::istreambuf_iterator<char>(file),
-                             std::istreambuf_iterator<char>()};
-    file.close();
-    return file_content;
-  }
-  return std::nullopt;
+  return read_file(path_);
 }
 
 std::string getTempFilePath(std::string const& prefix,
@@ -511,5 +505,28 @@ std::optional<std::string> toUtf8(const std::string& s) {
   return std::nullopt;
 }
 #endif
+
+std::optional<std::string> read_file(std::string const& path) {
+  std::ifstream file(path, std::ios::binary | std::ios::ate);
+  if (!file.is_open()) {
+    return std::nullopt;
+  }
+  auto const size = file.tellg();
+  file.seekg(0, std::ios::beg);
+  std::string content(static_cast<std::size_t>(size), '\0');
+  if (!file.read(content.data(), size)) {
+    return std::nullopt;
+  }
+  return content;
+}
+
+bool write_file(std::string const& path, std::string const& content) {
+  std::ofstream file(path, std::ios::binary | std::ios::trunc);
+  if (!file.is_open()) {
+    return false;
+  }
+  file.write(content.data(), static_cast<std::streamsize>(content.size()));
+  return file.good();
+}
 
 }  // namespace ai::utils
