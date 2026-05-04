@@ -1,46 +1,11 @@
 #include <gtest/gtest.h>
 
-#include <chrono>
-#include <cstdio>
-#include <filesystem>
-#include <fstream>
 #include <nlohmann/json.hpp>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <subprocess/subprocess.hpp>
 
 using json = nlohmann::json;
-
-// =============================================================================
-// Stubs for symbols that bash/cmd/powershell.cpp depend on
-// =============================================================================
-
-// Include the real logging header for LogMessage class declaration
-#include "ai/logging.h"
-
-// --- logging stubs ---
-namespace ai::logging {
-LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
-    : severity_(severity), message_start_(0), file_(file), line_(line) {}
-LogMessage::~LogMessage() = default;
-bool ShouldCreateLogMessage(LogSeverity) { return false; }
-}  // namespace ai::logging
-
-// --- tool_calls stubs (for static init) ---
-bool regist_tool_calls(std::string const&,
-                       std::function<std::string(json const&)>) {
-  return true;
-}
-bool regist_tool_category(std::string const&, std::string_view (*)(),
-                          void (*)()) {
-  return true;
-}
-
-// --- tool JSON stubs ---
-[[maybe_unused]] constexpr std::string_view bash_tools_json_str = "{}";
-[[maybe_unused]] constexpr std::string_view cmd_tools_json_str = "{}";
-[[maybe_unused]] constexpr std::string_view powershell_tools_json_str = "{}";
 
 // =============================================================================
 // Forward declarations of all testable functions

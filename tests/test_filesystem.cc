@@ -10,83 +10,10 @@
 #include <string_view>
 #include <subprocess/subprocess.hpp>
 
-using json = nlohmann::json;
-
-// =============================================================================
-// Stubs for symbols that filesystem.cpp depends on
-// =============================================================================
-
-// Include the real logging header for LogMessage class declaration
-#include "ai/logging.h"
-
-// --- logging stubs ---
-namespace ai::logging {
-LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
-    : severity_(severity), message_start_(0), file_(file), line_(line) {}
-LogMessage::~LogMessage() = default;
-bool ShouldCreateLogMessage(LogSeverity) { return false; }
-}  // namespace ai::logging
-
-// --- TempFile / getTempFilePath / read_file / write_file stubs ---
+#include "ai/tools/filesystem.h"
 #include "ai/utils.h"
 
-std::string ai::utils::getTempFilePath(std::string const& prefix,
-                                       std::string const& postfix) {
-  auto tmp = std::filesystem::temp_directory_path() /
-             (prefix + "ai_cli_temp_" +
-              std::to_string(
-                  std::chrono::steady_clock::now().time_since_epoch().count()) +
-              postfix);
-  return tmp.string();
-}
-ai::utils::TempFile::TempFile() {}
-ai::utils::TempFile::TempFile(std::string const& prefix,
-                              std::string const& postfix)
-    : path_(ai::utils::getTempFilePath(prefix, postfix)) {}
-ai::utils::TempFile::~TempFile() {
-  std::error_code ec;
-  std::filesystem::remove(path_, ec);
-}
-const std::string& ai::utils::TempFile::path() const { return path_; }
-std::optional<std::string> ai::utils::TempFile::content() const {
-  return ai::utils::read_file(path_);
-}
-std::optional<std::string> ai::utils::read_file(std::string const& path) {
-  std::ifstream in(path, std::ios::binary | std::ios::ate);
-  if (!in.is_open()) {
-    return std::nullopt;
-  }
-  auto const size = in.tellg();
-  in.seekg(0, std::ios::beg);
-  std::string content(static_cast<std::size_t>(size), '\0');
-  if (!in.read(content.data(), size)) {
-    return std::nullopt;
-  }
-  return content;
-}
-bool ai::utils::write_file(std::string const& path,
-                           std::string const& content) {
-  std::ofstream out(path, std::ios::binary | std::ios::trunc);
-  if (!out.is_open()) {
-    return false;
-  }
-  out.write(content.data(), static_cast<std::streamsize>(content.size()));
-  return out.good();
-}
-
-// --- tool_calls stubs (for static init in filesystem.cpp) ---
-bool regist_tool_calls(std::string const&,
-                       std::function<std::string(json const&)>) {
-  return true;
-}
-bool regist_tool_category(std::string const&, std::string_view (*)(),
-                          void (*)()) {
-  return true;
-}
-
-// --- filesystem_tools_json_str ---
-[[maybe_unused]] constexpr std::string_view filesystem_tools_json_str = "{}";
-
+using json = nlohmann::json;
 // =============================================================================
 // Forward declarations of all testable functions from filesystem.cpp
 // =============================================================================
