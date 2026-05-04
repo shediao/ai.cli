@@ -507,34 +507,21 @@ std::optional<std::string> toUtf8(const std::string& s) {
 #endif
 
 std::optional<std::string> read_file(std::string const& path) {
-#if defined(__MINGW64__) || defined(__MING32__)
-  std::ifstream file(path, std::ios::binary);
+  std::ifstream file(path);
   if (!file.is_open()) {
     return std::nullopt;
   }
   return std::string{std::istreambuf_iterator<char>(file),
                      std::istreambuf_iterator<char>()};
-#else
-  std::ifstream file(path, std::ios::binary | std::ios::ate);
-  if (!file.is_open()) {
-    return std::nullopt;
-  }
-  auto const size = file.tellg();
-  file.seekg(0, std::ios::beg);
-  std::string content(static_cast<std::size_t>(size), '\0');
-  if (!file.read(content.data(), size)) {
-    return std::nullopt;
-  }
-  return content;
-#endif
 }
 
 bool write_file(std::string const& path, std::string const& content) {
-  std::ofstream file(path, std::ios::binary | std::ios::trunc);
+  std::ofstream file(path);
   if (!file.is_open()) {
     return false;
   }
   file.write(content.data(), static_cast<std::streamsize>(content.size()));
+  file.flush();
   return file.good();
 }
 
