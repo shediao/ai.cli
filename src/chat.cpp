@@ -28,7 +28,8 @@ int chat() {
 
     nlohmann::json chat_history = nlohmann::json::array();
     auto history_db_path =
-        std::filesystem::path(app_data_dir("ai.cli")) / "chat_history.db";
+        std::filesystem::path(ai::utils::app_data_dir("ai.cli")) /
+        "chat_history.db";
     HistoryDB history_db(history_db_path.string());
     std::string session_id;
 
@@ -46,9 +47,10 @@ int chat() {
     // session that inherits the loaded chat_history via save_messages().
     session_id = history_db.create_session();
 
-    AutoRun scope_exit_runner([&chat_history, &history_db, &session_id]() {
-      history_db.save_messages(session_id, chat_history);
-    });
+    ai::utils::AutoRun scope_exit_runner(
+        [&chat_history, &history_db, &session_id]() {
+          history_db.save_messages(session_id, chat_history);
+        });
 
     try {
       std::string system_prompt = chat_args.system_prompt.has_value()
@@ -65,7 +67,7 @@ int chat() {
 #if defined(_WIN32)
       for (auto& s : user_prompt) {
         if (!utfx::is_utf8(s.data(), s.size())) {
-          auto u8 = toUtf8(s);
+          auto u8 = ai::utils::toUtf8(s);
           if (!u8) {
             LOG(ERROR) << "user prompt not an utf8 string";
             return 1;

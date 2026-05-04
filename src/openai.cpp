@@ -103,7 +103,7 @@ class OpenAIClient::Impl {
         continue;
       }
       if (prompt.starts_with("https://") || prompt.starts_with("http://")) {
-        auto memi = getMEMI(prompt);
+        auto memi = ai::utils::getMEMI(prompt);
         if (memi.starts_with("image/")) {
           files.push_back(prompt);
           continue;
@@ -127,8 +127,9 @@ class OpenAIClient::Impl {
     for (auto const& f : files) {
       if (is_image_url(f)) {
         std::string memi;
-        TempFile img;
-        auto download_sucessful = download_image(f, img.path(), memi);
+        ai::utils::TempFile img;
+        auto download_sucessful =
+            ai::utils::download_image(f, img.path(), memi);
         if (download_sucessful && !memi.empty()) {
           auto base64 = base64_encode(img.path());
           image_urls.push_back("data:" + memi + ";base64," + base64);

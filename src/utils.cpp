@@ -22,6 +22,8 @@
 #include "ai/args.h"
 #include "ai/utils.h"
 
+namespace ai::utils {
+
 TempFile::TempFile(std::string const& prefix, std::string const& postfix)
     : path_{getTempFilePath(prefix, postfix)} {}
 TempFile::TempFile() : TempFile("", "") {}
@@ -490,3 +492,5 @@ std::optional<std::string> toUtf8(const std::string& s) {
   return std::nullopt;
 }
 #endif
+
+}  // namespace ai::utils

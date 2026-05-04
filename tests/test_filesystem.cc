@@ -27,9 +27,12 @@ LogMessage::~LogMessage() = default;
 bool ShouldCreateLogMessage(LogSeverity) { return false; }
 }  // namespace ai::logging
 
-// --- getTempFilePath (used by TempFile) ---
-std::string getTempFilePath(std::string const& prefix,
-                            std::string const& postfix) {
+// --- TempFile / getTempFilePath stubs (used by edit_file / replace_lines) ---
+#include "ai/utils.h"
+
+// --- getTempFilePath (used by ai::utils::TempFile) ---
+std::string ai::utils::getTempFilePath(std::string const& prefix,
+                                       std::string const& postfix) {
   auto tmp = std::filesystem::temp_directory_path() /
              (prefix + "ai_cli_temp_" +
               std::to_string(
@@ -51,18 +54,16 @@ bool regist_tool_category(std::string const&, std::string_view (*)(),
 // --- filesystem_tools_json_str ---
 [[maybe_unused]] constexpr std::string_view filesystem_tools_json_str = "{}";
 
-// --- TempFile stub (used by edit_file / replace_lines) ---
-#include "ai/utils.h"
-
-TempFile::TempFile() {}
-TempFile::TempFile(std::string const& prefix, std::string const& postfix)
-    : path_(getTempFilePath(prefix, postfix)) {}
-TempFile::~TempFile() {
+ai::utils::TempFile::TempFile() {}
+ai::utils::TempFile::TempFile(std::string const& prefix,
+                              std::string const& postfix)
+    : path_(ai::utils::getTempFilePath(prefix, postfix)) {}
+ai::utils::TempFile::~TempFile() {
   std::error_code ec;
   std::filesystem::remove(path_, ec);
 }
-const std::string& TempFile::path() const { return path_; }
-std::optional<std::string> TempFile::content() const {
+const std::string& ai::utils::TempFile::path() const { return path_; }
+std::optional<std::string> ai::utils::TempFile::content() const {
   std::ifstream in(path_);
   if (!in.is_open()) {
     return std::nullopt;
@@ -423,7 +424,6 @@ TEST(EditFileTest, MissingSplitLabel) {
   EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
 }
 
-
 TEST(EditFileTest, DiffNotStartWithSearchLabel) {
   TempTestFile f("content");
   // diff is just random text, does not start with "<<<<<<< SEARCH\n"
@@ -465,8 +465,7 @@ TEST(EditFileTest, MismatchedLabelCounts) {
 TEST(EditFileTest, LabelsOutOfOrder) {
   TempTestFile f("foo\nbar\n");
   // REPLACE label appears before SEPARATOR label in the block
-  std::string diff =
-      "<<<<<<< SEARCH\nfoo\n>>>>>>> REPLACE\n=======\nbar\n";
+  std::string diff = "<<<<<<< SEARCH\nfoo\n>>>>>>> REPLACE\n=======\nbar\n";
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = edit_file(args);
   EXPECT_TRUE(result.find("labels are out of order") != std::string::npos);
@@ -475,8 +474,7 @@ TEST(EditFileTest, LabelsOutOfOrder) {
 TEST(EditFileTest, EmptyReplaceBlock) {
   TempTestFile f("hello world\nfoo bar\nbaz qux\n");
   // adjacent "=======" and ">>>>>>> REPLACE" means delete the SEARCH content
-  std::string diff =
-      "<<<<<<< SEARCH\nfoo bar\n=======\n>>>>>>> REPLACE\n";
+  std::string diff = "<<<<<<< SEARCH\nfoo bar\n=======\n>>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = edit_file(args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);

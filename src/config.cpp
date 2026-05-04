@@ -19,7 +19,7 @@ const ProviderConfig* AppConfig::find_provider(const std::string& alias) const {
 }
 
 std::string config_file_path() {
-  auto dir = app_data_dir("ai.cli");
+  auto dir = ai::utils::app_data_dir("ai.cli");
   return dir + "/config.json";
 }
 

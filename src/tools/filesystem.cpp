@@ -332,7 +332,8 @@ std::string edit_file(nlohmann::json const& args) {
 
   // --- show diff between original file and modified content ---
   {
-    TempFile temp("", std::filesystem::path(path).filename().string());
+    ai::utils::TempFile temp("",
+                             std::filesystem::path(path).filename().string());
     if (std::ofstream ftemp(temp.path()); ftemp.is_open()) {
       ftemp.write(file_content.data(), file_content.size());
       ftemp.flush();
@@ -829,7 +830,8 @@ std::string replace_lines(nlohmann::json const& args) {
 
   // ── show diff between original file and modified content ──
   {
-    TempFile temp("", std::filesystem::path(path).filename().string());
+    ai::utils::TempFile temp("",
+                             std::filesystem::path(path).filename().string());
     if (std::ofstream ftemp(temp.path()); ftemp.is_open()) {
       ftemp.write(new_content.data(), new_content.size());
       ftemp.flush();

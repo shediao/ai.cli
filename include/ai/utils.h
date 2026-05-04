@@ -4,6 +4,8 @@
 #include <optional>
 #include <string>
 
+namespace ai::utils {
+
 template <typename...>
 using void_t = void;
 
@@ -56,3 +58,5 @@ std::string app_data_dir(const std::string& app,
 #if defined(_WIN32)
 std::optional<std::string> toUtf8(const std::string& s);
 #endif
+
+}  // namespace ai::utils
