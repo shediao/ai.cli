@@ -52,7 +52,8 @@ file(GLOB test_files "*.cc")
 # the MSVC cl.exe command line to be truncated, leading to compilation failure.
 if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   list(REMOVE_ITEM test_files
-       "${CMAKE_CURRENT_SOURCE_DIR}/test_stream_response.cc")
+       "${CMAKE_CURRENT_SOURCE_DIR}/test_stream_response.cc"
+       "${CMAKE_CURRENT_SOURCE_DIR}/test_tool_calls_stream_response.cc")
 endif()
 
 foreach(test_file ${test_files})
