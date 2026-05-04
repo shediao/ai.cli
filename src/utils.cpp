@@ -93,6 +93,35 @@ std::string getTempFilePath(std::string const& prefix,
   return temp_file_path;
 }
 
+std::string getUserInputFromTerminal(std::string const& prompt) {
+  if (!prompt.empty()) {
+    std::cerr << prompt;
+  }
+#ifdef _WIN32
+  FILE* tty = fopen("CONIN$", "r");
+#else
+  FILE* tty = fopen("/dev/tty", "r");
+#endif
+  if (!tty) {
+    // Last-resort fallback: read from stdin (may be a pipe)
+    std::string line;
+    std::getline(std::cin, line);
+    return line;
+  }
+
+  char buffer[4096]{};
+  std::string line;
+  if (fgets(buffer, sizeof(buffer), tty)) {
+    line = buffer;
+    // Strip trailing newline(s)
+    while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
+      line.pop_back();
+    }
+  }
+  fclose(tty);
+  return line;
+}
+
 std::string getUserInputViaEditor() {
   // 1. Determine the editor to use
   std::string editor;

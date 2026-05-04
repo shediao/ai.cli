@@ -7,6 +7,7 @@
 
 #include "ai/logging.h"
 #include "ai/tool_calls.h"
+#include "ai/utils.h"
 #include "bash_tools_json.h"
 
 std::string bash(nlohmann::json const& args) {
@@ -28,11 +29,9 @@ std::string bash(nlohmann::json const& args) {
   if (args.contains("requires_confirmation") &&
       args["requires_confirmation"].is_boolean() &&
       args["requires_confirmation"].get<bool>()) {
-    std::cerr << "\n⚠️  Bash command requires confirmation:\n"
-              << "   " << command << "\n"
-              << "   Execute? (y/n): ";
-    std::string answer;
-    std::getline(std::cin, answer);
+    std::string answer = ai::utils::getUserInputFromTerminal(
+        "\n⚠️  Bash command requires confirmation:\n   " +
+        command + "\n   Execute? (y/n): ");
     if (answer != "y" && answer != "Y" && answer != "yes" && answer != "Yes") {
       return "Command cancelled by user: " + command;
     }

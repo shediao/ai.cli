@@ -47,6 +47,11 @@ class TempFile {
 
 std::string getTempFilePath(std::string const& prefix,
                             std::string const& postfix);
+/// Read a line from the controlling terminal even when stdin is a pipe.
+/// On Unix this opens /dev/tty; on Windows it opens CONIN$.
+/// If prompt is non-empty, it is printed to stderr before reading.
+/// Returns the user's input line (without trailing newline).
+std::string getUserInputFromTerminal(std::string const& prompt = "");
 std::string getUserInputViaEditor();
 bool download_image(std::string const& image_url, std::string const& image_path,
                     std::string& memi_type);
