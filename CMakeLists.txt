@@ -29,6 +29,11 @@ if(NOT MSYS)
   set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
 
+# ── Symbol visibility ──────────────────────────────────────────────────────
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
 # ── Compiler warnings ──────────────────────────────────────────────────────
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /utf-8 /EHsc")
