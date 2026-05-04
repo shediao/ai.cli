@@ -135,17 +135,7 @@ int chat() {
             try {
               auto function = tool_call.function.name;
               auto arguments = json::parse(tool_call.function.arguments);
-              auto now = std::chrono::system_clock::now();
-              auto time_t_now = std::chrono::system_clock::to_time_t(now);
-#if defined(_WIN32)
-              struct tm tm;
-              localtime_s(&tm, &time_t_now);
-#else
-              auto tm = *std::localtime(&time_t_now);
-#endif
-              char buf[64];
-              std::strftime(buf, sizeof(buf), "[%Y/%m/%d %H:%M:%S]", &tm);
-              std::cout << "\n\033[32;1m ● " << buf << " `"
+              std::cout << "\n\033[32;1m ● [" << ai::utils::timestamp() << "] `"
                         << function + "(" + arguments.dump() + ")"
                         << "`\033[0m\n";
               auto ret = call_tool(function, arguments);

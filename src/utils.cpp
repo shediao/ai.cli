@@ -1,7 +1,9 @@
 #include <curl/curl.h>
 
+#include <chrono>
 #include <cstdio>   // For std::remove
 #include <cstdlib>  // For system()
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -416,6 +418,20 @@ std::string getMEMI(std::string const& url) {
   curl_easy_cleanup(curl);
 
   return content_type;
+}
+
+std::string timestamp(const char* format) {
+  auto now = std::chrono::system_clock::now();
+  auto time_t_now = std::chrono::system_clock::to_time_t(now);
+#if defined(_WIN32)
+  struct tm tm;
+  localtime_s(&tm, &time_t_now);
+#else
+  auto tm = *std::localtime(&time_t_now);
+#endif
+  char buf[128];
+  std::strftime(buf, std::size(buf), format, &tm);
+  return std::string(buf);
 }
 
 std::string app_data_dir(const std::string& app,

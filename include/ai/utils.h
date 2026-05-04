@@ -54,6 +54,7 @@ std::string getMEMI(std::string const& url);
 
 std::string app_data_dir(const std::string& app,
                          const std::string& author = "");
+std::string timestamp(const char* format = "%Y/%m/%d %H:%M:%S %z");
 
 #if defined(_WIN32)
 std::optional<std::string> toUtf8(const std::string& s);
