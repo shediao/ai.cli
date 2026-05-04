@@ -2,19 +2,16 @@
 #include <environment/environment.hpp>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <nlohmann/json.hpp>
 #include <optional>
-#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <subprocess/subprocess.hpp>
 
 #include "./glob.hpp"
-#include "ai/args.h"
 #include "ai/logging.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
@@ -326,8 +323,8 @@ std::string edit_file(nlohmann::json const& args) {
     if (search_it != std::string::npos) {
       file_content.replace(search_it, search.size(), replace);
     } else {
-      return "Failed to edit file " + path +
-             ": SEARCH block " + std::to_string(i + 1) +
+      return "Failed to edit file " + path + ": SEARCH block " +
+             std::to_string(i + 1) +
              " was not found in the file. The content to replace may "
              "have already been modified or does not exactly match.";
     }
