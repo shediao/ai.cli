@@ -160,7 +160,7 @@ TEST(ToolCallsStreamResponse, Test1) {
   ASSERT_FALSE(non_stream_response.choices().back().message.tool_calls.empty());
   ASSERT_EQ(
       non_stream_response.choices().back().message.tool_calls_json().dump(),
-      R"==([{"function":{"arguments":"{\"path\":\"./test.txt\"}","name":"read_file"},"id":"call_0_00213ae3-c4bc-4497-8f41-52bf4f76c3b9","type":"function"}])==");
+      R"([{"function":{"arguments":"{\"path\":\"./test.txt\"}","name":"read_file"},"id":"call_0_00213ae3-c4bc-4497-8f41-52bf4f76c3b9","type":"function"}])");
 }
 
 TEST(ToolCallsStreamResponse, Test2) {
@@ -178,25 +178,25 @@ TEST(ToolCallsStreamResponse, Test2) {
   ASSERT_EQ(non_stream_response.usage().completion_tokens, 50);
   ASSERT_EQ(non_stream_response.usage().total_tokens, 1798);
   std::string_view content =
-      R"==(文件 `./test.txt` 中的数学计算是 `1024*1024=`。
+      R"(文件 `./test.txt` 中的数学计算是 `1024*1024=`。
 
 计算结果是：
 
 \[ 1024 \times 1024 = 1,048,576 \]
 
-所以答案是 **1,048,576**。)==";
+所以答案是 **1,048,576**。)";
   ASSERT_EQ(non_stream_response.choices().back().message.content, content);
 }
 
 TEST(ToolCallsStreamResponse, Test3) {
-  std::string_view h1 = R"==([
+  std::string_view h1 = R"([
   {
     "content": "读取文件 ./test.txt 中的内容，其内容为一个数学计算, 请给出这个计算的答案",
     "role": "user"
   }
-])==";
+])";
 
-  std::string_view h2 = R"==([
+  std::string_view h2 = R"([
   {
     "content": "读取文件 ./test.txt 中的内容，其内容为一个数学计算, 请给出这个计算的答案",
     "role": "user"
@@ -215,8 +215,8 @@ TEST(ToolCallsStreamResponse, Test3) {
       }
     ]
   }
-])==";
-  std::string_view h3 = R"==([
+])";
+  std::string_view h3 = R"([
   {
     "content": "读取文件 ./test.txt 中的内容，其内容为一个数学计算, 请给出这个计算的答案",
     "role": "user"
@@ -245,7 +245,7 @@ TEST(ToolCallsStreamResponse, Test3) {
     "content": "文件 `./test.txt` 中的数学计算是 `1024*1024=`。\n\n计算结果是：\n\n\\[ 1024 \\times 1024 = 1,048,576 \\]\n\n所以答案是 **1,048,576**。",
     "role": "assistant"
   }
-])==";
+])";
 
   auto history = json::parse(h1);
   std::stringstream ss1;
@@ -257,14 +257,14 @@ TEST(ToolCallsStreamResponse, Test3) {
 
   ASSERT_EQ(h2, history.dump(2));
 
-  history.push_back(json::parse(R"=(
+  history.push_back(json::parse(R"(
   {
     "content": "1024*1024=\n",
     "name": "read_file",
     "role": "tool",
     "tool_call_id": "call_0_00213ae3-c4bc-4497-8f41-52bf4f76c3b9"
   }
-  )="));
+  )"));
 
   std::stringstream ss2;
   ai::openai::StreamResponse stream_response2(ss2);
