@@ -98,18 +98,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure CMake
-        run: >
-          cmake -B build
-          -DCMAKE_BUILD_TYPE=Release
-          -DAICLI_BUILD_TESTS=OFF
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: cmake --build build --config Release
 
       - name: Test
-        working-directory: build
-        run: |
-          .\Release\ai.exe --help
+        shell: bash
+        run: ctest --test-dir build --build-config Release
 
   # ─────────────────────────────────────────────────────────────────────────
   # FreeBSD build

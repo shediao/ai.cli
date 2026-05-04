@@ -47,6 +47,14 @@ endfunction()
 
 file(GLOB test_files "*.cc")
 
+# Exclude test_stream_response.cc on Windows MSVC (non-clang) builds:
+# tests/stream_response_data.h defines a very long string literal that causes
+# the MSVC cl.exe command line to be truncated, leading to compilation failure.
+if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  list(REMOVE_ITEM test_files
+       "${CMAKE_CURRENT_SOURCE_DIR}/test_stream_response.cc")
+endif()
+
 foreach(test_file ${test_files})
   get_filename_component(test_name ${test_file} NAME_WE)
   add_ai_cli_test(${test_name} ${test_file})

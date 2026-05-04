@@ -53,8 +53,7 @@ if(AICLI_ENABLE_ASAN
 endif()
 
 # ── Testing ────────────────────────────────────────────────────────────────
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME
-   AND (NOT MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
   option(AICLI_BUILD_TESTS "Build unit tests" ON)
 else()
   option(AICLI_BUILD_TESTS "Build unit tests" OFF)
