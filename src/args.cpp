@@ -4,7 +4,6 @@
 #include <argparse/argparse.hpp>
 #include <cstdlib>
 #include <environment/environment.hpp>
-#include <fstream>
 
 #if defined(_WIN32) || defined(_Win64)
 #include <io.h>
@@ -336,6 +335,11 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         if (auto shell = env::get("SHELL");
             shell.has_value() && (shell.value().ends_with("bash") ||
                                   shell.value().ends_with("bash.exe"))) {
+          chat_args.tools.insert("bash");
+        } else if (auto paths = env::path();
+                   std::any_of(paths.begin(), paths.end(), [](auto const& p) {
+                     return exists(std::filesystem::path(p) / "bash.exe");
+                   })) {
           chat_args.tools.insert("bash");
         }
         chat_args.tools.insert("cmd");

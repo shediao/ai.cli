@@ -42,7 +42,7 @@ std::string bash(nlohmann::json const& args) {
     if (shell.ends_with("bash") || shell.ends_with("bash.exe")) {
       bash_cmd = shell;
     }
-
+  } else {
     for (auto const& path : env::path()) {
       if (auto p = std::filesystem::path(path) / "bash.exe"; exists(p)) {
         bash_cmd = p.string();
