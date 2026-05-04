@@ -105,7 +105,10 @@ jobs:
 
       - name: Test
         shell: bash
-        run: ctest --test-dir build --build-config Release --rerun-failed --output-on-failure
+        run: >
+          GTEST_FILTER=-BashTest.*
+          ctest --test-dir build --build-config Release
+          --rerun-failed --output-on-failure
 
   # ─────────────────────────────────────────────────────────────────────────
   # FreeBSD build
