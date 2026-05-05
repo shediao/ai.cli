@@ -20,7 +20,7 @@ FetchContent_MakeAvailable(googletest)
 
 # ── Helper function to add a test executable ───────────────────────────────
 function(add_ai_cli_test test_name test_files)
-  add_executable(${test_name} ${test_files})
+  add_executable(${test_name} ${test_files}  $<TARGET_OBJECTS:ai_core>)
   target_include_directories(
     ${test_name}
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include
