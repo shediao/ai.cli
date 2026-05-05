@@ -56,8 +56,8 @@ int main(int argc, char* argv[])
       return 0;
     }
 
-    for (auto const& s : sessions) {
-      s.print();
+    for (auto it = sessions.rbegin(); it != sessions.rend(); it++) {
+      it->print();
     }
     return 0;
   } else {

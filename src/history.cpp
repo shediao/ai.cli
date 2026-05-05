@@ -337,13 +337,15 @@ void HistoryDB::SessionInfo::print() const {
     if (!msg.is_array()) {
       return;
     }
+    std::cout << "\n================  <" << created_at << ">-<" << updated_at
+              << ">\n";
     for (auto it = msg.begin(); it != msg.end(); it++) {
       auto const& m = *it;
       if (!m.is_object()) {
         continue;
       }
       if (m.contains("role")) {
-        std::cout << "\n================\n"
+        std::cout << "\n"
                   << std::distance(msg.begin(), it) + 1 << ". <"
                   << m["role"].get<std::string>() << ">\n";
       }

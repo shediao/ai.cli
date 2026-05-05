@@ -4,6 +4,7 @@
 #include <argparse/argparse.hpp>
 #include <cstdlib>
 #include <environment/environment.hpp>
+#include <limits>
 
 #if defined(_WIN32) || defined(_Win64)
 #include <io.h>
@@ -415,8 +416,8 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
   history
       .add_option("n", "Number of recent sessions to list (0 or omit for all)",
                   history_args.n)
-      .default_value("0");
-
+      .range(-1, std::numeric_limits<int>::max())
+      .default_value("1");
   history.callback([&args]() -> void {
     // nothing to resolve for history command
   });

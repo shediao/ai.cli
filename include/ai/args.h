@@ -36,7 +36,7 @@ struct AiArgs {
 
   struct HistoryArgs {
     /// Number of recent sessions to list; 0 means all.
-    int n{0};
+    int n{1};
   };
 
   bool help{false};
