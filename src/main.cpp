@@ -8,9 +8,6 @@
 #include "ai/chat.h"
 #include "ai/history.h"
 #include "ai/models.h"
-#include "ai/tools/bash.h"
-#include "ai/tools/default.h"
-#include "ai/tools/filesystem.h"
 #include "ai/utils.h"
 #include "curl/curl.h"
 
@@ -37,9 +34,6 @@ int main(int argc, char* argv[])
   auto& cmd = args.parse(argc, argv);
 
   if (cmd.command() == "chat") {
-    regist_filesystem_tools();
-    regist_bash_tools();
-    regist_default_tools();
     return chat();
   } else if (cmd.command() == "models") {
     return models();
