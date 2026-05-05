@@ -107,9 +107,11 @@ file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/default.json
      DEFAULT_TOOLS_JSON_DATA)
 configure_file(src/tools/default_tools_json.h.in default_tools_json.h)
 
-# ── Static library (all sources except main) ───────────────────────────────
+# ── Object library (all sources except main) ───────────────────────────────
+# Use OBJECT library instead of STATIC to ensure all static initializers
+# (e.g. regist_tool_category) are linked into the final executable.
 add_library(
-  ai_core STATIC
+  ai_core OBJECT
   src/chat.cpp
   src/system_prompt.cpp
   src/args.cpp
@@ -162,7 +164,7 @@ target_link_libraries(
          SQLite3::SQLite3)
 
 # ── Executable ─────────────────────────────────────────────────────────────
-add_executable(ai src/main.cpp)
+add_executable(ai src/main.cpp $<TARGET_OBJECTS:ai_core>)
 
 set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 

@@ -1,10 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <map>
 #include <set>
 #include <string>
 #include <string_view>
+#include <tuple>
 
 #include "nlohmann/json.hpp"
 
@@ -27,6 +27,3 @@ std::set<std::string> get_tool_categories();
 
 /// Return the JSON-schema string for a given tool category.
 std::string_view get_tool_schema(std::string const& category);
-
-/// Execute the registration function for every tool in a category.
-void register_tool_category_funcs(std::string const& category);

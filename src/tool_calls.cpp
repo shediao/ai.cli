@@ -1,11 +1,17 @@
 #include "ai/tool_calls.h"
 
+#include <iostream>
+
 // ── individual tool (function-level) registry ────────────────────────
-auto& get_all_tools() {
+static auto& get_all_tools() {
   static std::map<std::string,
                   std::function<std::string(nlohmann::json const& args)>>
       tools;
   return tools;
+}
+static auto& get_tool_schemas() {
+  static std::map<std::string, ToolSchemaGetter> schema;
+  return schema;
 }
 
 std::string call_tool(std::string const& name, nlohmann::json const& args) {
@@ -24,40 +30,27 @@ bool regist_tool_calls(
 }
 
 // ── tool category registry (automated discovery) ─────────────────────
-auto& get_tool_category_registry() {
-  static std::map<std::string, std::pair<ToolSchemaGetter, ToolRegisterFunc>>
-      registry;
-  return registry;
-}
+std::set<std::string> get_tool_categories() {
+  std::set<std::string> categories;
 
+  for (auto const& [category, _] : get_tool_schemas()) {
+    categories.insert(category);
+  }
+
+  return categories;
+}
 bool regist_tool_category(std::string const& name,
                           ToolSchemaGetter schema_getter,
                           ToolRegisterFunc register_func) {
-  get_tool_category_registry()[name] = {schema_getter, register_func};
+  get_tool_schemas()[name] = schema_getter;
+  register_func();
   return true;
 }
 
-std::set<std::string> get_tool_categories() {
-  std::set<std::string> categories;
-  for (auto const& [name, _] : get_tool_category_registry()) {
-    categories.insert(name);
-  }
-  return categories;
-}
-
 std::string_view get_tool_schema(std::string const& category) {
-  auto& registry = get_tool_category_registry();
-  auto it = registry.find(category);
-  if (it != registry.end()) {
-    return it->second.first();
+  if (auto it = get_tool_schemas().find(category);
+      it != get_tool_schemas().end()) {
+    return it->second();
   }
   return {};
-}
-
-void register_tool_category_funcs(std::string const& category) {
-  auto& registry = get_tool_category_registry();
-  auto it = registry.find(category);
-  if (it != registry.end()) {
-    it->second.second();
-  }
 }

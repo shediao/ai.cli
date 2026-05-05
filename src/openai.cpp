@@ -232,8 +232,6 @@ class OpenAIClient::Impl {
         for (auto& tool : category_tools) {
           tools.push_back(tool);
         }
-        // Ensure the tool's execution functions are registered
-        register_tool_category_funcs(tool_name);
       }
 
       if (tools.size() > 0) {
