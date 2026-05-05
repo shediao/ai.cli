@@ -141,9 +141,12 @@ ai models --openai
 ai models --gemini
 ```
 
-### Disable / Configure Tools
+### List / Disable / Configure Tools
 
 ```bash
+# List all available tool categories and their functions
+ai chat --list-tools
+
 # Disable all tools
 ai chat --no-tools "Hello"
 
@@ -330,6 +333,7 @@ Options:
      --max-tokens <N>            Maximum tokens to generate
      --reasoning-effort <arg>    Reasoning depth [low, medium, high, none]
      --no-tools                  Disable all tool calling capabilities
+     --list-tools                List all available tool categories and their functions
      --tools <arg>               Tool categories to enable [bash, filesystem, git, default]
                                  (default: bash, filesystem)
      --tool-choice <arg>         Tool selection strategy [none, auto, required]

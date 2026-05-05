@@ -27,6 +27,7 @@ struct AiArgs {
     std::optional<std::string> tool_choice;
     bool continue_with_last_history{false};
     bool no_tools{false};
+    bool list_tools{false};
   };
 
   struct ModelsArgs {

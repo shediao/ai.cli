@@ -287,6 +287,9 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
 
   chat.add_flag("no-tools", "Disable all tool calling capabilities",
                 chat_args.no_tools);
+  chat.add_flag("list-tools",
+                "List all available tool categories and their functions",
+                chat_args.list_tools);
   chat.add_option(
           "tools",
           "Tool categories to enable for the AI (e.g., bash, filesystem)",
@@ -348,6 +351,25 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         chat_args.tools.insert("bash");
 #endif
       }
+    }
+
+    if (chat_args.list_tools) {
+      for (auto const& category : get_tool_categories()) {
+        auto schema_str = get_tool_schema(category);
+        if (schema_str.empty()) continue;
+        try {
+          auto schema = nlohmann::json::parse(schema_str);
+          std::cout << "\033[1m[" << category << "]\033[0m\n";
+          for (auto const& tool : schema) {
+            std::cout << "  \033[36;1m" << tool.value("name", "???")
+                      << "\033[0m: " << tool.value("description", "") << "\n";
+          }
+          std::cout << "\n";
+        } catch (...) {
+          std::cout << "\033[1m[" << category << "]\033[0m (parse error)\n\n";
+        }
+      }
+      std::exit(0);
     }
 
     // read from stdin
