@@ -139,7 +139,7 @@ target_compile_definitions(ai_core PUBLIC GIT_VERSION="${GIT_VERSION}")
 
 # ── Platform-specific settings ─────────────────────────────────────────────
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  target_compile_definitions(ai_core PUBLIC UNICODE _UNICODE)
+  target_compile_definitions(ai_core PUBLIC UNICODE _UNICODE NOMINMAX)
 endif()
 
 if(MINGW)
