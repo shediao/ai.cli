@@ -31,24 +31,33 @@ int chat() {
         std::filesystem::path(ai::utils::app_data_dir("ai.cli")) /
         "chat_history.db";
     HistoryDB history_db(history_db_path.string());
-    std::string session_id;
 
+    std::optional<HistoryDB::SessionInfo> last_session{std::nullopt};
     if (chat_args.continue_with_last_history) {
-      auto last_history = history_db.get_last_messages();
-      if (last_history.has_value()) {
-        chat_history = std::move(last_history.value());
-        LOG(INFO) << "Continuing from last messages (" << chat_history.size()
-                  << " messages)";
+      auto last_sessions = history_db.list_session_infos(1);
+      if (!last_sessions.empty()) {
+        last_session = std::move(last_sessions[0]);
+        try {
+          chat_history = nlohmann::json::parse(last_session.value().messages);
+          LOG(INFO) << "Continuing from last messages (" << chat_history.size()
+                    << " messages)";
+        } catch (nlohmann::json::parse_error const& e) {
+          LOG(ERROR) << "Failed to parse last messages, starting fresh: "
+                     << e.what();
+          last_session.reset();
+          chat_history = nlohmann::json::array();
+        }
       }
     }
 
-    // Always create a session so we have a session_id for saving.
-    // If we loaded previous messages, create_session() starts a new
-    // session that inherits the loaded chat_history via save_messages().
-    session_id = history_db.create_session();
-
     ai::utils::AutoRun scope_exit_runner(
-        [&chat_history, &history_db, &session_id]() {
+        [&chat_history, &history_db, &last_session]() {
+          std::string session_id;
+          if (last_session.has_value()) {
+            session_id = last_session.value().session_id;
+          } else {
+            session_id = history_db.create_session();
+          }
           history_db.save_messages(session_id, chat_history);
         });
 

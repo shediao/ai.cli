@@ -407,6 +407,21 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
   });
 }
 
+static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
+  auto& history =
+      parser.add_command("history", "List recent chat session history");
+  auto& history_args = args.history_args;
+
+  history
+      .add_option("n", "Number of recent sessions to list (0 or omit for all)",
+                  history_args.n)
+      .default_value("0");
+
+  history.callback([&args]() -> void {
+    // nothing to resolve for history command
+  });
+}
+
 }  // namespace
 
 AiArgs& AiArgs::instance() {
@@ -512,6 +527,7 @@ AiArgs::AiArgs()
       .hidden();
   bind_chat_args(parser, *this);
   bind_model_args(parser, *this);
+  bind_history_args(parser, *this);
 
   parser.usage_footer("\nConfig file:\n  " + config_file_path() + "\n");
 }

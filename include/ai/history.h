@@ -19,8 +19,8 @@ namespace ai {
 /// Usage:
 ///   HistoryDB db("/path/to/chat_history.db");
 ///   std::string session_id = db.create_session();        // new session
-///   auto msgs = db.get_last_messages();              // resume last one
 ///   db.save_messages(session_id, messages);          // persist
+///   auto last = db.list_session_infos(1);            // get last session
 class HistoryDB {
  public:
   /// Open (or create) the database at @p db_path.
@@ -36,10 +36,6 @@ class HistoryDB {
   /// Create a new session.
   /// @return A unique session_id string.
   std::string create_session();
-
-  /// Retrieve the most recently updated messages.
-  /// @return The messages JSON array, or std::nullopt if the database is empty.
-  std::optional<nlohmann::json> get_last_messages();
 
   /// Retrieve specific messages by session_id.
   /// @return The messages JSON array, or std::nullopt if not found.
@@ -58,10 +54,13 @@ class HistoryDB {
     std::string session_id;
     std::string created_at;
     std::string updated_at;
+    std::string messages;
+    void print() const;
   };
 
-  /// List all sessions with metadata, ordered by most recent first.
-  std::vector<SessionInfo> list_session_infos();
+  /// List sessions with metadata, ordered by most recent first.
+  /// @param N Maximum number of sessions to return. -1 (default) returns all.
+  std::vector<SessionInfo> list_session_infos(int N = -1);
 
  private:
   void init_db();

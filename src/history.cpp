@@ -5,6 +5,8 @@
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <iostream>
+#include <iterator>
 #include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
@@ -167,41 +169,6 @@ std::string HistoryDB::create_session() {
   return session_id;
 }
 
-std::optional<nlohmann::json> HistoryDB::get_last_messages() {
-  if (!db_) {
-    return std::nullopt;
-  }
-
-  const char* select_sql =
-      "SELECT messages FROM conversations "
-      "ORDER BY updated_at DESC LIMIT 1;";
-  sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, select_sql, -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
-    return std::nullopt;
-  }
-
-  std::optional<nlohmann::json> result;
-  rc = sqlite3_step(stmt);
-  if (rc == SQLITE_ROW) {
-    auto const* text =
-        reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    int text_len = sqlite3_column_bytes(stmt, 0);
-    if (text && text_len > 0) {
-      try {
-        result = nlohmann::json::parse(std::string_view(text, text_len));
-        LOG(INFO) << "Loaded last messages (" << result->size() << " messages)";
-      } catch (nlohmann::json::parse_error const& e) {
-        LOG(ERROR) << "Failed to parse messages JSON: " << e.what();
-      }
-    }
-  }
-
-  sqlite3_finalize(stmt);
-  return result;
-}
-
 std::optional<nlohmann::json> HistoryDB::get_messages(
     std::string const& session_id) {
   if (!db_) {
@@ -314,20 +281,29 @@ std::vector<std::string> HistoryDB::list_sessions() {
   return sessions;
 }
 
-std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos() {
+std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
   std::vector<SessionInfo> infos;
   if (!db_) {
     return infos;
   }
 
-  const char* select_sql =
-      "SELECT session_id, created_at, updated_at FROM conversations "
-      "ORDER BY updated_at DESC;";
+  std::string sql =
+      "SELECT session_id, created_at, updated_at, messages FROM conversations "
+      "ORDER BY updated_at DESC";
+  if (N > 0) {
+    sql += " LIMIT ?1";
+  }
+  sql += ";";
+
   sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, select_sql, -1, &stmt, nullptr);
+  int rc = sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
     return infos;
+  }
+
+  if (N > 0) {
+    sqlite3_bind_int(stmt, 1, N);
   }
 
   while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -344,11 +320,55 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos() {
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))) {
       info.updated_at = t;
     }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
+      info.messages = t;
+    }
     infos.push_back(std::move(info));
   }
 
   sqlite3_finalize(stmt);
   return infos;
+}
+
+void HistoryDB::SessionInfo::print() const {
+  try {
+    auto msg = nlohmann::json::parse(messages);
+    if (!msg.is_array()) {
+      return;
+    }
+    for (auto it = msg.begin(); it != msg.end(); it++) {
+      auto const& m = *it;
+      if (!m.is_object()) {
+        continue;
+      }
+      if (m.contains("role")) {
+        std::cout << "\n================\n"
+                  << std::distance(msg.begin(), it) + 1 << ". <"
+                  << m["role"].get<std::string>() << ">\n";
+      }
+      if (m.contains("reasoning_content")) {
+        std::cout << "\n\n<thinking>\n"
+                  << m["reasoning_content"].get<std::string>()
+                  << "\n</thinking>\n\n";
+      }
+      if (m.contains("content")) {
+        std::cout << m["content"].get<std::string>() << "\n\n";
+      }
+      if (m.contains("tool_calls") && m["tool_calls"].is_array()) {
+        for (auto const& f : m["tool_calls"]) {
+          if (f.contains("function") && f["function"].is_object() &&
+              f["function"].contains("name") &&
+              f["function"].contains("arguments")) {
+            std::cout << "[" << f["function"]["name"].get<std::string>() << "] "
+                      << f["function"]["arguments"].get<std::string>()
+                      << "\n\n";
+          }
+        }
+      }
+    }
+  } catch (...) {
+  }
 }
 
 }  // namespace ai

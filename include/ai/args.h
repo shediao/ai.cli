@@ -34,6 +34,11 @@ struct AiArgs {
     std::string api_url;
   };
 
+  struct HistoryArgs {
+    /// Number of recent sessions to list; 0 means all.
+    int n{0};
+  };
+
   bool help{false};
   bool version{false};
 #if defined(NDEBUG)
@@ -46,6 +51,7 @@ struct AiArgs {
   std::string api_key;
   ChatArgs chat_args;
   ModelsArgs models_args;
+  HistoryArgs history_args;
   bool print_bash_completion{false};
   bool print_zsh_completion{false};
   bool print_fish_completion{false};
