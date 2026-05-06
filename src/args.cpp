@@ -423,6 +423,18 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
   });
 }
 
+static void bind_update_args(argparse::ArgParser& parser, AiArgs& args) {
+  auto& update = parser.add_command(
+      "update",
+      "Check for a newer version on GitHub and self-update if available");
+  auto& update_args = args.update_args;
+
+  update.add_flag("f,force",
+                  "Force update even if the current version is already the "
+                  "latest",
+                  update_args.force);
+}
+
 }  // namespace
 
 AiArgs& AiArgs::instance() {
@@ -529,6 +541,7 @@ AiArgs::AiArgs()
   bind_chat_args(parser, *this);
   bind_model_args(parser, *this);
   bind_history_args(parser, *this);
+  bind_update_args(parser, *this);
 
   parser.usage_footer("\nConfig file:\n  " + config_file_path() + "\n");
 }

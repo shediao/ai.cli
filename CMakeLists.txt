@@ -128,7 +128,8 @@ add_library(
   src/tool_calls.cpp
   src/utils.cpp
   src/base64.cpp
-  src/history.cpp)
+  src/history.cpp
+  src/update.cpp)
 
 # ── Include directories ────────────────────────────────────────────────────
 target_include_directories(

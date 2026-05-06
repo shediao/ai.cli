@@ -39,6 +39,11 @@ struct AiArgs {
     int n{1};
   };
 
+  struct UpdateArgs {
+    /// Force update even if already on the latest version.
+    bool force{false};
+  };
+
   bool help{false};
   bool version{false};
 #if defined(NDEBUG)
@@ -52,6 +57,7 @@ struct AiArgs {
   ChatArgs chat_args;
   ModelsArgs models_args;
   HistoryArgs history_args;
+  UpdateArgs update_args;
   bool print_bash_completion{false};
   bool print_zsh_completion{false};
   bool print_fish_completion{false};

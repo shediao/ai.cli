@@ -8,6 +8,7 @@
 #include "ai/chat.h"
 #include "ai/history.h"
 #include "ai/models.h"
+#include "ai/update.h"
 #include "ai/utils.h"
 #include "curl/curl.h"
 
@@ -54,6 +55,8 @@ int main(int argc, char* argv[])
       it->print();
     }
     return 0;
+  } else if (cmd.command() == "update") {
+    return update();
   } else {
     cmd.print_usage();
   }
