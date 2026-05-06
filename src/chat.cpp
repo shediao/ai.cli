@@ -13,6 +13,7 @@
 #include "ai/logging.h"
 #include "ai/openai.h"
 #include "ai/system_prompt.h"
+#include "ai/terminal.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 
@@ -144,15 +145,18 @@ int chat() {
             try {
               auto function = tool_call.function.name;
               auto arguments = json::parse(tool_call.function.arguments);
-              std::cout << "\n\033[32;1m ● [" << ai::utils::timestamp() << "] `"
-                        << function + "(" + arguments.dump() + ")"
-                        << "`\033[0m\n";
+              std::cout << "\n"
+                        << term::bold_color::green << " ● ["
+                        << ai::utils::timestamp() << "] `"
+                        << function + "(" + arguments.dump() + ")" << "`"
+                        << term::reset << "\n";
               auto ret = call_tool(function, arguments);
               if (ret.size() > 120) {
-                std::cout << "\033[33;1m" << ret.substr(0, 114)
-                          << "......\033[0m\n";
+                std::cout << term::bold_color::yellow << ret.substr(0, 114)
+                          << "......" << term::reset << "\n";
               } else {
-                std::cout << "\033[33;1m" << ret << "\033[0m\n";
+                std::cout << term::bold_color::yellow << ret << term::reset
+                          << "\n";
               }
               chat_history.push_back(
                   nlohmann::json::object({{"role", "tool"},

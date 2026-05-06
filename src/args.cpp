@@ -6,6 +6,8 @@
 #include <environment/environment.hpp>
 #include <limits>
 
+#include "ai/terminal.h"
+
 #if defined(_WIN32) || defined(_Win64)
 #include <io.h>
 #include <stdio.h>
@@ -360,14 +362,17 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
         if (schema_str.empty()) continue;
         try {
           auto schema = nlohmann::json::parse(schema_str);
-          std::cout << "\033[1m[" << category << "]\033[0m\n";
+          std::cout << term::bold << "[" << category << "]" << term::reset
+                    << "\n";
           for (auto const& tool : schema) {
-            std::cout << "  \033[36;1m" << tool.value("name", "???")
-                      << "\033[0m: " << tool.value("description", "") << "\n";
+            std::cout << "  " << term::bold_color::cyan
+                      << tool.value("name", "???") << term::reset << ": "
+                      << tool.value("description", "") << "\n";
           }
           std::cout << "\n";
         } catch (...) {
-          std::cout << "\033[1m[" << category << "]\033[0m (parse error)\n\n";
+          std::cout << term::bold << "[" << category << "]" << term::reset
+                    << " (parse error)\n\n";
         }
       }
       std::exit(0);
