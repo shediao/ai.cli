@@ -18,9 +18,20 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(googletest)
 
+# Suppress -Wcharacter-conversion for gtest/gmock when using Clang and C++20.
+# char8_t (C++20) to char32_t implicit conversion in gtest-printers.h triggers
+# this warning, which becomes an error under -WX.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  foreach(gtarget gtest gtest_main gmock gmock_main)
+    if(TARGET ${gtarget})
+      target_compile_options(${gtarget} PRIVATE -Wno-character-conversion)
+    endif()
+  endforeach()
+endif()
+
 # ── Helper function to add a test executable ───────────────────────────────
 function(add_ai_cli_test test_name test_files)
-  add_executable(${test_name} ${test_files}  $<TARGET_OBJECTS:ai_core>)
+  add_executable(${test_name} ${test_files} $<TARGET_OBJECTS:ai_core>)
   target_include_directories(
     ${test_name}
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include
