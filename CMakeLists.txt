@@ -44,16 +44,23 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang" AND NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 endif()
 
-# ── Sanitizers (Debug mode on Linux/macOS) ───────────────────────────────
-option(AICLI_ENABLE_ASAN "Enable Address/Undefined Sanitizers in Debug" ON)
+# ── Sanitizers (Linux/macOS) ──────────────────────────────────────────────
+if(CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
+  option(AICLI_ENABLE_ASAN "Enable Address/Undefined Sanitizers" ON)
+else()
+  option(AICLI_ENABLE_ASAN "Enable Address/Undefined Sanitizers" OFF)
+endif()
 
 if(AICLI_ENABLE_ASAN
    AND NOT CMAKE_CROSSCOMPILING
    AND CMAKE_HOST_SYSTEM_NAME MATCHES "Linux|Darwin")
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-    set(CMAKE_CXX_FLAGS_DEBUG
-        "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls"
+    set(CMAKE_CXX_FLAGS
+        "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls"
     )
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+      set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+    endif()
   endif()
 endif()
 
@@ -108,8 +115,8 @@ file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/default.json
 configure_file(src/tools/default_tools_json.h.in default_tools_json.h)
 
 # ── Object library (all sources except main) ───────────────────────────────
-# Use OBJECT library instead of STATIC to ensure all static initializers
-# (e.g. regist_tool_category) are linked into the final executable.
+# Use OBJECT library instead of STATIC to ensure all static initializers (e.g.
+# regist_tool_category) are linked into the final executable.
 add_library(
   ai_core OBJECT
   src/chat.cpp
