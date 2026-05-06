@@ -35,8 +35,14 @@ std::string cmd(nlohmann::json const& args) {
     }
   }
 
-  auto [ret, out_buf, err_buf] = subprocess::capture_run(
-      "cmd", "/c", command,
+  subprocess::buffer out_buf{[](const unsigned char* data, size_t size) {
+    std::cout.write(reinterpret_cast<const char*>(data), size);
+  }};
+  subprocess::buffer err_buf{[](const unsigned char* data, size_t size) {
+    std::cerr.write(reinterpret_cast<const char*>(data), size);
+  }};
+  auto ret = subprocess::run(
+      "cmd", "/c", command, $stdout > out_buf, $stderr > err_buf,
       $timeout = args.contains("timeout") && args["timeout"].is_number_integer()
                      ? args["timeout"].get<int>()
                      : $timeout_infinite);
