@@ -166,8 +166,8 @@ std::optional<std::string> https_get(const std::string& url) {
   // GitHub API requires a User-Agent header
   curl_easy_setopt(curl, CURLOPT_USERAGENT, "ai-cli-updater/1.0");
 
-  if (auto& args = AiArgs::instance(); args.proxy.has_value()) {
-    curl_easy_setopt(curl, CURLOPT_PROXY, args.proxy.value().c_str());
+  if (auto& a = get_ai_args(); a.proxy.has_value()) {
+    curl_easy_setopt(curl, CURLOPT_PROXY, a.proxy.value().c_str());
   }
 
   CURLcode res = curl_easy_perform(curl);
@@ -288,7 +288,7 @@ void replace_and_restart(const std::filesystem::path& current_exe,
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-int update() {
+int update(AiArgs const& args) {
   const std::string platform = detect_platform_target();
   if (platform.empty()) {
     std::cerr
@@ -385,7 +385,7 @@ int update() {
   }
 
   // 4. Compare with current version
-  const bool force = AiArgs::instance().update_args.force;
+  const bool force = args.update_args.force;
   if (!force) {
     std::string current_base = extract_base_version(GIT_VERSION);
     SemVer current_ver;

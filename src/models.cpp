@@ -2,13 +2,14 @@
 
 #include <iostream>
 
+#include "ai/args.h"
 #include "ai/openai.h"
 
 namespace ai {
 
-int models() {
+int models(AiArgs const& args) {
   try {
-    OpenAIClient client;
+    OpenAIClient client(args);
     auto model_list = client.models();
     for (auto& model : model_list) {
       std::cout << model << '\n';

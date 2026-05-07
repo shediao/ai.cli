@@ -20,11 +20,10 @@ using json = nlohmann::json;
 
 namespace ai {
 
-int chat() {
-  AiArgs const& args = AiArgs::instance();
+int chat(AiArgs const& args) {
   auto& chat_args = args.chat_args;
   try {
-    OpenAIClient client;
+    OpenAIClient client(args);
 
     nlohmann::json chat_history = nlohmann::json::array();
     HistoryDB history_db(HistoryDB::default_db_path());

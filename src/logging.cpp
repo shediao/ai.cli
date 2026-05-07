@@ -26,13 +26,11 @@ const char* GetSeverityName(int severity) {
   }
   return "UNKNOWN";
 }
-std::string GetLogFilePath() {
-  return AiArgs::instance().log_file.value_or("");
-}
+std::string GetLogFilePath() { return get_ai_args().log_file.value_or(""); }
 
 LoggingDestination GetLogDestination() {
   static LoggingDestination g_logging_destination = []() {
-    if (!AiArgs::instance().log_file.value_or("").empty()) {
+    if (!get_ai_args().log_file.value_or("").empty()) {
       return LOG_TO_FILE;
     }
     return LOG_TO_STDERR;
@@ -220,7 +218,7 @@ void LogMessage::Flush() {
   }
 }
 bool ShouldCreateLogMessage(LogSeverity severity) {
-  return severity >= AiArgs::instance().log_level;
+  return severity >= get_ai_args().log_level;
 }
 }  // namespace logging
 }  // namespace ai

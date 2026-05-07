@@ -440,7 +440,7 @@ std::string HistoryDB::generate_topic(nlohmann::json const& messages) {
   }
 
   try {
-    OpenAIClient client;
+    OpenAIClient client(get_ai_args());
     nlohmann::json temp_history = nlohmann::json::array();
     std::vector<std::string> user_prompts = {conversation_text};
 
@@ -538,9 +538,8 @@ std::string HistoryDB::default_db_path() {
       .string();
 }
 
-int history() {
+int history(AiArgs const& args) {
   try {
-    AiArgs const& args = AiArgs::instance();
     HistoryDB history_db(HistoryDB::default_db_path());
     int n = args.history_args.n;
     auto sessions = history_db.list_session_infos(n > 0 ? n : -1);

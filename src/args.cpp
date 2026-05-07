@@ -430,7 +430,7 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
                   history_args.format)
       .default_value("text")
       .choices({"json", "text"});
-  history.callback([&args]() -> void {
+  history.callback([]() -> void {
     // nothing to resolve for history command
   });
 }
@@ -449,9 +449,20 @@ static void bind_update_args(argparse::ArgParser& parser, AiArgs& args) {
 
 }  // namespace
 
-AiArgs& AiArgs::instance() {
-  static AiArgs args;
-  return args;
+namespace {
+
+/// Global pointer to the AiArgs instance, set by main() before any use.
+static AiArgs const* g_ai_args = nullptr;
+
+}  // namespace
+
+void set_ai_args(AiArgs const& args) { g_ai_args = &args; }
+
+AiArgs const& get_ai_args() {
+  // Fallback default instance for contexts where set_ai_args() was not called
+  // (e.g., test environments or early initialization).
+  static AiArgs default_args;
+  return g_ai_args ? *g_ai_args : default_args;
 }
 
 #if defined(_WIN32)

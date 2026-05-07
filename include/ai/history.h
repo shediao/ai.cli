@@ -10,6 +10,8 @@ struct sqlite3;
 
 namespace ai {
 
+struct AiArgs;
+
 /// SQLite-backed chat history database.
 ///
 /// Supports concurrent access from multiple processes via WAL journal mode.
@@ -81,6 +83,6 @@ class HistoryDB {
   sqlite3* db_{nullptr};
 };
 
-int history();
+int history(AiArgs const& args);
 
 }  // namespace ai

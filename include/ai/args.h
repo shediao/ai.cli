@@ -64,21 +64,24 @@ struct AiArgs {
   bool print_zsh_completion{false};
   bool print_fish_completion{false};
 
+  AiArgs();
+  ~AiArgs() = default;
+
 #if defined(_WIN32)
   argparse::Command& parse(int argc, wchar_t* argv[]);
 #else
   argparse::Command& parse(int argc, char* argv[]);
 #endif
-  static AiArgs& instance();
-  AiArgs& operator=(AiArgs const&) = delete;
-  AiArgs(AiArgs const&) = delete;
-  AiArgs& operator=(AiArgs&&) = delete;
-  AiArgs(AiArgs&&) = delete;
-  ~AiArgs() = default;
 
  private:
-  AiArgs();
   argparse::ArgParser parser;
 };
+
+/// Register the global AiArgs pointer for internal subsystems (logging,
+/// utilities) that cannot easily receive it via parameter.
+void set_ai_args(AiArgs const& args);
+
+/// Access the registered AiArgs instance. Must be called after set_ai_args().
+AiArgs const& get_ai_args();
 
 }  // namespace ai

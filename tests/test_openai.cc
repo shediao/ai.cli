@@ -6,27 +6,47 @@
 #include <string>
 #include <vector>
 
+#include "ai/args.h"
 #include "ai/openai.h"
 
 using json = nlohmann::json;
 
 // =============================================================================
+// Test fixture that provides a default AiArgs instance
+// =============================================================================
+
+class OpenAIClientTest : public ::testing::Test {
+ protected:
+  ai::AiArgs args;
+};
+
+class OpenAIClientChatTest : public ::testing::Test {
+ protected:
+  ai::AiArgs args;
+};
+
+class OpenAIClientModelsTest : public ::testing::Test {
+ protected:
+  ai::AiArgs args;
+};
+
+// =============================================================================
 // OpenAIClient – Construction & Move Semantics
 // =============================================================================
 
-TEST(OpenAIClientTest, ConstructDoesNotThrow) {
-  EXPECT_NO_THROW({ ai::OpenAIClient client; });
+TEST_F(OpenAIClientTest, ConstructDoesNotThrow) {
+  EXPECT_NO_THROW({ ai::OpenAIClient client(args); });
 }
 
-TEST(OpenAIClientTest, MoveConstructor) {
-  ai::OpenAIClient src;
+TEST_F(OpenAIClientTest, MoveConstructor) {
+  ai::OpenAIClient src(args);
   // Move-constructing should transfer ownership without issues
   EXPECT_NO_THROW({ ai::OpenAIClient dst(std::move(src)); });
 }
 
-TEST(OpenAIClientTest, MoveAssignment) {
-  ai::OpenAIClient src;
-  ai::OpenAIClient dst;
+TEST_F(OpenAIClientTest, MoveAssignment) {
+  ai::OpenAIClient src(args);
+  ai::OpenAIClient dst(args);
   // Move-assigning should transfer ownership without issues
   EXPECT_NO_THROW({ dst = std::move(src); });
 }
@@ -39,8 +59,8 @@ TEST(OpenAIClientTest, MoveAssignment) {
 // any CURL/network operation.
 // =============================================================================
 
-TEST(OpenAIClientChatTest, EmptyPromptsEmptyHistoryReturnsNullopt) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest, EmptyPromptsEmptyHistoryReturnsNullopt) {
+  ai::OpenAIClient client(args);
   json history = json::array();
 
   auto result = client.chat(
@@ -51,8 +71,9 @@ TEST(OpenAIClientChatTest, EmptyPromptsEmptyHistoryReturnsNullopt) {
   EXPECT_FALSE(result.has_value());
 }
 
-TEST(OpenAIClientChatTest, EmptyPromptsHistoryEndsWithAssistantReturnsNullopt) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest,
+       EmptyPromptsHistoryEndsWithAssistantReturnsNullopt) {
+  ai::OpenAIClient client(args);
   json history = json::array();
   history.push_back({{"role", "user"}, {"content", "Hello"}});
   history.push_back({{"role", "assistant"}, {"content", "Hi there!"}});
@@ -65,8 +86,8 @@ TEST(OpenAIClientChatTest, EmptyPromptsHistoryEndsWithAssistantReturnsNullopt) {
   EXPECT_FALSE(result.has_value());
 }
 
-TEST(OpenAIClientChatTest, EmptyPromptsHistoryEndsWithSystemReturnsNullopt) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest, EmptyPromptsHistoryEndsWithSystemReturnsNullopt) {
+  ai::OpenAIClient client(args);
   json history = json::array();
   history.push_back(
       {{"role", "system"}, {"content", "You are a helpful assistant."}});
@@ -79,8 +100,8 @@ TEST(OpenAIClientChatTest, EmptyPromptsHistoryEndsWithSystemReturnsNullopt) {
   EXPECT_FALSE(result.has_value());
 }
 
-TEST(OpenAIClientChatTest, EmptyPromptsHistoryOnlySystemReturnsNullopt) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest, EmptyPromptsHistoryOnlySystemReturnsNullopt) {
+  ai::OpenAIClient client(args);
   json history = json::array();
   history.push_back(
       {{"role", "system"}, {"content", "You are a helpful assistant."}});
@@ -104,9 +125,9 @@ TEST(OpenAIClientChatTest, EmptyPromptsHistoryOnlySystemReturnsNullopt) {
 // the CURL call will fail with an exception.
 // =============================================================================
 
-TEST(OpenAIClientChatTest,
-     EmptyPromptsHistoryEndsWithUserThrowsOnNetworkError) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest,
+       EmptyPromptsHistoryEndsWithUserThrowsOnNetworkError) {
+  ai::OpenAIClient client(args);
   json history = json::array();
   history.push_back({{"role", "user"}, {"content", "Hello?"}});
 
@@ -122,9 +143,9 @@ TEST(OpenAIClientChatTest,
       std::runtime_error);
 }
 
-TEST(OpenAIClientChatTest,
-     EmptyPromptsHistoryEndsWithToolThrowsOnNetworkError) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest,
+       EmptyPromptsHistoryEndsWithToolThrowsOnNetworkError) {
+  ai::OpenAIClient client(args);
   json history = json::array();
   history.push_back({{"role", "user"}, {"content", "Run a command"}});
   history.push_back(
@@ -153,8 +174,8 @@ TEST(OpenAIClientChatTest,
 // OpenAIClient::chat() – Empty history but valid prompts proceeds to network
 // =============================================================================
 
-TEST(OpenAIClientChatTest, ValidPromptsEmptyHistoryThrowsOnNetworkError) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest, ValidPromptsEmptyHistoryThrowsOnNetworkError) {
+  ai::OpenAIClient client(args);
   json history = json::array();
 
   EXPECT_THROW(
@@ -175,8 +196,8 @@ TEST(OpenAIClientChatTest, ValidPromptsEmptyHistoryThrowsOnNetworkError) {
 // chat_history is updated accordingly even when an exception is thrown later.
 // =============================================================================
 
-TEST(OpenAIClientChatTest, HistoryIsUpdatedBeforeNetworkCall) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest, HistoryIsUpdatedBeforeNetworkCall) {
+  ai::OpenAIClient client(args);
   json history = json::array();
   history.push_back({{"role", "user"}, {"content", "Previous question"}});
   history.push_back({{"role", "assistant"}, {"content", "Previous answer"}});
@@ -200,8 +221,9 @@ TEST(OpenAIClientChatTest, HistoryIsUpdatedBeforeNetworkCall) {
   EXPECT_EQ(history.back()["content"], "New question");
 }
 
-TEST(OpenAIClientChatTest, HistoryWithSystemPromptIsUpdatedBeforeNetworkCall) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest,
+       HistoryWithSystemPromptIsUpdatedBeforeNetworkCall) {
+  ai::OpenAIClient client(args);
   json history = json::array();
 
   EXPECT_THROW(
@@ -221,8 +243,8 @@ TEST(OpenAIClientChatTest, HistoryWithSystemPromptIsUpdatedBeforeNetworkCall) {
   EXPECT_EQ(history[1]["content"], "What is 2+2?");
 }
 
-TEST(OpenAIClientChatTest, HistoryWithExistingSystemPromptIsReplaced) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest, HistoryWithExistingSystemPromptIsReplaced) {
+  ai::OpenAIClient client(args);
   json history = json::array();
   history.push_back(
       {{"role", "system"}, {"content", "You are an old assistant."}});
@@ -255,8 +277,9 @@ TEST(OpenAIClientChatTest, HistoryWithExistingSystemPromptIsReplaced) {
   EXPECT_EQ(system_count, 1);
 }
 
-TEST(OpenAIClientChatTest, ReasoningContentPreservedInHistoryWhenNoToolCalls) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientChatTest,
+       ReasoningContentPreservedInHistoryWhenNoToolCalls) {
+  ai::OpenAIClient client(args);
   json history = json::array();
   history.push_back({{"role", "user"}, {"content", "Why is the sky blue?"}});
   history.push_back(
@@ -293,8 +316,8 @@ TEST(OpenAIClientChatTest, ReasoningContentPreservedInHistoryWhenNoToolCalls) {
 // OpenAIClient::models() – Network-dependent
 // =============================================================================
 
-TEST(OpenAIClientModelsTest, ModelsThrowsOnNetworkError) {
-  ai::OpenAIClient client;
+TEST_F(OpenAIClientModelsTest, ModelsThrowsOnNetworkError) {
+  ai::OpenAIClient client(args);
 
   // models() will attempt a CURL request with an empty URL (since no CLI args
   // were parsed), which should fail with a runtime_error.

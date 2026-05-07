@@ -244,7 +244,7 @@ bool download_image(std::string const& image_url, std::string const& image_path,
   curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS,
                    3000L);  // 3 秒连接超时
 
-  if (auto& args = ai::AiArgs::instance(); args.proxy.has_value()) {
+  if (auto& args = ai::get_ai_args(); args.proxy.has_value()) {
     curl_easy_setopt(curl_handle, CURLOPT_PROXY, args.proxy.value().c_str());
   }
 
@@ -398,7 +398,7 @@ std::string getMEMI(std::string const& url) {
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS,
                    3000L);  // 3 秒连接超时
 
-  if (auto& args = ai::AiArgs::instance(); args.proxy.has_value()) {
+  if (auto& args = ai::get_ai_args(); args.proxy.has_value()) {
     curl_easy_setopt(curl, CURLOPT_PROXY, args.proxy.value().c_str());
   }
 

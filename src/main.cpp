@@ -27,18 +27,19 @@ int main(int argc, char* argv[])
   SetConsoleOutputCP(CP_UTF8);
 #endif
   CurlGlobalInitGuard guard;
-  auto& args = AiArgs::instance();
+  AiArgs args;
+  set_ai_args(args);
 
   auto& cmd = args.parse(argc, argv);
 
   if (cmd.command() == "chat") {
-    return chat();
+    return chat(args);
   } else if (cmd.command() == "models") {
-    return models();
+    return models(args);
   } else if (cmd.command() == "history") {
-    return history();
+    return history(args);
   } else if (cmd.command() == "update") {
-    return update();
+    return update(args);
   } else {
     cmd.print_usage();
   }

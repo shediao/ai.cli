@@ -1,7 +1,9 @@
 #pragma once
 
+#include "ai/args.h"
+
 namespace ai {
 
-int models();
+int models(AiArgs const& args);
 
 }  // namespace ai

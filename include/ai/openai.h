@@ -9,9 +9,11 @@
 
 namespace ai {
 
+struct AiArgs;
+
 class OpenAIClient {
  public:
-  explicit OpenAIClient();
+  explicit OpenAIClient(AiArgs const& args);
   ~OpenAIClient();
 
   // Disable copy
