@@ -14,6 +14,7 @@
 
 #include "ai/args.h"
 #include "ai/logging.h"
+#include "ai/openai.h"
 #include "ai/utils.h"
 #include "nlohmann/json_fwd.hpp"
 
@@ -107,6 +108,7 @@ void HistoryDB::init_db() {
       session_id  TEXT    NOT NULL UNIQUE,
       created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
       updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      topic       TEXT    NOT NULL DEFAULT '',
       messages    TEXT    NOT NULL
     );
   )SQL";
@@ -116,6 +118,31 @@ void HistoryDB::init_db() {
                << (err_msg ? err_msg : "unknown");
     sqlite3_free(err_msg);
     return;
+  }
+
+  // Migration: add topic column if upgrading from older schema
+  // Check if the column already exists before attempting to add it
+  {
+    sqlite3_stmt* stmt = nullptr;
+    bool has_topic = false;
+    int rc = sqlite3_prepare_v2(db_, "PRAGMA table_info(conversations);", -1,
+                                &stmt, nullptr);
+    if (rc == SQLITE_OK) {
+      while (sqlite3_step(stmt) == SQLITE_ROW) {
+        auto const* col_name =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        if (col_name && std::strcmp(col_name, "topic") == 0) {
+          has_topic = true;
+          break;
+        }
+      }
+    }
+    sqlite3_finalize(stmt);
+    if (!has_topic) {
+      exec_sql(db_,
+               "ALTER TABLE conversations ADD COLUMN topic TEXT NOT NULL "
+               "DEFAULT '';");
+    }
   }
 
   // Create index for ordering by updated_at
@@ -290,7 +317,8 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
   }
 
   std::string sql =
-      "SELECT session_id, created_at, updated_at, messages FROM conversations "
+      "SELECT session_id, created_at, updated_at, topic, messages FROM "
+      "conversations "
       "ORDER BY updated_at DESC";
   if (N > 0) {
     sql += " LIMIT ?1";
@@ -324,6 +352,10 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
     }
     if (auto const* t =
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
+      info.topic = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
       info.messages = t;
     }
     infos.push_back(std::move(info));
@@ -331,6 +363,118 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
 
   sqlite3_finalize(stmt);
   return infos;
+}
+
+void HistoryDB::set_topic(std::string const& session_id,
+                          std::string const& topic) {
+  if (!db_) {
+    return;
+  }
+
+  const char* update_sql =
+      "UPDATE conversations SET topic = ?1 WHERE session_id = ?2;";
+  sqlite3_stmt* stmt = nullptr;
+  int rc = sqlite3_prepare_v2(db_, update_sql, -1, &stmt, nullptr);
+  if (rc != SQLITE_OK) {
+    LOG(ERROR) << "Failed to prepare topic update: " << sqlite3_errmsg(db_);
+    return;
+  }
+
+  sqlite3_bind_text(stmt, 1, topic.c_str(), static_cast<int>(topic.size()),
+                    SQLITE_STATIC);
+  sqlite3_bind_text(stmt, 2, session_id.c_str(),
+                    static_cast<int>(session_id.size()), SQLITE_STATIC);
+
+  rc = sqlite3_step(stmt);
+  sqlite3_finalize(stmt);
+
+  if (rc != SQLITE_DONE) {
+    LOG(ERROR) << "Failed to set topic: " << sqlite3_errmsg(db_);
+  } else {
+    LOG(INFO) << "Set topic for session " << session_id << ": " << topic;
+  }
+}
+
+std::string HistoryDB::generate_topic(nlohmann::json const& messages) {
+  if (!messages.is_array() || messages.empty()) {
+    return "";
+  }
+
+  // Extract user and assistant messages for topic generation
+  std::string conversation_text;
+  int message_count = 0;
+  for (auto const& msg : messages) {
+    if (!msg.is_object() || !msg.contains("role")) {
+      continue;
+    }
+    auto const& role = msg["role"].get<std::string>();
+    if (role != "user" && role != "assistant") {
+      continue;
+    }
+    std::string content;
+    if (msg.contains("content") && msg["content"].is_string()) {
+      content = msg["content"].get<std::string>();
+    }
+    if (content.empty()) {
+      continue;
+    }
+    // Truncate each message to keep total reasonable
+    if (content.size() > 1024) {
+      content = content.substr(0, 1021) + "...";
+    }
+    conversation_text += role + ": " + content + "\n";
+    ++message_count;
+    // Limit to first ~10 messages for topic generation
+    if (message_count >= 10) {
+      break;
+    }
+  }
+
+  if (conversation_text.empty()) {
+    return "";
+  }
+
+  // Truncate total text to avoid overly long prompts
+  if (conversation_text.size() > 8192) {
+    conversation_text = conversation_text.substr(0, 8189) + "...";
+  }
+
+  try {
+    OpenAIClient client;
+    nlohmann::json temp_history = nlohmann::json::array();
+    std::vector<std::string> user_prompts = {conversation_text};
+
+    auto response = client.chat(
+        "You are a topic generator. Summarize the following conversation into "
+        "a single brief topic phrase, within 15 words. Output ONLY the topic "
+        "text, nothing else - no quotes, no prefixes, no explanation.",
+        user_prompts, temp_history);
+
+    if (response.has_value() && !response.value().choices().empty()) {
+      auto const& content = response.value().choices().back().message.content;
+      if (!content.empty()) {
+        // Clean up: remove quotes, newlines, extra whitespace
+        std::string topic = content;
+        // Remove surrounding quotes
+        if (topic.size() >= 2 &&
+            ((topic.front() == '"' && topic.back() == '"') ||
+             (topic.front() == '\'' && topic.back() == '\''))) {
+          topic = topic.substr(1, topic.size() - 2);
+        }
+        // Trim whitespace
+        auto start = topic.find_first_not_of(" \t\n\r");
+        auto end = topic.find_last_not_of(" \t\n\r");
+        if (start != std::string::npos && end != std::string::npos) {
+          topic = topic.substr(start, end - start + 1);
+        }
+        return topic;
+      }
+    }
+  } catch (std::exception const& e) {
+    LOG(ERROR) << "Topic generation failed: " << e.what();
+  }
+
+  return "";
 }
 
 void HistoryDB::SessionInfo::print(bool json_format) const {
@@ -344,11 +488,16 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
       session["messages"] = msg;
       session["created_at"] = created_at;
       session["updated_at"] = updated_at;
+      session["topic"] = topic;
       std::cout << session.dump();
       return;
     }
     std::cout << "\n================  <" << created_at << ">-<" << updated_at
-              << ">\n";
+              << ">";
+    if (!topic.empty()) {
+      std::cout << "  [" << topic << "]";
+    }
+    std::cout << "\n";
     for (auto it = msg.begin(); it != msg.end(); it++) {
       auto const& m = *it;
       if (!m.is_object()) {

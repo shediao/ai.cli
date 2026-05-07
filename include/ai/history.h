@@ -56,9 +56,18 @@ class HistoryDB {
     std::string session_id;
     std::string created_at;
     std::string updated_at;
+    std::string topic;
     std::string messages;
     void print(bool json_format) const;
   };
+
+  /// Set the topic for a session.
+  void set_topic(std::string const& session_id, std::string const& topic);
+
+  /// Generate a one-sentence topic from conversation messages using AI.
+  /// @param messages The conversation messages JSON array.
+  /// @return A brief topic string, or empty string on failure.
+  static std::string generate_topic(nlohmann::json const& messages);
 
   /// List sessions with metadata, ordered by most recent first.
   /// @param N Maximum number of sessions to return. -1 (default) returns all.

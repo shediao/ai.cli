@@ -450,6 +450,8 @@ TEST_F(HistoryDBTest, ListSessionInfosContainsMetadata) {
   EXPECT_FALSE(infos[0].created_at.empty());
   EXPECT_FALSE(infos[0].updated_at.empty());
   EXPECT_FALSE(infos[0].messages.empty());
+  // New sessions should have an empty topic by default
+  EXPECT_TRUE(infos[0].topic.empty());
 }
 
 TEST_F(HistoryDBTest, ListSessionInfosNLimitsResults) {
@@ -551,6 +553,7 @@ TEST_F(HistoryDBTest, PrintJsonFormat) {
   EXPECT_TRUE(parsed.contains("messages"));
   EXPECT_TRUE(parsed.contains("created_at"));
   EXPECT_TRUE(parsed.contains("updated_at"));
+  EXPECT_TRUE(parsed.contains("topic"));
   EXPECT_TRUE(parsed["messages"].is_array());
   EXPECT_EQ(parsed["messages"].size(), 2u);
 }
@@ -726,4 +729,187 @@ TEST_F(HistoryDBTest, ManySessions) {
 
   auto infos = db.list_session_infos(10);
   EXPECT_EQ(infos.size(), 10u);
+}
+
+// ── Topic feature ───────────────────────────────────────────────────────
+
+TEST_F(HistoryDBTest, SetTopicPersistsData) {
+  ai::HistoryDB db(db_path_->path());
+  std::string session_id = db.create_session();
+  db.save_messages(session_id, make_simple_messages());
+
+  db.set_topic(session_id, "C++ programming discussion");
+
+  auto infos = db.list_session_infos(1);
+  ASSERT_EQ(infos.size(), 1u);
+  EXPECT_EQ(infos[0].topic, "C++ programming discussion");
+}
+
+TEST_F(HistoryDBTest, SetTopicEmptyString) {
+  ai::HistoryDB db(db_path_->path());
+  std::string session_id = db.create_session();
+  db.save_messages(session_id, make_simple_messages());
+
+  // Set an empty topic
+  db.set_topic(session_id, "");
+
+  auto infos = db.list_session_infos(1);
+  ASSERT_EQ(infos.size(), 1u);
+  EXPECT_TRUE(infos[0].topic.empty());
+}
+
+TEST_F(HistoryDBTest, TopicPersistsAcrossInstances) {
+  std::string path = db_path_->path();
+  std::string session_id;
+
+  {
+    ai::HistoryDB db(path);
+    session_id = db.create_session();
+    db.save_messages(session_id, make_simple_messages());
+    db.set_topic(session_id, "Testing persistence");
+  }
+
+  {
+    ai::HistoryDB db(path);
+    auto infos = db.list_session_infos(1);
+    ASSERT_EQ(infos.size(), 1u);
+    EXPECT_EQ(infos[0].topic, "Testing persistence");
+  }
+}
+
+TEST_F(HistoryDBTest, SetTopicForNonExistentSession) {
+  ai::HistoryDB db(db_path_->path());
+  // Should not crash
+  db.set_topic("nonexistent-session-id", "Some topic");
+  // Verify DB is still functional
+  auto sessions = db.list_sessions();
+  EXPECT_TRUE(sessions.empty());
+}
+
+TEST_F(HistoryDBTest, PrintWithTopic) {
+  ai::HistoryDB db(db_path_->path());
+  std::string session_id = db.create_session();
+  db.save_messages(session_id, make_simple_messages());
+  db.set_topic(session_id, "Hello world chat");
+
+  auto infos = db.list_session_infos(1);
+  ASSERT_EQ(infos.size(), 1u);
+
+  std::stringstream buffer;
+  std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());
+
+  infos[0].print(false);
+
+  std::cout.rdbuf(old);
+
+  std::string output = buffer.str();
+  EXPECT_NE(output.find("[Hello world chat]"), std::string::npos);
+}
+
+TEST_F(HistoryDBTest, PrintJsonWithTopic) {
+  ai::HistoryDB db(db_path_->path());
+  std::string session_id = db.create_session();
+  db.save_messages(session_id, make_simple_messages());
+  db.set_topic(session_id, "JSON topic test");
+
+  auto infos = db.list_session_infos(1);
+  ASSERT_EQ(infos.size(), 1u);
+
+  std::stringstream buffer;
+  std::streambuf* old = std::cout.rdbuf(buffer.rdbuf());
+
+  infos[0].print(true);
+
+  std::cout.rdbuf(old);
+
+  std::string output = buffer.str();
+  json parsed = json::parse(output);
+  EXPECT_EQ(parsed["topic"], "JSON topic test");
+}
+
+TEST_F(HistoryDBTest, GenerateTopicWithEmptyMessages) {
+  json empty = json::array();
+  std::string topic = ai::HistoryDB::generate_topic(empty);
+  EXPECT_TRUE(topic.empty());
+}
+
+TEST_F(HistoryDBTest, GenerateTopicWithNonArray) {
+  json non_array = json::object({{"key", "value"}});
+  std::string topic = ai::HistoryDB::generate_topic(non_array);
+  EXPECT_TRUE(topic.empty());
+}
+
+TEST_F(HistoryDBTest, GenerateTopicWithOnlySystemMessages) {
+  json messages = json::array(
+      {json::object({{"role", "system"}, {"content", "You are helpful."}}),
+       json::object({{"role", "tool"}, {"content", "some tool output"}})});
+  std::string topic = ai::HistoryDB::generate_topic(messages);
+  // Only user/assistant messages are used; no topic can be generated
+  EXPECT_TRUE(topic.empty());
+}
+
+TEST_F(HistoryDBTest, ListSessionInfosTopicDefaultEmpty) {
+  ai::HistoryDB db(db_path_->path());
+
+  // Create several sessions
+  std::string id1 = db.create_session();
+  db.save_messages(id1, make_single_message());
+  std::string id2 = db.create_session();
+  db.save_messages(id2, make_simple_messages());
+
+  auto infos = db.list_session_infos();
+  ASSERT_EQ(infos.size(), 2u);
+  // All topics should be empty by default
+  for (auto const& info : infos) {
+    EXPECT_TRUE(info.topic.empty());
+  }
+}
+
+TEST_F(HistoryDBTest, SetTopicUpdatesOnlyTargetSession) {
+  ai::HistoryDB db(db_path_->path());
+
+  std::string id1 = db.create_session();
+  db.save_messages(id1, make_single_message());
+  std::string id2 = db.create_session();
+  db.save_messages(id2, make_simple_messages());
+
+  db.set_topic(id1, "Topic for session 1");
+
+  auto infos = db.list_session_infos();
+  ASSERT_EQ(infos.size(), 2u);
+
+  // Find each session and verify topic
+  for (auto const& info : infos) {
+    if (info.session_id == id1) {
+      EXPECT_EQ(info.topic, "Topic for session 1");
+    } else if (info.session_id == id2) {
+      EXPECT_TRUE(info.topic.empty());
+    }
+  }
+}
+
+TEST_F(HistoryDBTest, SetTopicWithSpecialCharacters) {
+  ai::HistoryDB db(db_path_->path());
+  std::string session_id = db.create_session();
+  db.save_messages(session_id, make_simple_messages());
+
+  std::string special_topic = "C++ & Rust: 比较 \"性能\" — 100% 测试!";
+  db.set_topic(session_id, special_topic);
+
+  auto infos = db.list_session_infos(1);
+  ASSERT_EQ(infos.size(), 1u);
+  EXPECT_EQ(infos[0].topic, special_topic);
+}
+
+TEST_F(HistoryDBTest, SetTopicOverwritesPreviousTopic) {
+  ai::HistoryDB db(db_path_->path());
+  std::string session_id = db.create_session();
+  db.save_messages(session_id, make_simple_messages());
+
+  db.set_topic(session_id, "First topic");
+  db.set_topic(session_id, "Updated topic");
+
+  auto infos = db.list_session_infos(1);
+  ASSERT_EQ(infos.size(), 1u);
+  EXPECT_EQ(infos[0].topic, "Updated topic");
 }
