@@ -423,6 +423,13 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
                   history_args.n)
       .range(-1, std::numeric_limits<int>::max())
       .default_value("1");
+  history
+      .add_option("format",
+                  "Output format for history listing: 'text' (human-readable) "
+                  "or 'json'",
+                  history_args.format)
+      .default_value("text")
+      .choices({"json", "text"});
   history.callback([&args]() -> void {
     // nothing to resolve for history command
   });

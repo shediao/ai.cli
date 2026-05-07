@@ -15,6 +15,7 @@
 #include "ai/args.h"
 #include "ai/logging.h"
 #include "ai/utils.h"
+#include "nlohmann/json_fwd.hpp"
 
 namespace ai {
 
@@ -332,10 +333,18 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
   return infos;
 }
 
-void HistoryDB::SessionInfo::print() const {
+void HistoryDB::SessionInfo::print(bool json_format) const {
   try {
     auto msg = nlohmann::json::parse(messages);
     if (!msg.is_array()) {
+      return;
+    }
+    if (json_format) {
+      nlohmann::json session;
+      session["messages"] = msg;
+      session["created_at"] = created_at;
+      session["updated_at"] = updated_at;
+      std::cout << session.dump();
       return;
     }
     std::cout << "\n================  <" << created_at << ">-<" << updated_at
@@ -385,16 +394,31 @@ int history() {
     AiArgs const& args = AiArgs::instance();
     HistoryDB history_db(HistoryDB::default_db_path());
     int n = args.history_args.n;
-    auto sessions = history_db.list_session_infos(n);
+    auto sessions = history_db.list_session_infos(n > 0 ? n : -1);
 
     if (sessions.empty()) {
-      std::cout << "No chat history found.\n";
+      if (args.history_args.format == "json") {
+        std::cout << "[]\n";
+      } else {
+        std::cout << "No chat history found.\n";
+      }
       return 0;
     }
 
-    // list_session_infos returns newest-first; reverse to print oldest-first
-    for (auto it = sessions.rbegin(); it != sessions.rend(); it++) {
-      it->print();
+    if (args.history_args.format == "json") {
+      std::cout << "[";
+      auto it = sessions.begin();
+      it->print(true);
+      for (; it != sessions.end(); it++) {
+        std::cout << "  ,";
+        it->print(true);
+      }
+      std::cout << "]";
+    } else {
+      // list_session_infos returns newest-first; reverse to print oldest-first
+      for (auto it = sessions.rbegin(); it != sessions.rend(); it++) {
+        it->print(false);
+      }
     }
     return 0;
   } catch (const std::exception& e) {
