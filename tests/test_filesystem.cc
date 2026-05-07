@@ -443,7 +443,8 @@ TEST(EditFileTest, MismatchedLabelCountsExtraReplace) {
 
 TEST(CreateDirectoryTest, CreatesDirectory) {
   TempTestDir parent;
-  std::string new_dir = parent.path() + "/subdir";
+  std::string new_dir =
+      (std::filesystem::path(parent.path()) / "subdir").string();
   json args = {{"path", new_dir}};
   std::string result = call_tool("create_directory", args);
   EXPECT_TRUE(result.find("Successfully created directory") !=
@@ -454,7 +455,8 @@ TEST(CreateDirectoryTest, CreatesDirectory) {
 
 TEST(CreateDirectoryTest, CreatesNestedDirectories) {
   TempTestDir parent;
-  std::string nested = parent.path() + "/a/b/c";
+  std::string nested =
+      (std::filesystem::path(parent.path()) / "a" / "b" / "c").string();
   json args = {{"path", nested}};
   std::string result = call_tool("create_directory", args);
   EXPECT_TRUE(result.find("Successfully created directory") !=
@@ -494,8 +496,11 @@ TEST(CreateDirectoryTest, PathNotString) {
 
 TEST(ListDirectoryTest, ListsFilesAndDirs) {
   TempTestDir dir;
-  std::ofstream(dir.path() + "/test_file.txt") << "data";
-  std::filesystem::create_directory(dir.path() + "/test_subdir");
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "test_file.txt").string())
+      << "data";
+  std::filesystem::create_directory(
+      std::filesystem::path(dir.path()) / "test_subdir");
 
   json args = {{"path", dir.path()}};
   std::string result = call_tool("list_directory", args);
@@ -542,9 +547,14 @@ TEST(ListDirectoryTest, PathNotString) {
 
 TEST(DirectoryTreeTest, ReturnsJsonTree) {
   TempTestDir dir;
-  std::ofstream(dir.path() + "/file.txt") << "data";
-  std::filesystem::create_directory(dir.path() + "/subdir");
-  std::ofstream(dir.path() + "/subdir/nested.txt") << "nested";
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "file.txt").string())
+      << "data";
+  std::filesystem::create_directory(
+      std::filesystem::path(dir.path()) / "subdir");
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "subdir" / "nested.txt").string())
+      << "nested";
 
   json args = {{"path", dir.path()}};
   std::string result = call_tool("directory_tree", args);
@@ -604,7 +614,8 @@ TEST(DirectoryTreeTest, MissingPath) {
 TEST(MoveFileTest, MovesFile) {
   TempTestFile f("move me");
   TempTestDir dir;
-  std::string dest = dir.path() + "/moved.txt";
+  std::string dest =
+      (std::filesystem::path(dir.path()) / "moved.txt").string();
 
   json args = {{"source", f.path()}, {"distination", dest}};
   std::string result = call_tool("move_file", args);
@@ -620,7 +631,8 @@ TEST(MoveFileTest, MovesFile) {
 
 TEST(MoveFileTest, SourceNotExists) {
   TempTestDir dir;
-  std::string dest = dir.path() + "/dest.txt";
+  std::string dest =
+      (std::filesystem::path(dir.path()) / "dest.txt").string();
   json args = {{"source", "/nonexistent/source.txt"}, {"distination", dest}};
   std::string result = call_tool("move_file", args);
   EXPECT_TRUE(result.find("Error") != std::string::npos);
@@ -663,11 +675,21 @@ TEST(MoveFileTest, DistinationNotString) {
 
 TEST(SearchFilesTest, FindsFilesByPattern) {
   TempTestDir dir;
-  std::ofstream(dir.path() + "/apple.txt") << "";
-  std::ofstream(dir.path() + "/banana.txt") << "";
-  std::ofstream(dir.path() + "/apple.csv") << "";
-  std::filesystem::create_directory(dir.path() + "/subdir");
-  std::ofstream(dir.path() + "/subdir/apple_sub.txt") << "";
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "apple.txt").string())
+      << "";
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "banana.txt").string())
+      << "";
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "apple.csv").string())
+      << "";
+  std::filesystem::create_directory(
+      std::filesystem::path(dir.path()) / "subdir");
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "subdir" / "apple_sub.txt")
+          .string())
+      << "";
 
   json args = {{"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", true}};
   std::string result = call_tool("search_files", args);
@@ -678,9 +700,14 @@ TEST(SearchFilesTest, FindsFilesByPattern) {
 
 TEST(SearchFilesTest, NonRecursive) {
   TempTestDir dir;
-  std::ofstream(dir.path() + "/root.txt") << "";
-  std::filesystem::create_directory(dir.path() + "/sub");
-  std::ofstream(dir.path() + "/sub/nested.txt") << "";
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "root.txt").string())
+      << "";
+  std::filesystem::create_directory(
+      std::filesystem::path(dir.path()) / "sub");
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "sub" / "nested.txt").string())
+      << "";
 
   json args = {
       {"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", false}};
@@ -699,7 +726,9 @@ TEST(SearchFilesTest, NoMatch) {
 
 TEST(SearchFilesTest, PartialPatternFallback) {
   TempTestDir dir;
-  std::ofstream(dir.path() + "/hello_world.txt") << "";
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "hello_world.txt").string())
+      << "";
 
   json args = {{"path", dir.path()}, {"pattern", "world"}};
   std::string result = call_tool("search_files", args);
@@ -905,13 +934,17 @@ TEST(ReplaceLinesTest, ContentNotString) {
 TEST(ExecuteFileTest, ExecutesScript) {
   TempTestDir dir;
 #if defined(_WIN32)
-  std::string script_path = dir.path() + "/test_script.bat";
+  std::string script_path =
+      (std::filesystem::path(dir.path()) / "test_script.bat").string();
   {
-    std::ofstream script(script_path);
+    // Use binary mode to avoid \n → \r\n translation, so the explicit
+    // \r\n line endings are preserved exactly as intended for cmd.exe.
+    std::ofstream script(script_path, std::ios::binary);
     script << "@echo off\r\necho hello\r\necho error>&2\r\nexit /b 42\r\n";
   }
 #else
-  std::string script_path = dir.path() + "/test_script.sh";
+  std::string script_path =
+      (std::filesystem::path(dir.path()) / "test_script.sh").string();
   {
     std::ofstream script(script_path);
     script << "#!/bin/sh\necho hello\necho error >&2\nexit 42\n";
@@ -930,13 +963,17 @@ TEST(ExecuteFileTest, ExecutesScript) {
 TEST(ExecuteFileTest, WithArgs) {
   TempTestDir dir;
 #if defined(_WIN32)
-  std::string script_path = dir.path() + "/echo_args.bat";
+  std::string script_path =
+      (std::filesystem::path(dir.path()) / "echo_args.bat").string();
   {
-    std::ofstream script(script_path);
+    // Use binary mode to avoid \n → \r\n translation, so the explicit
+    // \r\n line endings are preserved exactly as intended for cmd.exe.
+    std::ofstream script(script_path, std::ios::binary);
     script << "@echo off\r\necho \"%1\"\r\n";
   }
 #else
-  std::string script_path = dir.path() + "/echo_args.sh";
+  std::string script_path =
+      (std::filesystem::path(dir.path()) / "echo_args.sh").string();
   {
     std::ofstream script(script_path);
     script << "#!/bin/sh\necho \"$1\"\n";
