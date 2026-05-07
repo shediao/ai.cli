@@ -76,19 +76,18 @@ std::string getTempFilePath(std::string const& prefix,
     template_str += prefix;
   }
   template_str += "XXXXXX";
-  [[maybe_unused]] int suffix_len = 0;
-  if (!postfix.empty()) {
-    template_str += postfix;
-    suffix_len = postfix.length();
-  }
-  // int fd = mkstemp(template_str.data());
-  int fd = mkstemps(template_str.data(), suffix_len);
+  // mkstemps is a BSD extension; use standard mkstemp and append suffix
+  // after generating the unique path for portability (Linux, *BSD, macOS).
+  int fd = mkstemp(template_str.data());
   if (fd == -1) {
     throw std::runtime_error("Failed to create temporary file.");
   }
   close(fd);
   ::remove(template_str.c_str());
   temp_file_path = template_str;
+  if (!postfix.empty()) {
+    temp_file_path += postfix;
+  }
 #endif
   return temp_file_path;
 }
