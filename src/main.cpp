@@ -1,7 +1,5 @@
 #include <argparse/argparse.hpp>
 #include <cstdlib>
-#include <filesystem>
-#include <iostream>
 #include <nlohmann/json.hpp>
 
 #include "ai/args.h"
@@ -9,7 +7,6 @@
 #include "ai/history.h"
 #include "ai/models.h"
 #include "ai/update.h"
-#include "ai/utils.h"
 #include "curl/curl.h"
 
 using namespace ai;
@@ -39,22 +36,7 @@ int main(int argc, char* argv[])
   } else if (cmd.command() == "models") {
     return models();
   } else if (cmd.command() == "history") {
-    auto history_db_path =
-        std::filesystem::path(ai::utils::app_data_dir("ai.cli")) /
-        "chat_history.db";
-    HistoryDB history_db(history_db_path.string());
-    int n = args.history_args.n;
-    auto sessions = history_db.list_session_infos(n);
-
-    if (sessions.empty()) {
-      std::cout << "No chat history found.\n";
-      return 0;
-    }
-
-    for (auto it = sessions.rbegin(); it != sessions.rend(); it++) {
-      it->print();
-    }
-    return 0;
+    return history();
   } else if (cmd.command() == "update") {
     return update();
   } else {

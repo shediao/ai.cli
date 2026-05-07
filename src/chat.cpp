@@ -1,7 +1,6 @@
 #include "ai/chat.h"
 
 #include <ctime>
-#include <filesystem>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -27,10 +26,7 @@ int chat() {
     OpenAIClient client;
 
     nlohmann::json chat_history = nlohmann::json::array();
-    auto history_db_path =
-        std::filesystem::path(ai::utils::app_data_dir("ai.cli")) /
-        "chat_history.db";
-    HistoryDB history_db(history_db_path.string());
+    HistoryDB history_db(HistoryDB::default_db_path());
 
     std::optional<HistoryDB::SessionInfo> last_session{std::nullopt};
     if (chat_args.continue_with_last_history) {

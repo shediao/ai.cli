@@ -12,6 +12,7 @@
 #include <sstream>
 #include <thread>
 
+#include "ai/args.h"
 #include "ai/logging.h"
 #include "ai/utils.h"
 
@@ -370,6 +371,35 @@ void HistoryDB::SessionInfo::print() const {
       }
     }
   } catch (...) {
+  }
+}
+
+std::string HistoryDB::default_db_path() {
+  return (std::filesystem::path(ai::utils::app_data_dir("ai.cli")) /
+          "chat_history.db")
+      .string();
+}
+
+int history() {
+  try {
+    AiArgs const& args = AiArgs::instance();
+    HistoryDB history_db(HistoryDB::default_db_path());
+    int n = args.history_args.n;
+    auto sessions = history_db.list_session_infos(n);
+
+    if (sessions.empty()) {
+      std::cout << "No chat history found.\n";
+      return 0;
+    }
+
+    // list_session_infos returns newest-first; reverse to print oldest-first
+    for (auto it = sessions.rbegin(); it != sessions.rend(); it++) {
+      it->print();
+    }
+    return 0;
+  } catch (const std::exception& e) {
+    std::cerr << "Error: " << e.what() << std::endl;
+    return 1;
   }
 }
 

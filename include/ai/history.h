@@ -48,6 +48,9 @@ class HistoryDB {
   /// List all saved session IDs, ordered by most recent first.
   std::vector<std::string> list_sessions();
 
+  /// Get the default database path (in ai.cli app data directory).
+  static std::string default_db_path();
+
   /// Per-session metadata.
   struct SessionInfo {
     std::string session_id;
@@ -68,5 +71,7 @@ class HistoryDB {
   std::string db_path_;
   sqlite3* db_{nullptr};
 };
+
+int history();
 
 }  // namespace ai
