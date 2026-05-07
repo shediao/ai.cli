@@ -28,7 +28,7 @@ jobs:
             os: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # -----------------------------------------------------------------------
       # Install libcurl development files (Linux only; macOS builds curl from
@@ -100,7 +100,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -152,7 +152,7 @@ jobs:
           - target: freebsd-arm64
             arch: aarch64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Generate .VERSION file
         shell: bash
