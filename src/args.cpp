@@ -477,9 +477,14 @@ AiArgs::AiArgs()
       .callback([](bool v) {
         if (v) {
           std::cout << "ai version " << GIT_VERSION
-#if (defined(__has_feature) && __has_feature(address_sanitizer)) ||         \
-    defined(__SANITIZE_ADDRESS__)
+#ifdef __SANITIZE_ADDRESS__
                     << " (asan)"
+#else
+#ifdef __has_feature
+#if __has_feature(address_sanitizer)
+                    << " (asan)"
+#endif
+#endif
 #endif
                     << "\n";
           std::exit(0);
