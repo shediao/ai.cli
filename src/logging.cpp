@@ -9,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #endif
+#include <iomanip>
 
 namespace ai {
 namespace logging {

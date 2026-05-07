@@ -1,7 +1,5 @@
 #include "ai/tool_calls.h"
 
-#include <iostream>
-
 // ── individual tool (function-level) registry ────────────────────────
 static auto& get_all_tools() {
   static std::map<std::string,

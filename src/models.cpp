@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include "ai/args.h"
 #include "ai/openai.h"
 
 namespace ai {

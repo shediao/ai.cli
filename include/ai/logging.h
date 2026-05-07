@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iomanip>
 #include <sstream>
 
 #if defined(_WIN32)

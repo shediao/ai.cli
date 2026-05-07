@@ -1,12 +1,10 @@
 #pragma once
 
-#include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 
-#include "ai/args.h"
 #include "ai/response.h"
 
 namespace ai {

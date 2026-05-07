@@ -1,6 +1,5 @@
 #include "ai/chat.h"
 
-#include <chrono>
 #include <ctime>
 #include <filesystem>
 #include <iostream>

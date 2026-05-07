@@ -1,7 +1,6 @@
 
 #include "ai/response.h"
 
-#include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
 
