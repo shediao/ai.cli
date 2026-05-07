@@ -57,7 +57,7 @@ class HistoryDB {
     std::string created_at;
     std::string updated_at;
     std::string messages;
-    void print() const;
+    void print(bool json_format) const;
   };
 
   /// List sessions with metadata, ordered by most recent first.
