@@ -476,7 +476,12 @@ AiArgs::AiArgs()
   parser.add_flag("v,version", "Print version information and exit", version)
       .callback([](bool v) {
         if (v) {
-          std::cout << "ai version " << GIT_VERSION << "\n";
+          std::cout << "ai version " << GIT_VERSION
+#if (defined(__has_feature) && __has_feature(address_sanitizer)) ||         \
+    defined(__SANITIZE_ADDRESS__)
+                    << " (asan)"
+#endif
+                    << "\n";
           std::exit(0);
         }
       });
