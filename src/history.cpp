@@ -450,7 +450,9 @@ std::string HistoryDB::generate_topic(nlohmann::json const& messages,
     auto response = client.chat(
         "You are a topic generator. Summarize the following conversation into "
         "a single brief topic phrase, within 15 words. Output ONLY the topic "
-        "text, nothing else - no quotes, no prefixes, no explanation.",
+        "text, nothing else - no quotes, no prefixes, no explanation. "
+        "Respond with the topic in the language of the first user role "
+        "message.",
         user_prompts, temp_history);
 
     if (response.has_value() && !response.value().choices().empty()) {

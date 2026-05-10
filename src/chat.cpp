@@ -56,7 +56,8 @@ int chat(AiArgs const& args) {
           history_db.save_messages(session_id, chat_history);
           auto chat_history_snashot = chat_history;
           auto topic = HistoryDB::generate_topic(chat_history_snashot, args);
-          std::cout << "[TOPIC]: " << topic << "\n";
+          std::cout << term::bright_black << "\n[TOPIC]: " << topic
+                    << term::reset << "\n";
           if (!topic.empty()) {
             history_db.set_topic(session_id, topic);
           }
