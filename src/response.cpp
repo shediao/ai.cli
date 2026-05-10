@@ -4,6 +4,8 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 
+#include "ai/terminal.h"
+
 using json = nlohmann::json;
 
 namespace ai {
@@ -260,7 +262,7 @@ static void parse_line(std::string const& data, std::vector<json>& all,
           auto reasoning_content_str =
               delta_json["reasoning_content"].get<std::string>();
           if (all.empty()) {
-            out << "<thinking>" << '\n';
+            out << term::bright_black << "\n<thinking>\n";
           }
           out << reasoning_content_str;
         }
@@ -268,7 +270,7 @@ static void parse_line(std::string const& data, std::vector<json>& all,
           auto constent_str = delta_json["content"].get<std::string>();
           if (!all.empty() && is_string("reasoning_content",
                                         all.back()["choices"][0]["delta"])) {
-            out << "\n</thinking>" << '\n';
+            out << term::bright_black << "\n</thinking>\n" << term::reset;
           }
           out << constent_str;
         }
