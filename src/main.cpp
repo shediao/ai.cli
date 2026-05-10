@@ -28,20 +28,25 @@ int main(int argc, char* argv[])
 #endif
   CurlGlobalInitGuard guard;
   AiArgs args;
-  set_ai_args(args);
+  auto parser = get_parser(args);
 
-  auto& cmd = args.parse(argc, argv);
+  try {
+    auto& cmd = parser.parse(argc, argv);
 
-  if (cmd.command() == "chat") {
-    return chat(args);
-  } else if (cmd.command() == "models") {
-    return models(args);
-  } else if (cmd.command() == "history") {
-    return history(args);
-  } else if (cmd.command() == "update") {
-    return update(args);
-  } else {
-    cmd.print_usage();
+    if (cmd.command() == "chat") {
+      return chat(args);
+    } else if (cmd.command() == "models") {
+      return models(args);
+    } else if (cmd.command() == "history") {
+      return history(args);
+    } else if (cmd.command() == "update") {
+      return update(args);
+    } else {
+      cmd.print_usage();
+    }
+  } catch (std::exception const& e) {
+    std::cerr << e.what() << "\n";
+    exit(EXIT_FAILURE);
   }
   return EXIT_FAILURE;
 }

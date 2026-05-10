@@ -196,7 +196,7 @@ static size_t write_data_to_file(void* ptr, size_t size, size_t nmemb,
 }
 
 bool download_image(std::string const& image_url, std::string const& image_path,
-                    std::string& memi_type) {
+                    std::string& memi_type, std::string const& proxy) {
   CURL* curl_handle;
   CURLcode res;
   std::ofstream outfile;
@@ -244,8 +244,8 @@ bool download_image(std::string const& image_url, std::string const& image_path,
   curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS,
                    3000L);  // 3 秒连接超时
 
-  if (auto& args = ai::get_ai_args(); args.proxy.has_value()) {
-    curl_easy_setopt(curl_handle, CURLOPT_PROXY, args.proxy.value().c_str());
+  if (!proxy.empty()) {
+    curl_easy_setopt(curl_handle, CURLOPT_PROXY, proxy.c_str());
   }
 
   // (可选) 详细输出，用于调试
@@ -366,7 +366,7 @@ static size_t header_callback(char* buffer, size_t size, size_t nitems,
  *         or an empty string if the Content-Type header is not found or an
  * error occurs.
  */
-std::string getMEMI(std::string const& url) {
+std::string getMEMI(std::string const& url, std::string const& proxy) {
   CURL* curl = nullptr;
   CURLcode res = CURLE_OK;
   std::string content_type;  // This will store the result
@@ -398,8 +398,8 @@ std::string getMEMI(std::string const& url) {
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS,
                    3000L);  // 3 秒连接超时
 
-  if (auto& args = ai::get_ai_args(); args.proxy.has_value()) {
-    curl_easy_setopt(curl, CURLOPT_PROXY, args.proxy.value().c_str());
+  if (!proxy.empty()) {
+    curl_easy_setopt(curl, CURLOPT_PROXY, proxy.c_str());
   }
 
   // For HTTPS: Verify peer and host (recommended for security)

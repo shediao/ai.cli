@@ -455,51 +455,9 @@ static void bind_update_args(argparse::ArgParser& parser, AiArgs& args) {
                   update_args.force);
 }
 
-}  // namespace
-
-namespace {
-
-/// Global pointer to the AiArgs instance, set by main() before any use.
-static AiArgs const* g_ai_args = nullptr;
-
-}  // namespace
-
-void set_ai_args(AiArgs const& args) { g_ai_args = &args; }
-
-AiArgs const& get_ai_args() {
-  // Fallback default instance for contexts where set_ai_args() was not called
-  // (e.g., test environments or early initialization).
-  static AiArgs default_args;
-  return g_ai_args ? *g_ai_args : default_args;
-}
-
-#if defined(_WIN32)
-argparse::Command& AiArgs::parse(int argc, wchar_t* argv[]) {
-  try {
-    auto& cmd = parser.parse(argc, (const wchar_t**)argv);
-    return cmd;
-  } catch (std::exception const& e) {
-    std::cerr << e.what() << "\n";
-    exit(EXIT_FAILURE);
-  }
-}
-#else
-argparse::Command& AiArgs::parse(int argc, char* argv[]) {
-  try {
-    auto& cmd = parser.parse(argc, (const char**)argv);
-    return cmd;
-  } catch (std::exception const& e) {
-    std::cerr << e.what() << "\n";
-    exit(EXIT_FAILURE);
-  }
-}
-#endif
-
-AiArgs::AiArgs()
-    : parser("ai",
-             "OpenAI API-compatible multi-provider CLI chatbot with "
-             "tool-calling capabilities") {
-  parser.add_flag("v,version", "Print version information and exit", version)
+static void bind_ai_args(argparse::ArgParser& parser, AiArgs& args) {
+  parser
+      .add_flag("v,version", "Print version information and exit", args.version)
       .callback([](bool v) {
         if (v) {
           std::cout << "ai version " << GIT_VERSION
@@ -520,17 +478,17 @@ AiArgs::AiArgs()
       .add_option(
           "x,proxy",
           "HTTP/HTTPS proxy URL for API requests (e.g., http://127.0.0.1:8080)",
-          proxy)
+          args.proxy)
       .value_placeholder("PROXY");
   parser
       .add_option("k,key",
                   "API key used for authenticating with the AI provider",
-                  api_key)
+                  args.api_key)
       .value_placeholder("KEY");
   parser
       .add_option("log-level",
                   "Set logging verbosity level (lower values are more verbose)",
-                  log_level)
+                  args.log_level)
       .value_placeholder("LEVEL")
 #if defined(NDEBUG)
       .default_value("4")
@@ -548,43 +506,61 @@ AiArgs::AiArgs()
   parser.add_alias("warn", "log-level", "2");
   parser.add_alias("error", "log-level", "3");
   parser.add_alias("fatal", "log-level", "4");
-  parser.add_option("log-to", "Path to the log file", log_file);
+  parser.add_option("log-to", "Path to the log file", args.log_file);
   parser
       .add_flag("print-bash-complete", "Print bash completion script",
-                print_bash_completion)
-      .callback([this](bool v) {
+                args.print_bash_completion)
+      .callback([&parser](bool v) {
         if (v) {
-          this->parser.print_bash_complete(std::cout);
+          parser.print_bash_complete(std::cout);
           std::exit(0);
         }
       })
       .hidden();
   parser
       .add_flag("print-zsh-complete", "Print zsh completion script",
-                print_zsh_completion)
-      .callback([this](bool v) {
+                args.print_zsh_completion)
+      .callback([&parser](bool v) {
         if (v) {
-          this->parser.print_zsh_complete(std::cout);
+          parser.print_zsh_complete(std::cout);
           std::exit(0);
         }
       })
       .hidden();
   parser
       .add_flag("print-fish-complete", "Print fish completion script",
-                print_fish_completion)
-      .callback([this](bool v) {
+                args.print_fish_completion)
+      .callback([&parser](bool v) {
         if (v) {
-          this->parser.print_fish_complete(std::cout);
+          parser.print_fish_complete(std::cout);
           std::exit(0);
         }
       })
       .hidden();
-  bind_chat_args(parser, *this);
-  bind_model_args(parser, *this);
-  bind_history_args(parser, *this);
-  bind_update_args(parser, *this);
+  bind_chat_args(parser, args);
+  bind_model_args(parser, args);
+  bind_history_args(parser, args);
+  bind_update_args(parser, args);
 
   parser.usage_footer("\nConfig file:\n  " + config_file_path() + "\n");
+  parser.callback([&args]() -> void {
+    ::ai::logging::SetLogLevel(args.log_level);
+    if (args.log_file.has_value()) {
+      ::ai::logging::SetLogFilePath(args.log_file.value());
+    }
+  });
+}
+
+}  // namespace
+
+argparse::ArgParser get_parser(AiArgs& args) {
+  argparse::ArgParser parser(
+      "ai",
+      "OpenAI API-compatible multi-provider CLI chatbot with "
+      "tool-calling capabilities");
+
+  bind_ai_args(parser, args);
+  return parser;
 }
 
 }  // namespace ai

@@ -395,7 +395,8 @@ void HistoryDB::set_topic(std::string const& session_id,
   }
 }
 
-std::string HistoryDB::generate_topic(nlohmann::json const& messages) {
+std::string HistoryDB::generate_topic(nlohmann::json const& messages,
+                                      AiArgs const& args) {
   if (!messages.is_array() || messages.empty()) {
     return "";
   }
@@ -440,7 +441,9 @@ std::string HistoryDB::generate_topic(nlohmann::json const& messages) {
   }
 
   try {
-    OpenAIClient client(get_ai_args());
+    auto args_dup = args;
+    args_dup.chat_args.stream = false;
+    OpenAIClient client(args_dup);
     nlohmann::json temp_history = nlohmann::json::array();
     std::vector<std::string> user_prompts = {conversation_text};
 

@@ -1,7 +1,6 @@
 
 #include "ai/logging.h"
 
-#include "ai/args.h"
 #if defined(_WIN32)
 #include <Windows.h>
 #else
@@ -18,24 +17,11 @@ const char* const log_severity_names[] = {"DEBUG", "INFO", "WARNING", "ERROR",
 static_assert(LOGGING_NUM_SEVERITIES == std::size(log_severity_names),
               "Incorrect number of log_severity_names");
 
-FILE* g_log_file = nullptr;
-
 const char* GetSeverityName(int severity) {
   if (severity >= 0 && severity < LOGGING_NUM_SEVERITIES) {
     return log_severity_names[severity];
   }
   return "UNKNOWN";
-}
-std::string GetLogFilePath() { return get_ai_args().log_file.value_or(""); }
-
-LoggingDestination GetLogDestination() {
-  static LoggingDestination g_logging_destination = []() {
-    if (!get_ai_args().log_file.value_or("").empty()) {
-      return LOG_TO_FILE;
-    }
-    return LOG_TO_STDERR;
-  }();
-  return g_logging_destination;
 }
 
 #if defined(_WIN32)
@@ -46,6 +32,9 @@ const static inline NativeHandle INVALID_NATIVE_HANDLE_VALUE =
 using NativeHandle = int;
 constexpr NativeHandle INVALID_NATIVE_HANDLE_VALUE = -1;
 #endif  // !_WIN32
+
+NativeHandle g_log_file = INVALID_NATIVE_HANDLE_VALUE;
+LogSeverity g_logging_level = LOGGING_ERROR;
 
 inline std::string get_last_error_msg() {
 #if defined(_WIN32)
@@ -118,8 +107,14 @@ NativeHandle OpenNativeFile(std::string const& path) {
 }
 
 NativeHandle GetLogFileNativeHandle() {
-  static auto fd = OpenNativeFile(GetLogFilePath());
-  return fd;
+  if (g_log_file != INVALID_NATIVE_HANDLE_VALUE) {
+    return g_log_file;
+  }
+#if defined(_WIN32)
+  return GetStdHandle(STD_ERROR_HANDLE);
+#else
+  return STDERR_FILENO;
+#endif
 }
 
 LogMessage::~LogMessage() { Flush(); }
@@ -194,23 +189,12 @@ void LogMessage::Flush() {
   stream_ << std::endl;
   std::string str_newline(stream_.str());
 
-  if ((GetLogDestination() & LOG_TO_STDERR) != 0) {
+  if (auto fd = GetLogFileNativeHandle(); fd != INVALID_NATIVE_HANDLE_VALUE) {
 #if defined(_WIN32)
-    WriteToNativeHandle(GetStdHandle(STD_ERROR_HANDLE), str_newline.data(),
-                        str_newline.size());
+    WriteToNativeHandle(fd, str_newline.data(), str_newline.size());
 #else
-    WriteToNativeHandle(STDERR_FILENO, str_newline.data(), str_newline.size());
+    WriteToNativeHandle(fd, str_newline.data(), str_newline.size());
 #endif
-  }
-
-  if ((GetLogDestination() & LOG_TO_FILE) != 0) {
-    if (auto fd = GetLogFileNativeHandle(); fd != INVALID_NATIVE_HANDLE_VALUE) {
-#if defined(_WIN32)
-      WriteToNativeHandle(fd, str_newline.data(), str_newline.size());
-#else
-      WriteToNativeHandle(fd, str_newline.data(), str_newline.size());
-#endif
-    }
   }
 
   if (severity_ >= LOGGING_FATAL) {
@@ -218,7 +202,15 @@ void LogMessage::Flush() {
   }
 }
 bool ShouldCreateLogMessage(LogSeverity severity) {
-  return severity >= get_ai_args().log_level;
+  return severity >= g_logging_level;
 }
+void SetLogFilePath(const std::string& path) {
+  if (g_log_file != INVALID_NATIVE_HANDLE_VALUE) {
+    CloseNativeHandle(g_log_file);
+  }
+  g_log_file = OpenNativeFile(path);
+}
+
+void SetLogLevel(LogSeverity severity) { g_logging_level = severity; }
 }  // namespace logging
 }  // namespace ai

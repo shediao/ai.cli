@@ -46,7 +46,7 @@ int chat(AiArgs const& args) {
     }
 
     ai::utils::AutoRun scope_exit_runner(
-        [&chat_history, &history_db, &last_session]() {
+        [&chat_history, &history_db, &last_session, &args]() {
           std::string session_id;
           if (last_session.has_value()) {
             session_id = last_session.value().session_id;
@@ -55,7 +55,7 @@ int chat(AiArgs const& args) {
           }
           history_db.save_messages(session_id, chat_history);
           auto chat_history_snashot = chat_history;
-          auto topic = HistoryDB::generate_topic(chat_history_snashot);
+          auto topic = HistoryDB::generate_topic(chat_history_snashot, args);
           std::cout << "[TOPIC]: " << topic << "\n";
           if (!topic.empty()) {
             history_db.set_topic(session_id, topic);

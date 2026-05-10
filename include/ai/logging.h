@@ -76,5 +76,8 @@ class LogMessage {
 bool ShouldCreateLogMessage(LogSeverity severity);
 const char* GetSeverityName(int severity);
 
+void SetLogFilePath(const std::string& path);
+void SetLogLevel(LogSeverity severity);
+
 }  // namespace logging
 }  // namespace ai

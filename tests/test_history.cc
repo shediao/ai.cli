@@ -8,6 +8,7 @@
 #include <sstream>
 #include <thread>
 
+#include "ai/args.h"
 #include "ai/history.h"
 
 using json = nlohmann::json;
@@ -829,13 +830,13 @@ TEST_F(HistoryDBTest, PrintJsonWithTopic) {
 
 TEST_F(HistoryDBTest, GenerateTopicWithEmptyMessages) {
   json empty = json::array();
-  std::string topic = ai::HistoryDB::generate_topic(empty);
+  std::string topic = ai::HistoryDB::generate_topic(empty, ai::AiArgs{});
   EXPECT_TRUE(topic.empty());
 }
 
 TEST_F(HistoryDBTest, GenerateTopicWithNonArray) {
   json non_array = json::object({{"key", "value"}});
-  std::string topic = ai::HistoryDB::generate_topic(non_array);
+  std::string topic = ai::HistoryDB::generate_topic(non_array, ai::AiArgs{});
   EXPECT_TRUE(topic.empty());
 }
 
@@ -843,7 +844,7 @@ TEST_F(HistoryDBTest, GenerateTopicWithOnlySystemMessages) {
   json messages = json::array(
       {json::object({{"role", "system"}, {"content", "You are helpful."}}),
        json::object({{"role", "tool"}, {"content", "some tool output"}})});
-  std::string topic = ai::HistoryDB::generate_topic(messages);
+  std::string topic = ai::HistoryDB::generate_topic(messages, ai::AiArgs{});
   // Only user/assistant messages are used; no topic can be generated
   EXPECT_TRUE(topic.empty());
 }

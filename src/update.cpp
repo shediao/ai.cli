@@ -147,7 +147,8 @@ static size_t string_write_cb(void* ptr, size_t size, size_t nmemb,
 
 /// Perform an HTTPS GET request and return the response body.
 /// Returns std::nullopt on any error.
-std::optional<std::string> https_get(const std::string& url) {
+std::optional<std::string> https_get(const std::string& url,
+                                     std::string const& proxy) {
   CURL* curl = curl_easy_init();
   if (!curl) {
     std::cerr << "update: curl_easy_init() failed\n";
@@ -166,8 +167,8 @@ std::optional<std::string> https_get(const std::string& url) {
   // GitHub API requires a User-Agent header
   curl_easy_setopt(curl, CURLOPT_USERAGENT, "ai-cli-updater/1.0");
 
-  if (auto& a = get_ai_args(); a.proxy.has_value()) {
-    curl_easy_setopt(curl, CURLOPT_PROXY, a.proxy.value().c_str());
+  if (!proxy.empty()) {
+    curl_easy_setopt(curl, CURLOPT_PROXY, proxy.c_str());
   }
 
   CURLcode res = curl_easy_perform(curl);
@@ -349,7 +350,8 @@ int update(AiArgs const& args) {
   // 2. Fetch latest release info from GitHub
   std::cout << "Checking for updates...\n";
   auto response =
-      https_get("https://api.github.com/repos/shediao/ai.cli/releases/latest");
+      https_get("https://api.github.com/repos/shediao/ai.cli/releases/latest",
+                args.proxy.value_or(""));
   if (!response.has_value()) {
     return 1;
   }
@@ -430,7 +432,8 @@ int update(AiArgs const& args) {
   // 6. Download the zip to a temporary file
   ai::utils::TempFile tmp_zip("ai-update.", ".zip");
   std::string mime;
-  if (!ai::utils::download_image(download_url, tmp_zip.path(), mime)) {
+  if (!ai::utils::download_image(download_url, tmp_zip.path(), mime,
+                                 args.proxy.value_or(""))) {
     std::cerr << "update: download failed\n";
     return 1;
   }
