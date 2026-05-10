@@ -286,6 +286,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
   chat.add_option("reasoning-effort",
                   "Control the model's reasoning depth before responding",
                   chat_args.reasoning_effort)
+      .value_placeholder("EFFORT")
       .choices({"low", "medium", "high", "none"});
 
   chat.add_flag("no-tools", "Disable all tool calling capabilities",
@@ -297,15 +298,21 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
           "tools",
           "Tool categories to enable for the AI (e.g., bash, filesystem)",
           chat_args.tools)
+      .value_placeholder("TOOL")
       .choices([&]() {
         auto cats = get_tool_categories();
-        return std::vector<std::string>(cats.begin(), cats.end());
+        std::map<std::string, std::string> choices;
+        for (const auto& cat : cats) {
+          choices[cat] = cat;
+        }
+        return choices;
       }());
   chat.add_option(
           "tool-choice",
           "Control how the AI selects and uses tools: 'none' (never call "
           "tools), 'auto' (let the AI decide), 'required' (force a tool call)",
           chat_args.tool_choice)
+      .value_placeholder("HOW")
       .choices({"none", "auto", "required"});
 
   add_alias_options(chat);
@@ -428,6 +435,7 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
                   "Output format for history listing: 'text' (human-readable) "
                   "or 'json'",
                   history_args.format)
+      .value_placeholder("FORMAT")
       .default_value("text")
       .choices({"json", "text"});
   history.callback([]() -> void {
@@ -523,17 +531,17 @@ AiArgs::AiArgs()
       .add_option("log-level",
                   "Set logging verbosity level (lower values are more verbose)",
                   log_level)
+      .value_placeholder("LEVEL")
 #if defined(NDEBUG)
       .default_value("4")
 #else
       .default_value("3")
 #endif
-      .choices({0, 1, 2, 3, 4})
-      .choices_description({{"0", "DEBUG"},
-                            {"1", "INFO"},
-                            {"2", "WARNING"},
-                            {"3", "ERROR"},
-                            {"4", "FATAL"}});
+      .choices({{0, "DEBUG"},
+                {1, "INFO"},
+                {2, "WARNING"},
+                {3, "ERROR"},
+                {4, "FATAL"}});
   parser.add_alias("verbose", "log-level", "-1");
   parser.add_alias("debug", "log-level", "0");
   parser.add_alias("info", "log-level", "1");
