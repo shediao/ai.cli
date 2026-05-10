@@ -104,7 +104,7 @@ class StreamResponse {
   std::vector<char> response_data_;
   std::size_t parse_index_{0};
   std::reference_wrapper<std::ostream> out_;
+  bool is_terminal_{false};
 };
-
 }  // namespace openai
 }  // namespace ai

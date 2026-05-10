@@ -1,8 +1,21 @@
 
 #include "ai/response.h"
 
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include <optional>
+
+#ifdef _WIN32
+#include <io.h>
+#define ISATTY(fd) _isatty(fd)
+#define STDOUT_FILENO_NO _fileno(stdout)
+#define STDERR_FILENO_NO _fileno(stderr)
+#else
+#include <unistd.h>
+#define ISATTY(fd) isatty(fd)
+#define STDOUT_FILENO_NO STDOUT_FILENO
+#define STDERR_FILENO_NO STDERR_FILENO
+#endif
 
 #include "ai/terminal.h"
 
@@ -220,7 +233,13 @@ void Response::add_to_history(json& history) {
   }
 }
 
-StreamResponse::StreamResponse(std::ostream& out) : out_(out) {}
+StreamResponse::StreamResponse(std::ostream& out) : out_(out) {
+  if (&out == &std::cout) {
+    is_terminal_ = ISATTY(STDOUT_FILENO_NO);
+  } else if (&out == &std::cerr) {
+    is_terminal_ = ISATTY(STDERR_FILENO_NO);
+  }
+}
 
 size_t StreamResponse::parse(const char* ptr, size_t size, size_t nmemb,
                              StreamResponse* self) {
@@ -251,7 +270,7 @@ static std::optional<std::string> getLine(std::vector<char>& data,
 }
 
 static void parse_line(std::string const& data, std::vector<json>& all,
-                       std::ostream& out) {
+                       std::ostream& out, bool is_terminal) {
   try {
     nlohmann::json const data_json = nlohmann::json::parse(data);
     if (is_array("choices", data_json) && !data_json["choices"].empty()) {
@@ -262,7 +281,10 @@ static void parse_line(std::string const& data, std::vector<json>& all,
           auto reasoning_content_str =
               delta_json["reasoning_content"].get<std::string>();
           if (all.empty()) {
-            out << term::bright_black << "\n<thinking>\n";
+            if (is_terminal) {
+              out << term::bright_black;
+            }
+            out << "\n<thinking>\n";
           }
           out << reasoning_content_str;
         }
@@ -270,7 +292,10 @@ static void parse_line(std::string const& data, std::vector<json>& all,
           auto constent_str = delta_json["content"].get<std::string>();
           if (!all.empty() && is_string("reasoning_content",
                                         all.back()["choices"][0]["delta"])) {
-            out << term::bright_black << "\n</thinking>\n" << term::reset;
+            out << "\n</thinking>\n";
+            if (is_terminal) {
+              out << term::reset;
+            }
           }
           out << constent_str;
         }
@@ -308,7 +333,7 @@ void StreamResponse::parse_impl() {
       // is_parse_done_ = true;
       break;
     }
-    parse_line(data, all_json_data_, out_);
+    parse_line(data, all_json_data_, out_, is_terminal_);
   }
 }
 

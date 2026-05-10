@@ -13,7 +13,7 @@ TEST(StreamResponse, Test1) {
   auto non_stream_response = stream_response.toResponse();
   ASSERT_FALSE(non_stream_response.choices().empty());
   std::string s1 =
-      (std::string("<thinking>\n") + std::string(reasoning_content) +
+      (std::string("\n<thinking>\n") + std::string(reasoning_content) +
        "\n</thinking>\n" + std::string(content));
   std::string s2 = ss.str();
   ASSERT_EQ(s1, s2);
@@ -45,7 +45,7 @@ TEST(StreamResponse, Test2) {
       response_str.remove_prefix(random_number);
     }
     std::string s1 =
-        (std::string("<thinking>\n") + std::string(reasoning_content) +
+        (std::string("\n<thinking>\n") + std::string(reasoning_content) +
          "\n</thinking>\n" + std::string(content));
     std::string s2 = ss.str();
     ASSERT_EQ(s1, s2);
