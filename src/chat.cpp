@@ -1,7 +1,6 @@
 #include "ai/chat.h"
 
 #include <ctime>
-#include <future>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -46,51 +45,20 @@ int chat(AiArgs const& args) {
       }
     }
 
-    // Determine session_id early so we can use it for topic generation
-    std::string session_id;
-    if (last_session.has_value()) {
-      session_id = last_session.value().session_id;
-    } else {
-      session_id = history_db.create_session();
-    }
-
-    // Async topic generation state
-    std::future<std::string> topic_future;
-    int assistant_count = 0;
-
-    // Count existing assistant messages (relevant for --continue)
-    for (auto const& msg : chat_history) {
-      if (msg.is_object() && msg.value("role", "") == "assistant") {
-        ++assistant_count;
-      }
-    }
-
     ai::utils::AutoRun scope_exit_runner(
-        [&chat_history, &history_db, &session_id, &topic_future]() {
-          history_db.save_messages(session_id, chat_history);
-
-          std::string latest_topic;
-          // Best-effort: collect topic from async generation (500ms timeout)
-          if (topic_future.valid()) {
-            auto status = topic_future.wait_for(std::chrono::milliseconds(500));
-            if (status == std::future_status::ready) {
-              try {
-                latest_topic = topic_future.get();
-              } catch (std::exception const& e) {
-                LOG(ERROR) << "Async topic generation failed: " << e.what();
-              } catch (...) {
-                // Ignore any other exceptions
-              }
-            }
+        [&chat_history, &history_db, &last_session]() {
+          std::string session_id;
+          if (last_session.has_value()) {
+            session_id = last_session.value().session_id;
+          } else {
+            session_id = history_db.create_session();
           }
-
-          std::cout << "\n[TOPIC]: " << latest_topic << '\n';
-          if (!latest_topic.empty()) {
-            try {
-              history_db.set_topic(session_id, latest_topic);
-            } catch (std::exception const& e) {
-              LOG(ERROR) << "Failed to set topic: " << e.what();
-            }
+          history_db.save_messages(session_id, chat_history);
+          auto chat_history_snashot = chat_history;
+          auto topic = HistoryDB::generate_topic(chat_history_snashot);
+          std::cout << "[TOPIC]: " << topic << "\n";
+          if (!topic.empty()) {
+            history_db.set_topic(session_id, topic);
           }
         });
 
@@ -131,25 +99,6 @@ int chat(AiArgs const& args) {
         auto response = client.chat(system_prompt, user_prompt, chat_history);
         if (!response.has_value()) {
           return 1;
-        }
-
-        // Increment assistant message counter and trigger async topic
-        // generation at exponential-backoff checkpoints (2, 7, 13, 19, ...).
-        ++assistant_count;
-        if (assistant_count == 2 || assistant_count == 7 ||
-            assistant_count == 13 || assistant_count == 19) {
-          // Only launch a new task when the previous one has finished
-          if (!topic_future.valid() ||
-              topic_future.wait_for(std::chrono::seconds(0)) ==
-                  std::future_status::ready) {
-            // Snapshot chat_history to avoid data races with the main loop
-            auto history_snapshot = chat_history;
-            topic_future =
-                std::async(std::launch::async,
-                           [history_snapshot = std::move(history_snapshot)]() {
-                             return HistoryDB::generate_topic(history_snapshot);
-                           });
-          }
         }
 
         auto& reasoning_content =
