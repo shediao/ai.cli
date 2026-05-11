@@ -387,17 +387,13 @@ TEST(UtilsReadFileTest, FileNotExistsReturnsNullopt) {
   EXPECT_FALSE(content.has_value());
 }
 
-TEST(UtilsReadFileTest, DirectoryPathReturnsContentOnSomePlatforms) {
-  // std::ifstream can open a directory on some platforms (e.g. macOS).
-  // This test documents the actual behaviour – read_file does not
-  // explicitly reject directories; it relies on the stream's ability
-  // to open the path.
+TEST(UtilsReadFileTest, DirectoryPathReturnsNullopt) {
+  // read_file now explicitly rejects directories and returns nullopt
+  // on all platforms (Linux/GCC would throw an exception when reading
+  // from a directory stream; macOS/Clang would return garbage data).
   UtilsTempTestDir dir;
   auto content = utils::read_file(dir.path());
-  // On platforms where opening a directory succeeds, content will have a
-  // value; on others it returns nullopt.  Either way the call must not
-  // crash.
-  SUCCEED();
+  EXPECT_FALSE(content.has_value());
 }
 
 TEST(UtilsReadFileTest, LargeFile) {

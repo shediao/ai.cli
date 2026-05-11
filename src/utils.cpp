@@ -530,6 +530,12 @@ std::optional<std::string> toUtf8(const std::string& s) {
 #endif
 
 std::optional<std::string> read_file(std::string const& path) {
+  // On some platforms (e.g. Linux/GCC) std::ifstream::open() can succeed on a
+  // directory, but reading from it later throws an exception.  Check early.
+  std::error_code ec;
+  if (std::filesystem::is_directory(path, ec)) {
+    return std::nullopt;
+  }
   std::ifstream file(path);
   if (!file.is_open()) {
     return std::nullopt;
