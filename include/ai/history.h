@@ -35,17 +35,25 @@ class HistoryDB {
   HistoryDB& operator=(HistoryDB&&) = delete;
 
   /// Create a new session.
+  /// @param url The API base URL used for this session.
+  /// @param model The AI model name used for this session.
+  /// @param work_dir The working directory when the session was created.
   /// @return A unique session_id string.
-  std::string create_session();
+  std::string create_session(std::string const& url = "",
+                             std::string const& model = "",
+                             std::string const& work_dir = "");
 
   /// Retrieve specific messages by session_id.
   /// @return The messages JSON array, or std::nullopt if not found.
   std::optional<nlohmann::json> get_messages(std::string const& session_id);
 
   /// Save (insert or update) messages for a session.
-  /// Automatically updates the `updated_at` timestamp.
+  /// Automatically updates the `updated_at` timestamp, and optionally
+  /// the url, model, and work_dir fields.
   void save_messages(std::string const& session_id,
-                     nlohmann::json const& messages);
+                     nlohmann::json const& messages,
+                     std::string const& url = "", std::string const& model = "",
+                     std::string const& work_dir = "");
 
   /// List all saved session IDs, ordered by most recent first.
   std::vector<std::string> list_sessions();
@@ -59,6 +67,9 @@ class HistoryDB {
     std::string created_at;
     std::string updated_at;
     std::string topic;
+    std::string url;
+    std::string model;
+    std::string work_dir;
     std::string messages;
     void print(bool json_format) const;
   };
