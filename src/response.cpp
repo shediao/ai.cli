@@ -288,15 +288,17 @@ static void parse_line(std::string const& data, std::vector<json>& all,
           }
           out << reasoning_content_str;
         }
+        if (!all.empty() &&
+            is_string("reasoning_content", all.back()["choices"][0]["delta"]) &&
+            (is_string("content", delta_json) ||
+             is_array("tool_calls", delta_json))) {
+          out << "\n</thinking>\n";
+          if (is_terminal) {
+            out << term::reset;
+          }
+        }
         if (is_string("content", delta_json)) {
           auto constent_str = delta_json["content"].get<std::string>();
-          if (!all.empty() && is_string("reasoning_content",
-                                        all.back()["choices"][0]["delta"])) {
-            out << "\n</thinking>\n";
-            if (is_terminal) {
-              out << term::reset;
-            }
-          }
           out << constent_str;
         }
       }
