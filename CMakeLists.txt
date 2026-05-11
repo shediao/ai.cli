@@ -44,22 +44,28 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang" AND NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 endif()
 
-# ── Sanitizers (Linux/macOS) ──────────────────────────────────────────────
+# ── Sanitizers (Linux/macOS/Windows) ──────────────────────────────────────
 if(CMAKE_BUILD_TYPE MATCHES "Debug|RelWithDebInfo")
   option(AICLI_ENABLE_ASAN "Enable Address/Undefined Sanitizers" ON)
 else()
   option(AICLI_ENABLE_ASAN "Enable Address/Undefined Sanitizers" OFF)
 endif()
 
-if(AICLI_ENABLE_ASAN
-   AND NOT CMAKE_CROSSCOMPILING
-   AND CMAKE_HOST_SYSTEM_NAME MATCHES "Linux|Darwin")
-  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-    set(CMAKE_CXX_FLAGS
-        "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls"
-    )
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-      set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+if(AICLI_ENABLE_ASAN AND NOT CMAKE_CROSSCOMPILING)
+  if(MSVC)
+    # MSVC AddressSanitizer (VS 2019 16.4+, requires dynamic CRT)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fsanitize=address")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /fsanitize=address")
+    # ASAN on Windows requires dynamically linked CRT (/MD or /MDd)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  elseif(CMAKE_HOST_SYSTEM_NAME MATCHES "Linux|Darwin")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+      set(CMAKE_CXX_FLAGS
+          "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -fno-optimize-sibling-calls"
+      )
+      if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+      endif()
     endif()
   endif()
 endif()
