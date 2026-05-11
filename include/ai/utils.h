@@ -1,6 +1,5 @@
 #pragma once
 
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 
@@ -68,5 +67,9 @@ bool write_file(std::string const& path, std::string const& content);
 #if defined(_WIN32)
 std::optional<std::string> toUtf8(const std::string& s);
 #endif
+
+bool stdin_is_atty();
+bool stdout_is_atty();
+bool stderr_is_atty();
 
 }  // namespace ai::utils

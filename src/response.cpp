@@ -5,19 +5,8 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 
-#ifdef _WIN32
-#include <io.h>
-#define ISATTY(fd) _isatty(fd)
-#define STDOUT_FILENO_NO _fileno(stdout)
-#define STDERR_FILENO_NO _fileno(stderr)
-#else
-#include <unistd.h>
-#define ISATTY(fd) isatty(fd)
-#define STDOUT_FILENO_NO STDOUT_FILENO
-#define STDERR_FILENO_NO STDERR_FILENO
-#endif
-
 #include "ai/terminal.h"
+#include "ai/utils.h"
 
 using json = nlohmann::json;
 
@@ -235,9 +224,11 @@ void Response::add_to_history(json& history) {
 
 StreamResponse::StreamResponse(std::ostream& out) : out_(out) {
   if (&out == &std::cout) {
-    is_terminal_ = ISATTY(STDOUT_FILENO_NO);
+    is_terminal_ = utils::stdout_is_atty();
   } else if (&out == &std::cerr) {
-    is_terminal_ = ISATTY(STDERR_FILENO_NO);
+    is_terminal_ = utils::stderr_is_atty();
+  } else {
+    is_terminal_ = false;
   }
 }
 

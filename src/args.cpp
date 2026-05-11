@@ -8,10 +8,7 @@
 
 #include "ai/terminal.h"
 
-#if defined(_WIN32) || defined(_Win64)
-#include <io.h>
-#include <stdio.h>
-#else
+#ifndef _WIN32
 #include <sys/stat.h>
 #include <unistd.h>
 #endif
@@ -178,16 +175,8 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
   });
 }
 
-inline static bool stdin_is_atty() {
-#if defined(_WIN32) || defined(_WIN64)
-  return _isatty(_fileno(stdin));
-#else
-  return isatty(STDIN_FILENO);
-#endif
-}
-
 inline static bool stdin_is_pipe() {
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN32
   if (FILE_TYPE_PIPE == GetFileType(GetStdHandle(STD_INPUT_HANDLE))) {
     return true;
   }
@@ -202,7 +191,7 @@ inline static bool stdin_is_pipe() {
 }
 
 inline static bool stdin_is_file() {
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _WIN32
   if (FILE_TYPE_DISK == GetFileType(GetStdHandle(STD_INPUT_HANDLE))) {
     return true;
   }
@@ -229,7 +218,8 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
 
   chat.add_flag(
           "stream",
-          "Enable streaming mode (tokens are displayed as they are generated)",
+          "Enable streaming mode (tokens are displayed as they are generated). "
+          "Defaults to true when output is a terminal, false otherwise.",
           chat_args.stream)
       .negatable();
   chat.add_flag("stream-include-usage",
@@ -426,7 +416,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                         std::istreambuf_iterator<char>{});
     };
 
-    if (chat_args.prompts.empty() && stdin_is_atty()) {
+    if (chat_args.prompts.empty() && utils::stdin_is_atty()) {
       try {
         if (auto prompt = ai::utils::getUserInputViaEditor(); !prompt.empty()) {
           std::cout << prompt;

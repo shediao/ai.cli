@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ai/logging.h"
+#include "ai/utils.h"
 
 namespace ai {
 
@@ -21,7 +22,7 @@ struct AiArgs {
     std::optional<double> top_p;
     std::optional<bool> thinking{std::nullopt};
     std::optional<std::string> reasoning_effort;
-    bool stream{false};
+    bool stream{utils::stdout_is_atty()};
     bool stream_include_usage{false};
     std::set<std::string> tools;
     std::optional<std::string> tool_choice;

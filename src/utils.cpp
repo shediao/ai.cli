@@ -1,8 +1,7 @@
 #include <curl/curl.h>
 
 #include <chrono>
-#include <cstdio>   // For std::remove
-#include <cstdlib>  // For system()
+#include <cstdio>  // For std::remove
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -14,14 +13,12 @@
 #ifdef _WIN32
 #include <windows.h>  // For GetEnvironmentVariable
 #else
-#include <unistd.h>  // For access
+#include <unistd.h>  // For access, isatty, STDIN_FILENO/STDOUT_FILENO/STDERR_FILENO
 #endif
 
 #include <environment/environment.hpp>
-#include <nlohmann/json.hpp>
 #include <subprocess/subprocess.hpp>
 
-#include "ai/args.h"
 #include "ai/utils.h"
 
 namespace ai::utils {
@@ -348,8 +345,6 @@ static size_t header_callback(char* buffer, size_t size, size_t nitems,
         value = trim(value);  // Trim again after potentially removing charset
       }
       *content_type_ptr = value;
-      // std::cout << "Debug: Found Content-Type: " << *content_type_ptr
-      // << std::endl; // Optional debug
     }
   }
 
@@ -551,6 +546,43 @@ bool write_file(std::string const& path, std::string const& content) {
   file.write(content.data(), static_cast<std::streamsize>(content.size()));
   file.flush();
   return file.good();
+}
+
+#if defined(_WIN32)
+using NativeHandle = HANDLE;
+#else   // _WIN32
+using NativeHandle = int;
+#endif  // !_WIN32
+static bool is_atty(NativeHandle f) {
+#if defined(_WIN32)
+  return GetFileType(f) == FILE_TYPE_CHAR;
+#else
+  return isatty(f);
+#endif
+}
+
+bool stdin_is_atty() {
+#if defined(_WIN32)
+  return is_atty(GetStdHandle(STD_INPUT_HANDLE));
+#else
+  return is_atty(STDIN_FILENO);
+#endif
+}
+
+bool stdout_is_atty() {
+#if defined(_WIN32)
+  return is_atty(GetStdHandle(STD_OUTPUT_HANDLE));
+#else
+  return is_atty(STDOUT_FILENO);
+#endif
+}
+
+bool stderr_is_atty() {
+#if defined(_WIN32)
+  return is_atty(GetStdHandle(STD_ERROR_HANDLE));
+#else
+  return is_atty(STDERR_FILENO);
+#endif
 }
 
 }  // namespace ai::utils
