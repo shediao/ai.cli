@@ -18,6 +18,7 @@
 #include <curl/curl.h>
 
 #include <nlohmann/json.hpp>
+#include <subprocess/subprocess.hpp>
 
 #include "ai/args.h"
 #include "ai/utils.h"
@@ -446,18 +447,18 @@ int update(AiArgs const& args) {
 
   std::string extract_cmd;
 #if defined(_WIN32)
-  extract_cmd = "powershell -Command \"Expand-Archive -Path '" +
-                tmp_zip.path() + "' -DestinationPath '" + tmp_dir.path() +
-                "' -Force\"";
+  auto [ret, _, stderr_] = subprocess::capture_run(
+      {"powershell", "-NoProfile", "-Command",
+       "Expand-Archive -Path '" + tmp_zip.path() + "' -DestinationPath '" +
+           tmp_dir.path() + "' -Force"});
 #else
-  extract_cmd =
-      "unzip -o \"" + tmp_zip.path() + "\" -d \"" + tmp_dir.path() + "\"";
+  auto [ret, _, stderr_] = subprocess::capture_run(
+      {"unzip", "-o", tmp_zip.path(), "-d", tmp_dir.path()});
 #endif
 
-  int extract_rc = std::system(extract_cmd.c_str());
-  if (extract_rc != 0) {
-    std::cerr << "update: failed to extract zip (exit code " << extract_rc
-              << ")\n";
+  if (ret != 0) {
+    std::cerr << "update: failed to extract zip (exit code " << ret << ")\n"
+              << stderr_.to_string() << "\n";
     return 1;
   }
 
