@@ -97,35 +97,30 @@ static std::optional<std::string> getDefaultModelForUrl(
 }
 
 // Get API key: first try command line, then env var, then config
-static void resolve_api_key(AiArgs& args, const std::string& url) {
-  if (!args.api_key.empty()) {
-    return;  // Already set via command line
-  }
+static std::optional<std::string> resolve_api_key(const std::string& url) {
   // Try environment variable
   auto env_key = getEnvironmentConfig(url, "_API_KEY");
   if (env_key.has_value()) {
-    args.api_key = env_key.value();
-    return;
+    return env_key.value();
   }
   // Try config
   auto alias = find_alias_for_url(url);
   if (!alias.empty()) {
     auto config_key = get_provider_api_key(alias);
     if (config_key.has_value()) {
-      args.api_key = config_key.value();
+      return config_key.value();
     }
   }
+  return std::nullopt;
 }
 
 // Get proxy: first try command line, then env var
-static void resolve_proxy(AiArgs& args, const std::string& url) {
-  if (args.proxy.has_value()) {
-    return;  // Already set via command line
-  }
+static std::optional<std::string> resolve_proxy(const std::string& url) {
   auto proxy = getEnvironmentConfig(url, "_API_PROXY");
   if (proxy.has_value()) {
-    args.proxy = proxy.value();
+    return proxy.value();
   }
+  return std::nullopt;
 }
 
 static void add_alias_options(argparse::Command& command) {
@@ -171,8 +166,15 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
 
   models.callback([&args]() -> void {
     auto& models_args = args.models_args;
-    resolve_api_key(args, models_args.api_url);
-    resolve_proxy(args, models_args.api_url);
+    if (args.api_key.empty()) {
+      args.api_key = resolve_api_key(models_args.api_url).value_or("");
+    }
+    if (!args.proxy.has_value()) {
+      auto proxy = resolve_proxy(models_args.api_url);
+      if (proxy.has_value()) {
+        args.proxy = proxy.value();
+      }
+    }
   });
 }
 
@@ -288,6 +290,37 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                   chat_args.reasoning_effort)
       .value_placeholder("EFFORT")
       .choices({"low", "medium", "high", "none"});
+
+  chat.add_flag("thinking", "Enable or disable AI thinking", chat_args.thinking)
+      .is_negatable();
+
+  chat.add_option("topic-base-url",
+                  "OpenAI API-compatible base URL for topic generation "
+                  "(appends /chat/completions to form the full endpoint; "
+                  "defaults to chat base-url if not set)",
+                  chat_args.topic_base_url)
+      .value_placeholder("URL")
+      .callback([&chat_args](std::string const& base_url) {
+        if (!base_url.empty()) {
+          chat_args.topic_base_url =
+              base_url + (base_url[base_url.size() - 1] == '/'
+                              ? "chat/completions"
+                              : "/chat/completions");
+        }
+      })
+      .hidden();
+  chat.add_option("topic-api-key",
+                  "API key for topic generation "
+                  "(defaults to chat API key if not set)",
+                  chat_args.topic_api_key)
+      .value_placeholder("KEY")
+      .hidden();
+  chat.add_option("topic-model",
+                  "Model to use for topic generation "
+                  "(defaults to chat model if not set)",
+                  chat_args.topic_model)
+      .value_placeholder("MODEL")
+      .hidden();
 
   chat.add_flag("no-tools", "Disable all tool calling capabilities",
                 chat_args.no_tools);
@@ -415,8 +448,41 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       exit(EXIT_FAILURE);
     }
 
-    resolve_api_key(args, chat_args.api_url);
-    resolve_proxy(args, chat_args.api_url);
+    if (args.api_key.empty()) {
+      args.api_key = resolve_api_key(chat_args.api_url).value_or("");
+    }
+
+    if (!args.proxy.has_value()) {
+      auto proxy = resolve_proxy(chat_args.api_url);
+      if (proxy.has_value()) {
+        args.proxy = proxy.value();
+      }
+    }
+    if (chat_args.topic_base_url.has_value()) {
+      bool same_api = (chat_args.topic_base_url == chat_args.api_url);
+
+      if (!chat_args.topic_model.has_value()) {
+        if (same_api) {
+          chat_args.topic_model = chat_args.model;
+        } else {
+          chat_args.topic_model =
+              getDefaultModelForUrl(chat_args.topic_base_url.value());
+        }
+      }
+      if (!chat_args.topic_model.has_value()) {
+        std::cerr << "Error: Must provide a topic model." << std::endl;
+        exit(EXIT_FAILURE);
+      }
+
+      if (!chat_args.topic_api_key.has_value()) {
+        if (same_api) {
+          chat_args.topic_api_key = args.api_key;
+        } else {
+          chat_args.topic_api_key =
+              resolve_api_key(chat_args.topic_base_url.value());
+        }
+      }
+    }
   });
 }
 

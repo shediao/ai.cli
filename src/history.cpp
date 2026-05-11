@@ -441,9 +441,41 @@ std::string HistoryDB::generate_topic(nlohmann::json const& messages,
   }
 
   try {
-    auto args_dup = args;
-    args_dup.chat_args.stream = false;
-    OpenAIClient client(args_dup);
+    AiArgs topic_args;
+    topic_args.api_key = args.api_key;
+    topic_args.chat_args.api_url = args.chat_args.api_url;
+    topic_args.chat_args.model = args.chat_args.model;
+    if (args.proxy.has_value()) {
+      topic_args.proxy = args.proxy.value();
+    }
+    topic_args.chat_args.stream = false;
+
+    // Use topic-specific API base URL if provided
+    // (already has /chat/completions appended by argparse callback)
+    if (args.chat_args.topic_base_url.has_value() &&
+        !args.chat_args.topic_base_url.value().empty()) {
+      topic_args.chat_args.api_url = args.chat_args.topic_base_url.value();
+    }
+
+    // Use topic-specific API key if provided
+    if (args.chat_args.topic_api_key.has_value() &&
+        !args.chat_args.topic_api_key.value().empty()) {
+      topic_args.api_key = args.chat_args.topic_api_key.value();
+    }
+
+    // Use topic-specific model if provided
+    if (args.chat_args.topic_model.has_value() &&
+        !args.chat_args.topic_model.value().empty()) {
+      topic_args.chat_args.model = args.chat_args.topic_model.value();
+    }
+
+    if (topic_args.chat_args.model.find("deepseek") != std::string::npos) {
+      topic_args.chat_args.thinking = false;
+      topic_args.chat_args.reasoning_effort = std::nullopt;
+    } else {
+      topic_args.chat_args.reasoning_effort = "low";
+    }
+    OpenAIClient client(topic_args);
     nlohmann::json temp_history = nlohmann::json::array();
     std::vector<std::string> user_prompts = {conversation_text};
 

@@ -219,6 +219,16 @@ class OpenAIClient::Impl {
     if (args_.chat_args.reasoning_effort.has_value()) {
       request["reasoning_effort"] = args_.chat_args.reasoning_effort.value();
     }
+
+    if (args_.chat_args.thinking.has_value()) {
+      auto thinking = nlohmann::json::object();
+      thinking["type"] =
+          args_.chat_args.thinking.value() ? "enabled" : "disabled";
+      request["thinking"] = thinking;
+      if (!args_.chat_args.thinking.value()) {
+        request.erase("reasoning_effort");
+      }
+    }
     if (!args_.chat_args.tools.empty()) {
       auto tools = nlohmann::json::array();
       for (auto const& tool_name : args_.chat_args.tools) {

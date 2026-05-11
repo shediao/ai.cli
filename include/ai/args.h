@@ -28,6 +28,9 @@ struct AiArgs {
     bool continue_with_last_history{false};
     bool no_tools{false};
     bool list_tools{false};
+    std::optional<std::string> topic_base_url;
+    std::optional<std::string> topic_api_key;
+    std::optional<std::string> topic_model;
   };
 
   struct ModelsArgs {
