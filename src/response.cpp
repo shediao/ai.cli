@@ -261,40 +261,44 @@ static std::optional<std::string> getLine(std::vector<char>& data,
 }
 
 static void parse_line(std::string const& data, std::vector<json>& all,
-                       std::ostream& out, bool is_terminal) {
+                       std::ostream& out, bool is_terminal,
+                       bool& is_started_reasoning_content) {
   try {
     nlohmann::json const data_json = nlohmann::json::parse(data);
-    if (is_array("choices", data_json) && !data_json["choices"].empty()) {
-      auto const& choice_json = data_json["choices"][0];
-      if (is_object("delta", choice_json)) {
-        auto const& delta_json = choice_json["delta"];
-        if (is_string("reasoning_content", delta_json)) {
-          auto reasoning_content_str =
-              delta_json["reasoning_content"].get<std::string>();
-          if (all.empty()) {
-            if (is_terminal) {
-              out << term::bright_black;
-            }
-            out << "\n<thinking>\n";
-          }
-          out << reasoning_content_str;
+    if (!is_array("choices", data_json) || data_json["choices"].empty()) {
+      return;
+    }
+    auto const& choice_json = data_json["choices"][0];
+    if (!is_object("delta", choice_json)) {
+      return;
+    }
+    auto const& delta_json = choice_json["delta"];
+    if (is_string("reasoning_content", delta_json)) {
+      auto reasoning_content_str =
+          delta_json["reasoning_content"].get<std::string>();
+      if (!is_started_reasoning_content) {
+        is_started_reasoning_content = true;
+        if (is_terminal) {
+          out << term::bright_black;
         }
-        if (!all.empty() &&
-            is_string("reasoning_content", all.back()["choices"][0]["delta"]) &&
-            (is_string("content", delta_json) ||
-             is_array("tool_calls", delta_json))) {
-          out << "\n</thinking>\n";
-          if (is_terminal) {
-            out << term::reset;
-          }
-        }
-        if (is_string("content", delta_json)) {
-          auto constent_str = delta_json["content"].get<std::string>();
-          out << constent_str;
+        out << "\n<thinking>\n";
+      }
+      out << reasoning_content_str;
+    } else {
+      if (is_started_reasoning_content) {
+        is_started_reasoning_content = false;
+        out << "\n</thinking>\n";
+        if (is_terminal) {
+          out << term::reset;
         }
       }
-      all.push_back(std::move(data_json));
     }
+    if (is_string("content", delta_json)) {
+      auto constent_str = delta_json["content"].get<std::string>();
+      out << constent_str;
+    }
+
+    all.push_back(std::move(data_json));
   } catch (json::parse_error const& e) {
     throw std::runtime_error(std::string("JSON parsing error: ") + e.what() +
                              "`" + data + "`");
@@ -326,7 +330,8 @@ void StreamResponse::parse_impl() {
       // is_parse_done_ = true;
       break;
     }
-    parse_line(data, all_json_data_, out_, is_terminal_);
+    parse_line(data, all_json_data_, out_, is_terminal_,
+               is_started_reasoning_content_);
   }
 }
 

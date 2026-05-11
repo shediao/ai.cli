@@ -105,6 +105,7 @@ class StreamResponse {
   std::size_t parse_index_{0};
   std::reference_wrapper<std::ostream> out_;
   bool is_terminal_{false};
+  bool is_started_reasoning_content_{false};
 };
 }  // namespace openai
 }  // namespace ai
