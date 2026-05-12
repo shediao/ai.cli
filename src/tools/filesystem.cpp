@@ -866,11 +866,17 @@ std::string execute_file(nlohmann::json const& args) {
 
   // Execute and capture output
   using namespace subprocess::named_arguments;
+  auto timeout_val =
+      args.contains("timeout") && args["timeout"].is_number_integer()
+          ? args["timeout"].get<int>()
+          : timeout_infinite;
+  std::string working_directory =
+      args.contains("working_directory") &&
+              args["working_directory"].is_string()
+          ? args["working_directory"].get<std::string>()
+          : "";
   auto [exit_code, out_buf, err_buf] = subprocess::capture_run(
-      cmd_args,
-      timeout = args.contains("timeout") && args["timeout"].is_number_integer()
-                    ? args["timeout"].get<int>()
-                    : timeout_infinite);
+      cmd_args, timeout = timeout_val, cwd = working_directory);
 
   std::string result;
   result += "Exit code: " + std::to_string(exit_code) + "\n";

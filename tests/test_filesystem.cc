@@ -998,3 +998,61 @@ TEST(ExecuteFileTest, MissingPath) {
   std::string result = call_tool("execute_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
+
+TEST(ExecuteFileTest, WorkingDirectory) {
+  TempTestDir dir;
+#if defined(_WIN32)
+  std::string script_path =
+      (std::filesystem::path(dir.path()) / "test_cwd_script.bat").string();
+  {
+    std::ofstream script(script_path, std::ios::binary);
+    script << "@echo off\r\ncd\r\n";
+  }
+#else
+  std::string script_path =
+      (std::filesystem::path(dir.path()) / "test_cwd_script.sh").string();
+  {
+    std::ofstream script(script_path);
+    script << "#!/bin/sh\npwd\n";
+  }
+  std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
+                               std::filesystem::perm_options::add);
+#endif
+
+  // Create a separate temp directory to use as the working directory
+  TempTestDir workdir;
+
+  json args = {{"path", script_path},
+               {"working_directory", workdir.path()}};
+  std::string result = call_tool("execute_file", args);
+  // The script outputs the current working directory, which should match workdir
+  EXPECT_TRUE(result.find(workdir.path()) != std::string::npos) << result;
+}
+
+TEST(ExecuteFileTest, WorkingDirectoryNonexistent) {
+  TempTestDir dir;
+#if defined(_WIN32)
+  std::string script_path =
+      (std::filesystem::path(dir.path()) / "test_cwd_nonexistent.bat").string();
+  {
+    std::ofstream script(script_path, std::ios::binary);
+    script << "@echo off\r\necho hello\r\n";
+  }
+#else
+  std::string script_path =
+      (std::filesystem::path(dir.path()) / "test_cwd_nonexistent.sh").string();
+  {
+    std::ofstream script(script_path);
+    script << "#!/bin/sh\necho hello\n";
+  }
+  std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
+                               std::filesystem::perm_options::add);
+#endif
+
+  json args = {{"path", script_path},
+               {"working_directory", "/nonexistent/path/xyz_123_not_exists"}};
+  std::string result = call_tool("execute_file", args);
+  // Should get an error about the directory not existing
+  EXPECT_FALSE(result.empty()) << result;
+  EXPECT_TRUE(result.find("hello") == std::string::npos) << result;
+}

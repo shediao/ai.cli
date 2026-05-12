@@ -41,11 +41,18 @@ std::string cmd(nlohmann::json const& args) {
   subprocess::buffer err_buf{[](const unsigned char* data, size_t size) {
     std::cerr.write(reinterpret_cast<const char*>(data), size);
   }};
-  auto ret = subprocess::run(
-      "cmd", "/c", command, $stdout > out_buf, $stderr > err_buf,
-      $timeout = args.contains("timeout") && args["timeout"].is_number_integer()
-                     ? args["timeout"].get<int>()
-                     : $timeout_infinite);
+  auto timeout_val =
+      args.contains("timeout") && args["timeout"].is_number_integer()
+          ? args["timeout"].get<int>()
+          : $timeout_infinite;
+  std::string working_directory =
+      args.contains("working_directory") &&
+              args["working_directory"].is_string()
+          ? args["working_directory"].get<std::string>()
+          : "";
+  auto ret = subprocess::run("cmd", "/c", command, $stdout > out_buf,
+                             $stderr > err_buf, $timeout = timeout_val,
+                             $cwd = working_directory);
 
   std::string result;
   if (!out_buf.empty()) {

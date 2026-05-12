@@ -17,6 +17,10 @@
         "timeout": {
           "type": "integer",
           "description": "Optional timeout in seconds. If the command does not complete within this time, it will be terminated. If not provided, no timeout is applied."
+        },
+        "working_directory": {
+          "type": "string",
+          "description": "Optional working directory for the command. If provided, the command will be executed in this directory. Can be an absolute path or a relative path (resolved against the current working directory)."
         }
       },
       "required": ["command"]

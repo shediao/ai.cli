@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <subprocess/subprocess.hpp>
@@ -98,6 +99,31 @@ TEST(BashTest, Timeout) {
   EXPECT_FALSE(result.empty()) << result;
 }
 
+TEST(BashTest, WorkingDirectory) {
+  // Create a temp directory and run pwd with working_directory set to it
+  std::filesystem::path tmpdir =
+      std::filesystem::temp_directory_path() /
+      ("ai_cli_test_bash_cwd_" + std::to_string(std::rand()));
+  std::filesystem::create_directories(tmpdir);
+
+  json args = {{"command", "pwd"}, {"working_directory", tmpdir.string()}};
+  std::string result = call_tool("bash", args);
+  // pwd should output the absolute path of tmpdir
+  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos) << result;
+
+  std::filesystem::remove_all(tmpdir);
+}
+
+TEST(BashTest, WorkingDirectoryNonexistent) {
+  json args = {
+      {"command", "echo hello"},
+      {"working_directory", "/nonexistent/path/xyz_123_not_exists"}};
+  std::string result = call_tool("bash", args);
+  // Should get an error about the directory not existing
+  EXPECT_FALSE(result.empty()) << result;
+  EXPECT_TRUE(result.find("hello") == std::string::npos) << result;
+}
+
 // =============================================================================
 // CMD tests - Validation (cross-platform, no execution needed)
 // =============================================================================
@@ -148,6 +174,30 @@ TEST(CmdTest, Timeout) {
   json args = {{"command", "ping -n 30 127.0.0.1 > nul"}, {"timeout", 1}};
   std::string result = call_tool("cmd", args);
   EXPECT_FALSE(result.empty());
+}
+
+TEST(CmdTest, WorkingDirectory) {
+  // Create a temp directory and run cd to verify working directory
+  std::filesystem::path tmpdir =
+      std::filesystem::temp_directory_path() /
+      ("ai_cli_test_cmd_cwd_" + std::to_string(std::rand()));
+  std::filesystem::create_directories(tmpdir);
+
+  json args = {{"command", "cd"}, {"working_directory", tmpdir.string()}};
+  std::string result = call_tool("cmd", args);
+  // cd with no args on Windows prints the current directory
+  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos) << result;
+
+  std::filesystem::remove_all(tmpdir);
+}
+
+TEST(CmdTest, WorkingDirectoryNonexistent) {
+  json args = {
+      {"command", "echo hello"},
+      {"working_directory", "C:\\nonexistent\\path\\xyz_123_not_exists"}};
+  std::string result = call_tool("cmd", args);
+  EXPECT_FALSE(result.empty()) << result;
+  EXPECT_TRUE(result.find("hello") == std::string::npos) << result;
 }
 #endif  // _WIN32
 
@@ -202,5 +252,29 @@ TEST(PowershellTest, Timeout) {
   json args = {{"command", "Start-Sleep -Seconds 30"}, {"timeout", 1}};
   std::string result = call_tool("powershell", args);
   EXPECT_FALSE(result.empty());
+}
+
+TEST(PowershellTest, WorkingDirectory) {
+  // Create a temp directory and verify working directory via Get-Location
+  std::filesystem::path tmpdir =
+      std::filesystem::temp_directory_path() /
+      ("ai_cli_test_ps_cwd_" + std::to_string(std::rand()));
+  std::filesystem::create_directories(tmpdir);
+
+  json args = {{"command", "Get-Location"},
+               {"working_directory", tmpdir.string()}};
+  std::string result = call_tool("powershell", args);
+  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos) << result;
+
+  std::filesystem::remove_all(tmpdir);
+}
+
+TEST(PowershellTest, WorkingDirectoryNonexistent) {
+  json args = {
+      {"command", "Write-Output hello"},
+      {"working_directory", "C:\\nonexistent\\path\\xyz_123_not_exists"}};
+  std::string result = call_tool("powershell", args);
+  EXPECT_FALSE(result.empty()) << result;
+  EXPECT_TRUE(result.find("hello") == std::string::npos) << result;
 }
 #endif  // _WIN32

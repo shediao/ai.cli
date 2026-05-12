@@ -170,6 +170,10 @@
         "timeout": {
           "type": "integer",
           "description": "Optional timeout in seconds. If the executable does not complete within this time, it will be terminated. If not provided, no timeout is applied."
+        },
+        "working_directory": {
+          "type": "string",
+          "description": "Optional working directory for the executable. If provided, the executable will be run in this directory. Can be an absolute path or a relative path (resolved against the current working directory)."
         }
       },
       "required": ["path"]
