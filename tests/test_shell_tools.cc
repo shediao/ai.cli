@@ -106,10 +106,18 @@ TEST(BashTest, WorkingDirectory) {
       ("ai_cli_test_bash_cwd_" + std::to_string(std::rand()));
   std::filesystem::create_directories(tmpdir);
 
-  json args = {{"command", "pwd"}, {"working_directory", tmpdir.string()}};
+#if defined(_WIN32)
+  std::string cmd =
+      "if [[ $(uname -s) =~ ^(MINGW|MSYS).*$ ]]; then cygpath -w $(pwd); else "
+      "pwd; fi";
+#else
+  std::string cmd = "pwd";
+#endif
+  json args = {{"command", cmd}, {"working_directory", tmpdir.string()}};
   std::string result = call_tool("bash", args);
   // pwd should output the absolute path of tmpdir
-  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos) << result;
+  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos)
+      << "path: " << tmpdir.string() << "\nresult: " << result;
 
   std::filesystem::remove_all(tmpdir);
 }
@@ -185,7 +193,8 @@ TEST(CmdTest, WorkingDirectory) {
   json args = {{"command", "cd"}, {"working_directory", tmpdir.string()}};
   std::string result = call_tool("cmd", args);
   // cd with no args on Windows prints the current directory
-  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos) << result;
+  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos)
+      << "path: " << tmpdir.string() << "\nresult: " << result;
 
   std::filesystem::remove_all(tmpdir);
 }
@@ -264,8 +273,7 @@ TEST(PowershellTest, WorkingDirectory) {
                {"working_directory", tmpdir.string()}};
   std::string result = call_tool("powershell", args);
   EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos)
-      << tmpdir.string() << "\n"
-      << result;
+      << "path: " << tmpdir.string() << "\nresult: " << result;
 
   std::filesystem::remove_all(tmpdir);
 }
