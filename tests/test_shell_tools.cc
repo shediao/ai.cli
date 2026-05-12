@@ -101,10 +101,11 @@ TEST(BashTest, Timeout) {
 
 TEST(BashTest, WorkingDirectory) {
   // Create a temp directory and run pwd with working_directory set to it
-  std::filesystem::path tmpdir =
+  std::filesystem::path tmpdir_raw =
       std::filesystem::temp_directory_path() /
       ("ai_cli_test_bash_cwd_" + std::to_string(std::rand()));
-  std::filesystem::create_directories(tmpdir);
+  std::filesystem::create_directories(tmpdir_raw);
+  std::filesystem::path tmpdir = std::filesystem::canonical(tmpdir_raw);
 
 #if defined(_WIN32)
   std::string cmd =
@@ -185,10 +186,11 @@ TEST(CmdTest, Timeout) {
 
 TEST(CmdTest, WorkingDirectory) {
   // Create a temp directory and run cd to verify working directory
-  std::filesystem::path tmpdir =
+  std::filesystem::path tmpdir_raw =
       std::filesystem::temp_directory_path() /
       ("ai_cli_test_cmd_cwd_" + std::to_string(std::rand()));
-  std::filesystem::create_directories(tmpdir);
+  std::filesystem::create_directories(tmpdir_raw);
+  std::filesystem::path tmpdir = std::filesystem::canonical(tmpdir_raw);
 
   json args = {{"command", "cd"}, {"working_directory", tmpdir.string()}};
   std::string result = call_tool("cmd", args);
@@ -264,10 +266,13 @@ TEST(PowershellTest, Timeout) {
 
 TEST(PowershellTest, WorkingDirectory) {
   // Create a temp directory and verify working directory via Get-Location
-  std::filesystem::path tmpdir =
+  std::filesystem::path tmpdir_raw =
       std::filesystem::temp_directory_path() /
       ("ai_cli_test_ps_cwd_" + std::to_string(std::rand()));
-  std::filesystem::create_directories(tmpdir);
+  std::filesystem::create_directories(tmpdir_raw);
+  // Resolve to canonical path to avoid 8.3 short-name mismatch on Windows
+  // (e.g., C:\Users\RUNNER~1 vs C:\Users\runneradmin)
+  std::filesystem::path tmpdir = std::filesystem::canonical(tmpdir_raw);
 
   json args = {{"command", "Get-Location"},
                {"working_directory", tmpdir.string()}};
