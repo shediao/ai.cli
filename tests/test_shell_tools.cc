@@ -115,9 +115,8 @@ TEST(BashTest, WorkingDirectory) {
 }
 
 TEST(BashTest, WorkingDirectoryNonexistent) {
-  json args = {
-      {"command", "echo hello"},
-      {"working_directory", "/nonexistent/path/xyz_123_not_exists"}};
+  json args = {{"command", "echo hello"},
+               {"working_directory", "/nonexistent/path/xyz_123_not_exists"}};
   std::string result = call_tool("bash", args);
   // Should get an error about the directory not existing
   EXPECT_FALSE(result.empty()) << result;
@@ -264,7 +263,9 @@ TEST(PowershellTest, WorkingDirectory) {
   json args = {{"command", "Get-Location"},
                {"working_directory", tmpdir.string()}};
   std::string result = call_tool("powershell", args);
-  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos) << result;
+  EXPECT_TRUE(result.find(tmpdir.string()) != std::string::npos)
+      << tmpdir.string() << "\n"
+      << result;
 
   std::filesystem::remove_all(tmpdir);
 }

@@ -112,7 +112,8 @@ TEST(ReadFileTest, PathNotString) {
 TEST(ReadFileTest, FileNotString) {
   json args = {{"file", true}};
   std::string result = call_tool("read_file", args);
-  EXPECT_TRUE(result.find("\"file\" must be a string") != std::string::npos);
+  EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos)
+      << result;
 }
 
 TEST(ReadFileTest, OffsetAndLimit) {
@@ -496,11 +497,10 @@ TEST(CreateDirectoryTest, PathNotString) {
 
 TEST(ListDirectoryTest, ListsFilesAndDirs) {
   TempTestDir dir;
-  std::ofstream(
-      (std::filesystem::path(dir.path()) / "test_file.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "test_file.txt").string())
       << "data";
-  std::filesystem::create_directory(
-      std::filesystem::path(dir.path()) / "test_subdir");
+  std::filesystem::create_directory(std::filesystem::path(dir.path()) /
+                                    "test_subdir");
 
   json args = {{"path", dir.path()}};
   std::string result = call_tool("list_directory", args);
@@ -547,11 +547,10 @@ TEST(ListDirectoryTest, PathNotString) {
 
 TEST(DirectoryTreeTest, ReturnsJsonTree) {
   TempTestDir dir;
-  std::ofstream(
-      (std::filesystem::path(dir.path()) / "file.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "file.txt").string())
       << "data";
-  std::filesystem::create_directory(
-      std::filesystem::path(dir.path()) / "subdir");
+  std::filesystem::create_directory(std::filesystem::path(dir.path()) /
+                                    "subdir");
   std::ofstream(
       (std::filesystem::path(dir.path()) / "subdir" / "nested.txt").string())
       << "nested";
@@ -614,8 +613,7 @@ TEST(DirectoryTreeTest, MissingPath) {
 TEST(MoveFileTest, MovesFile) {
   TempTestFile f("move me");
   TempTestDir dir;
-  std::string dest =
-      (std::filesystem::path(dir.path()) / "moved.txt").string();
+  std::string dest = (std::filesystem::path(dir.path()) / "moved.txt").string();
 
   json args = {{"source", f.path()}, {"distination", dest}};
   std::string result = call_tool("move_file", args);
@@ -631,8 +629,7 @@ TEST(MoveFileTest, MovesFile) {
 
 TEST(MoveFileTest, SourceNotExists) {
   TempTestDir dir;
-  std::string dest =
-      (std::filesystem::path(dir.path()) / "dest.txt").string();
+  std::string dest = (std::filesystem::path(dir.path()) / "dest.txt").string();
   json args = {{"source", "/nonexistent/source.txt"}, {"distination", dest}};
   std::string result = call_tool("move_file", args);
   EXPECT_TRUE(result.find("Error") != std::string::npos);
@@ -675,20 +672,16 @@ TEST(MoveFileTest, DistinationNotString) {
 
 TEST(SearchFilesTest, FindsFilesByPattern) {
   TempTestDir dir;
-  std::ofstream(
-      (std::filesystem::path(dir.path()) / "apple.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "apple.txt").string())
       << "";
-  std::ofstream(
-      (std::filesystem::path(dir.path()) / "banana.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "banana.txt").string())
       << "";
-  std::ofstream(
-      (std::filesystem::path(dir.path()) / "apple.csv").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "apple.csv").string())
       << "";
-  std::filesystem::create_directory(
-      std::filesystem::path(dir.path()) / "subdir");
+  std::filesystem::create_directory(std::filesystem::path(dir.path()) /
+                                    "subdir");
   std::ofstream(
-      (std::filesystem::path(dir.path()) / "subdir" / "apple_sub.txt")
-          .string())
+      (std::filesystem::path(dir.path()) / "subdir" / "apple_sub.txt").string())
       << "";
 
   json args = {{"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", true}};
@@ -700,11 +693,9 @@ TEST(SearchFilesTest, FindsFilesByPattern) {
 
 TEST(SearchFilesTest, NonRecursive) {
   TempTestDir dir;
-  std::ofstream(
-      (std::filesystem::path(dir.path()) / "root.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "root.txt").string())
       << "";
-  std::filesystem::create_directory(
-      std::filesystem::path(dir.path()) / "sub");
+  std::filesystem::create_directory(std::filesystem::path(dir.path()) / "sub");
   std::ofstream(
       (std::filesystem::path(dir.path()) / "sub" / "nested.txt").string())
       << "";
@@ -1022,10 +1013,10 @@ TEST(ExecuteFileTest, WorkingDirectory) {
   // Create a separate temp directory to use as the working directory
   TempTestDir workdir;
 
-  json args = {{"path", script_path},
-               {"working_directory", workdir.path()}};
+  json args = {{"path", script_path}, {"working_directory", workdir.path()}};
   std::string result = call_tool("execute_file", args);
-  // The script outputs the current working directory, which should match workdir
+  // The script outputs the current working directory, which should match
+  // workdir
   EXPECT_TRUE(result.find(workdir.path()) != std::string::npos) << result;
 }
 
