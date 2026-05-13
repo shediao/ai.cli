@@ -29,7 +29,7 @@ FetchContent_MakeAvailable(subprocess)
 FetchContent_Declare(
   environment
   GIT_REPOSITORY https://github.com/shediao/environment.hpp
-  GIT_TAG v0.0.5)
+  GIT_TAG v0.0.6)
 FetchContent_MakeAvailable(environment)
 
 # ── utfx (UTF-8 validation) ────────────────────────────────────────────────
