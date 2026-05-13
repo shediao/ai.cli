@@ -44,8 +44,20 @@ class TempFile {
   std::string path_;
 };
 
+class TempDir {
+ public:
+  TempDir();
+  explicit TempDir(std::string const& prefix);
+  ~TempDir();
+  const std::string& path() const;
+
+ private:
+  std::string path_;
+};
+
 std::string getTempFilePath(std::string const& prefix,
                             std::string const& postfix);
+std::string getTempDirPath(std::string const& prefix);
 /// Read a line from the controlling terminal even when stdin is a pipe.
 /// On Unix this opens /dev/tty; on Windows it opens CONIN$.
 /// If prompt is non-empty, it is printed to stderr before reading.
