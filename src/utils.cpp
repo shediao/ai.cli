@@ -93,7 +93,29 @@ TempDir::TempDir(std::string const& prefix) : path_{getTempDirPath(prefix)} {}
 TempDir::TempDir() : TempDir("") {}
 TempDir::~TempDir() {
   if (!path_.empty() && std::filesystem::exists(path_)) {
-    std::filesystem::remove_all(path_);
+    // On Windows, remove_all() throws on read-only files and on symlinks
+    // (especially in MSYS environments).  Reset permissions so removal
+    // can succeed, and use the error_code overload to never throw.
+#if defined(_WIN32)
+    try {
+      for (auto const& entry :
+           std::filesystem::recursive_directory_iterator(path_)) {
+        std::error_code ec;
+        auto perms = entry.status().permissions();
+        if ((perms & std::filesystem::perms::owner_write) ==
+            std::filesystem::perms::none) {
+          std::filesystem::permissions(
+              entry.path(), std::filesystem::perms::owner_write,
+              std::filesystem::perm_options::add, ec);
+        }
+      }
+    } catch (...) {
+      // If iterating fails (e.g. permission denied on a subdirectory),
+      // fall through and try remove_all anyway.
+    }
+#endif
+    std::error_code ec;
+    std::filesystem::remove_all(path_, ec);
   }
 }
 std::string const& TempDir::path() const { return path_; }

@@ -318,8 +318,14 @@ TEST(TempDirTest, ConstructorWithPrefix) {
   EXPECT_FALSE(p.empty());
   EXPECT_TRUE(fs::exists(p));
   EXPECT_TRUE(fs::is_directory(p));
-  // On POSIX the prefix is part of the directory name
+  // On Windows GetTempFileNameA uses only the first 3 characters of the
+  // prefix, so search for a shortened form.
+  // On POSIX the full prefix is part of the directory name.
+#if defined(_WIN32)
+  EXPECT_NE(p.find("myp"), std::string::npos);
+#else
   EXPECT_NE(p.find("myprefix"), std::string::npos);
+#endif
 }
 
 TEST(TempDirTest, PathReturnsValidPath) {
@@ -419,8 +425,16 @@ TEST(GetTempDirPathTest, CreatesDirectoryOnDisk) {
 }
 
 TEST(GetTempDirPathTest, PathContainsPrefix) {
+  // On Windows GetTempFileNameA uses only the first 3 characters of the
+  // prefix, so search for a shortened form.
+  // On POSIX the full prefix is part of the directory name.
+#if defined(_WIN32)
+  std::string path = utils::getTempDirPath("abc_test_dir");
+  EXPECT_NE(path.find("abc"), std::string::npos);
+#else
   std::string path = utils::getTempDirPath("abc_test_dir");
   EXPECT_NE(path.find("abc_test_dir"), std::string::npos);
+#endif
   fs::remove_all(path);
 }
 
