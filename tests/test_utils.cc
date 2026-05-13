@@ -497,10 +497,10 @@ TEST(TempDirTest, DestructorHandlesSymlinks) {
     EXPECT_TRUE(fs::is_symlink(link));
   }
   // Destructor should recursively remove everything including the symlink.
-  // On MSYS (Cygwin-based), symlink emulation uses special files that
+  // On MSYS, symlink emulation uses special files that
   // std::filesystem::remove_all may not fully clean up.  We only verify
   // that the destructor did not throw.
-#if !defined(__CYGWIN__)
+#if !defined(__MSYS__)
   EXPECT_FALSE(fs::exists(path));
 #endif
 }
