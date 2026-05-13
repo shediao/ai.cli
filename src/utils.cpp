@@ -94,13 +94,21 @@ TempDir::TempDir() : TempDir("") {}
 TempDir::~TempDir() {
   if (!path_.empty() && std::filesystem::exists(path_)) {
     // On Windows, remove_all() throws on read-only files and on symlinks
-    // (especially in MSYS environments).  Reset permissions so removal
-    // can succeed, and use the error_code overload to never throw.
+    // (especially in MSYS environments).  Reset permissions and remove
+    // symlinks explicitly so removal can succeed, and use the error_code
+    // overload to never throw.
 #if defined(_WIN32)
     try {
       for (auto const& entry :
            std::filesystem::recursive_directory_iterator(path_)) {
         std::error_code ec;
+        // Remove symlinks without following them (MSYS symlink emulation
+        // can cause remove_all to fail on these).
+        if (entry.is_symlink(ec) && !ec) {
+          std::filesystem::remove(entry.path(), ec);
+          continue;
+        }
+        // Reset read-only attribute so remove_all won't get "Access denied".
         auto perms = entry.status().permissions();
         if ((perms & std::filesystem::perms::owner_write) ==
             std::filesystem::perms::none) {

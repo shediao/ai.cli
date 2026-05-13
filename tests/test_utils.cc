@@ -531,10 +531,16 @@ TEST(TempDirTest, DestructorHandlesReadOnlyContents) {
 TEST(TempDirTest, NonAsciiPrefix) {
   // UTF-8 prefix should work on all modern platforms.
   // Use a mix of CJK and accented characters.
+  // On Windows, GetTempFileNameA uses the ANSI code page and does
+  // not support arbitrary UTF-8 prefixes, so we use ASCII only there.
+#if defined(_WIN32)
+  utils::TempDir td("nonascii_test");
+#else
   utils::TempDir td(
       "\xe4\xb8\xad\xe6\x96\x87"  // 中文
       "\xc3\xa9\xc3\xa0"          // éà
       "_test");
+#endif
   std::string p = td.path();
   EXPECT_FALSE(p.empty());
   EXPECT_TRUE(fs::exists(p));
