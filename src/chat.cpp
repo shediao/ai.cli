@@ -46,10 +46,16 @@ int chat(AiArgs const& args) {
       }
     }
 
+    int prompt_tokens{0};
+    int completion_tokens{0};
+    int total_tokens{0};
+
     std::string work_dir = std::filesystem::current_path().string();
 
     ai::utils::AutoRun scope_exit_runner([&chat_history, &history_db,
-                                          &last_session, &args, &work_dir]() {
+                                          &last_session, &args, &work_dir,
+                                          &prompt_tokens, &completion_tokens,
+                                          &total_tokens]() {
       std::string session_id;
       if (last_session.has_value()) {
         session_id = last_session.value().session_id;
@@ -63,6 +69,10 @@ int chat(AiArgs const& args) {
       auto topic = HistoryDB::generate_topic(chat_history_snashot, args);
       std::cout << term::bright_black << "\n[TOPIC]: " << topic << term::reset
                 << "\n";
+      std::cout << term::bright_black << "\nTokens: [prompt:" << prompt_tokens
+                << ", completion:" << completion_tokens
+                << ", total:" << total_tokens << "]\n"
+                << term::reset;
       if (!topic.empty()) {
         history_db.set_topic(session_id, topic);
       }
@@ -132,6 +142,11 @@ int chat(AiArgs const& args) {
           LOG_IF(INFO, !content.empty()) << content;
         }
 
+        auto const& usage = response.value().usage();
+        prompt_tokens += usage.prompt_tokens;
+        completion_tokens += usage.completion_tokens;
+        total_tokens += usage.total_tokens;
+
         LOG_IF(INFO,
                !response.value().choices().back().message.tool_calls.empty())
             << response.value().choices().back().message.tool_calls_json().dump(
@@ -174,6 +189,24 @@ int chat(AiArgs const& args) {
                          << tool_call.function.arguments << ")" << e.what();
               LOG(ERROR) << e.what();
             }
+          }
+        }
+        if (finish_reason != "stop" && finish_reason != "tool_calls") {
+          if (finish_reason == "content_filter") {
+            LOG(ERROR)
+                << "Output content was filtered due to content filter policy.";
+            return 1;
+          } else if (finish_reason == "length") {
+            LOG(ERROR)
+                << "Output length reached the model context length limit, "
+                   "or the max_tokens limit.";
+            return 1;
+          } else if (finish_reason == "insufficient_system_resources") {
+            LOG(ERROR) << "Request was interrupted due to insufficient backend "
+                          "inference resources.";
+            return 1;
+          } else {
+            LOG(WARNING) << "Unknown finish_reason: " << finish_reason;
           }
         }
         if (finish_reason != "tool_calls") {
