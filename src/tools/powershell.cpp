@@ -3,7 +3,7 @@
 #include <string_view>
 #include <subprocess/subprocess.hpp>
 
-#include "ai/tool_calls.h"
+#include "ai/function.h"
 #include "ai/utils.h"
 #include "powershell_tools_json.h"
 

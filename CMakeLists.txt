@@ -138,7 +138,7 @@ add_library(
   src/tools/cmd.cpp
   src/tools/powershell.cpp
   src/tools/default.cpp
-  src/tool_calls.cpp
+  src/function.cpp
   src/utils.cpp
   src/base64.cpp
   src/history.cpp

@@ -14,7 +14,7 @@
 #endif
 
 #include "ai/config.h"
-#include "ai/tool_calls.h"
+#include "ai/function.h"
 #include "ai/utils.h"
 
 namespace ai {

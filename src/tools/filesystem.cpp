@@ -10,7 +10,7 @@
 #include <subprocess/subprocess.hpp>
 
 #include "./glob.hpp"
-#include "ai/tool_calls.h"
+#include "ai/function.h"
 #include "ai/utils.h"
 #include "filesystem_tools_json.h"
 

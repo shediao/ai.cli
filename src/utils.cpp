@@ -112,9 +112,9 @@ TempDir::~TempDir() {
         auto perms = entry.status().permissions();
         if ((perms & std::filesystem::perms::owner_write) ==
             std::filesystem::perms::none) {
-          std::filesystem::permissions(
-              entry.path(), std::filesystem::perms::owner_write,
-              std::filesystem::perm_options::add, ec);
+          std::filesystem::permissions(entry.path(),
+                                       std::filesystem::perms::owner_write,
+                                       std::filesystem::perm_options::add, ec);
         }
       }
     } catch (...) {

@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "ai/tool_calls.h"
+#include "ai/function.h"
 #include "default_tools_json.h"
 
 // ── get_working_directory ─────────────────────────────────────────────

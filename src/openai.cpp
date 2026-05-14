@@ -13,9 +13,9 @@
 
 #include "ai/args.h"
 #include "ai/base64.h"
+#include "ai/function.h"
 #include "ai/logging.h"
 #include "ai/response.h"
-#include "ai/tool_calls.h"
 #include "ai/utils.h"
 
 using json = nlohmann::json;

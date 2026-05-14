@@ -8,12 +8,12 @@
 #include <utfx/utfx.hpp>
 
 #include "ai/args.h"
+#include "ai/function.h"
 #include "ai/history.h"
 #include "ai/logging.h"
 #include "ai/openai.h"
 #include "ai/system_prompt.h"
 #include "ai/terminal.h"
-#include "ai/tool_calls.h"
 #include "ai/utils.h"
 
 using json = nlohmann::json;

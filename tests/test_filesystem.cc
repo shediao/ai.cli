@@ -7,7 +7,7 @@
 #include <string>
 #include <subprocess/subprocess.hpp>
 
-#include "ai/tool_calls.h"
+#include "ai/function.h"
 
 using json = nlohmann::json;
 
