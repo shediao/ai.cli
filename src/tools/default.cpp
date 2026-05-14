@@ -4,17 +4,17 @@
 #include <string>
 #include <string_view>
 
-#include "ai/logging.h"
 #include "ai/tool_calls.h"
 #include "default_tools_json.h"
 
 // ── get_working_directory ─────────────────────────────────────────────
 std::string get_working_directory(nlohmann::json const& args) {
-  LOG(INFO) << "call get_working_directory(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function get_working_directory arguments is invalid: expected a "
            "JSON object.";
   }
+
+  print_toolcall_log("get_working_directory", {});
 
   std::error_code err;
   std::string cwd = std::filesystem::current_path(err).string();
@@ -26,7 +26,6 @@ std::string get_working_directory(nlohmann::json const& args) {
 
 // ── set_working_directory ─────────────────────────────────────────────
 std::string set_working_directory(nlohmann::json const& args) {
-  LOG(INFO) << "call set_working_directory(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function set_working_directory arguments is invalid: expected a "
            "JSON object.";
@@ -41,6 +40,7 @@ std::string set_working_directory(nlohmann::json const& args) {
   }
 
   std::string path = args["path"].get<std::string>();
+  print_toolcall_log("set_working_directory", {{"path", path}});
   std::error_code err;
   std::filesystem::current_path(path, err);
   if (err) {
@@ -54,7 +54,6 @@ std::string set_working_directory(nlohmann::json const& args) {
 
 // ── get_environment_variable ──────────────────────────────────────────
 std::string get_environment_variable(nlohmann::json const& args) {
-  LOG(INFO) << "call get_environment_variable(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function get_environment_variable arguments is invalid: expected "
            "a JSON object.";
@@ -69,6 +68,7 @@ std::string get_environment_variable(nlohmann::json const& args) {
   }
 
   std::string name = args["name"].get<std::string>();
+  print_toolcall_log("get_environment_variable", {{"name", name}});
   auto value = env::get(name);
   if (!value.has_value()) {
     return "Environment variable \"" + name + "\" is not set.";
@@ -78,7 +78,6 @@ std::string get_environment_variable(nlohmann::json const& args) {
 
 // ── set_environment_variable ──────────────────────────────────────────
 std::string set_environment_variable(nlohmann::json const& args) {
-  LOG(INFO) << "call set_environment_variable(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function set_environment_variable arguments is invalid: expected "
            "a JSON object.";
@@ -102,6 +101,8 @@ std::string set_environment_variable(nlohmann::json const& args) {
 
   std::string name = args["name"].get<std::string>();
   std::string value = args["value"].get<std::string>();
+  print_toolcall_log("set_environment_variable",
+                     {{"name", name}, {"value", value}});
 
   // setenv on POSIX, _putenv on Windows
 #if defined(_WIN32)
@@ -121,10 +122,11 @@ std::string set_environment_variable(nlohmann::json const& args) {
 
 // ── get_shell ─────────────────────────────────────────────────────────
 std::string get_shell(nlohmann::json const& args) {
-  LOG(INFO) << "call get_shell(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function get_shell arguments is invalid: expected a JSON object.";
   }
+
+  print_toolcall_log("get_shell", {});
 
 #if defined(_WIN32)
   auto shell = env::get("COMSPEC").value_or("cmd.exe");
@@ -142,11 +144,12 @@ std::string get_shell(nlohmann::json const& args) {
 
 // ── get_operating_system ──────────────────────────────────────────────
 std::string get_operating_system(nlohmann::json const& args) {
-  LOG(INFO) << "call get_operating_system(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function get_operating_system arguments is invalid: expected a "
            "JSON object.";
   }
+
+  print_toolcall_log("get_operating_system", {});
 
   nlohmann::json info;
 

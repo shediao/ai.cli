@@ -3,13 +3,11 @@
 #include <string_view>
 #include <subprocess/subprocess.hpp>
 
-#include "ai/logging.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 #include "cmd_tools_json.h"
 
 std::string cmd(nlohmann::json const& args) {
-  LOG(INFO) << "call cmd(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function cmd arguments is invalid: expected a JSON object.";
   }
@@ -23,10 +21,29 @@ std::string cmd(nlohmann::json const& args) {
   }
   std::string command = args["command"].get<std::string>();
 
+  auto requires_confirmation = args.contains("requires_confirmation") &&
+                               args["requires_confirmation"].is_boolean() &&
+                               args["requires_confirmation"].get<bool>();
+  auto timeout_val =
+      args.contains("timeout") && args["timeout"].is_number_integer()
+          ? args["timeout"].get<int>()
+          : $timeout_infinite;
+  std::string working_directory =
+      args.contains("working_directory") &&
+              args["working_directory"].is_string()
+          ? args["working_directory"].get<std::string>()
+          : "";
+
+  print_toolcall_log("cmd", {{"command", command},
+                             {"working_directory", working_directory},
+                             {"timeout", timeout_val == $timeout_infinite
+                                             ? "infinite"
+                                             : std::to_string(timeout_val)},
+                             {"requires_confirmation",
+                              requires_confirmation ? "true" : "false"}});
+
   // Check if user confirmation is required
-  if (args.contains("requires_confirmation") &&
-      args["requires_confirmation"].is_boolean() &&
-      args["requires_confirmation"].get<bool>()) {
+  if (requires_confirmation) {
     std::string answer = ai::utils::getUserInputFromTerminal(
         "\n⚠️  CMD command requires confirmation:\n   " + command +
         "\n   Execute? (y/n): ");
@@ -41,15 +58,7 @@ std::string cmd(nlohmann::json const& args) {
   subprocess::buffer err_buf{[](const unsigned char* data, size_t size) {
     std::cerr.write(reinterpret_cast<const char*>(data), size);
   }};
-  auto timeout_val =
-      args.contains("timeout") && args["timeout"].is_number_integer()
-          ? args["timeout"].get<int>()
-          : $timeout_infinite;
-  std::string working_directory =
-      args.contains("working_directory") &&
-              args["working_directory"].is_string()
-          ? args["working_directory"].get<std::string>()
-          : "";
+
   auto ret = subprocess::run("cmd", "/c", command, $stdout > out_buf,
                              $stderr > err_buf, $timeout = timeout_val,
                              $cwd = working_directory);

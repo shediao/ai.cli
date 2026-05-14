@@ -4,6 +4,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "nlohmann/json.hpp"
 
@@ -26,3 +27,7 @@ std::set<std::string> get_tool_categories();
 
 /// Return the JSON-schema string for a given tool category.
 std::string_view get_tool_schema(std::string const& category);
+
+void print_toolcall_log(
+    std::string_view func_name,
+    std::vector<std::pair<std::string, std::string>> const& args);

@@ -151,11 +151,7 @@ int chat(AiArgs const& args) {
             try {
               auto function = tool_call.function.name;
               auto arguments = json::parse(tool_call.function.arguments);
-              std::cout << "\n"
-                        << term::bold_color::green << " ● ["
-                        << ai::utils::timestamp() << "] `"
-                        << function + "(" + arguments.dump() + ")" << "`"
-                        << term::reset << "\n";
+              LOG(INFO) << function + "(" + arguments.dump() + ")";
               auto ret = call_tool(function, arguments);
               if (ret.size() > 120) {
                 std::cout << term::bold_color::yellow << ret.substr(0, 114)

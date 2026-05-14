@@ -1,5 +1,10 @@
 #include "ai/tool_calls.h"
 
+#include <iostream>
+
+#include "ai/terminal.h"
+#include "ai/utils.h"
+
 // ── individual tool (function-level) registry ────────────────────────
 static auto& get_all_tools() {
   static std::map<std::string,
@@ -51,4 +56,21 @@ std::string_view get_tool_schema(std::string const& category) {
     return it->second();
   }
   return {};
+}
+
+void print_toolcall_log(
+    std::string_view func_name,
+    std::vector<std::pair<std::string, std::string>> const& args) {
+  std::cout << ai::term::bold_color::green << "\n● [" << ai::utils::timestamp()
+            << "]\n";
+
+  std::cout << ai::term::bold_color::green
+            << "Function: " << ai::term::bold_color::magenta << func_name
+            << "\n";
+  for (auto const& [name, value] : args) {
+    std::cout << ai::term::bold_color::green << "▶ " << name
+              << (value.size() > 128 ? ":\n" : ": ") << ai::term::bright_black
+              << value << "\n";
+  }
+  std::cout << ai::term::reset;
 }

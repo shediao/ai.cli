@@ -10,7 +10,6 @@
 #include <subprocess/subprocess.hpp>
 
 #include "./glob.hpp"
-#include "ai/logging.h"
 #include "ai/tool_calls.h"
 #include "ai/utils.h"
 #include "filesystem_tools_json.h"
@@ -45,8 +44,25 @@ static std::optional<std::string> resolve_path(nlohmann::json const& args) {
   return std::nullopt;
 }
 
+static std::string append_prefix_per_line(std::string_view str,
+                                          std::string_view prefix) {
+  std::string result;
+  result.reserve(str.size() + (str.size() * prefix.size()) / 32);
+  bool line_start = true;
+  for (auto c : str) {
+    if (line_start) {
+      result.insert(result.end(), prefix.begin(), prefix.end());
+      line_start = false;
+    }
+    result += c;
+    if (c == '\n') {
+      line_start = true;
+    }
+  }
+  return result;
+}
+
 std::string read_file(nlohmann::json const& args) {
-  LOG(INFO) << "call read_file(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function read_file arguments is invalid: expected a JSON object.";
   }
@@ -61,6 +77,9 @@ std::string read_file(nlohmann::json const& args) {
   }
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
+
+  print_toolcall_log("read_file", {{"path", path}});
+
   auto content_opt = ai::utils::read_file(path);
   if (!content_opt.has_value()) {
     return path + " is not exists.";
@@ -120,7 +139,6 @@ std::string read_file(nlohmann::json const& args) {
 }
 
 std::string read_multiple_files(nlohmann::json const& args) {
-  LOG(INFO) << "call read_multiple_files(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function read_multiple_files arguments is invalid: expected a "
            "JSON object.";
@@ -134,11 +152,18 @@ std::string read_multiple_files(nlohmann::json const& args) {
            "must be an array.";
   }
   std::vector<std::string> paths;
+  std::string paths_str;
   for (auto const& p : args["paths"]) {
     if (p.is_string()) {
-      paths.push_back(p.get<std::string>());
+      std::string path = p.get<std::string>();
+      if (!paths_str.empty()) {
+        paths_str += ", ";
+      }
+      paths_str += path;
+      paths.push_back(std::move(path));
     }
   }
+  print_toolcall_log("read_multiple_files", {{"paths", paths_str}});
   std::string contents;
   for (auto const& path : paths) {
     std::string expanded_path = expand_tilde(path);
@@ -163,7 +188,6 @@ std::string read_multiple_files(nlohmann::json const& args) {
 }
 
 std::string write_file(nlohmann::json const& args) {
-  LOG(INFO) << "call write_file(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function write_file arguments is invalid: expected a JSON "
            "object.";
@@ -188,6 +212,11 @@ std::string write_file(nlohmann::json const& args) {
   }
   path = expand_tilde(path);
   std::string content = args["content"].get<std::string>();
+
+  print_toolcall_log(
+      "write_file",
+      {{"path", path}, {"content", append_prefix_per_line(content, "> ")}});
+
   if (!ai::utils::write_file(path, content)) {
     return "Failed to write to " + path;
   }
@@ -212,8 +241,6 @@ std::pair<size_t, std::string_view> find_by_lables(
 }
 
 std::string edit_file(nlohmann::json const& args) {
-  LOG(INFO) << "call edit_file(" << args.dump() << ")";
-
   // --- argument validation ---
   if (!args.is_object()) {
     return "function edit_file arguments is invalid: expected a JSON object.";
@@ -227,7 +254,6 @@ std::string edit_file(nlohmann::json const& args) {
     return "function edit_file arguments is invalid: \"path\" must be a "
            "string.";
   }
-  std::string path = std::move(*path_opt);
   if (!args.contains("diff")) {
     return "function edit_file arguments is invalid: missing required "
            "parameter \"diff\".";
@@ -237,8 +263,11 @@ std::string edit_file(nlohmann::json const& args) {
            "string.";
   }
 
+  std::string path = std::move(*path_opt);
   path = expand_tilde(path);
   std::string diff = args["diff"].get<std::string>();
+
+  print_toolcall_log("edit_file", {{"path", path}, {"diff", diff}});
 
   // --- read original file ---
   auto file_content_opt = ai::utils::read_file(path);
@@ -350,7 +379,6 @@ std::string edit_file(nlohmann::json const& args) {
 }
 
 std::string create_directory(nlohmann::json const& args) {
-  LOG(INFO) << "call create_directory(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function create_directory arguments is invalid: expected a JSON "
            "object.";
@@ -366,6 +394,7 @@ std::string create_directory(nlohmann::json const& args) {
   }
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
+  print_toolcall_log("create_directory", {{"path", path}});
   std::error_code err;
   std::filesystem::create_directories(path, err);
   if (err) {
@@ -376,7 +405,6 @@ std::string create_directory(nlohmann::json const& args) {
 }
 
 std::string list_directory(nlohmann::json const& args) {
-  LOG(INFO) << "call list_directory(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function list_directory arguments is invalid: expected a JSON "
            "object.";
@@ -392,6 +420,7 @@ std::string list_directory(nlohmann::json const& args) {
   }
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
+  print_toolcall_log("list_directory", {{"path", path}});
   std::error_code err;
   if (!std::filesystem::exists(path, err) ||
       !std::filesystem::is_directory(path, err) || err) {
@@ -438,7 +467,6 @@ nlohmann::json buildTree(std::filesystem::path const& path) {
 }
 
 std::string directory_tree(nlohmann::json const& args) {
-  LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function directory_tree arguments is invalid: expected a JSON "
            "object.";
@@ -454,6 +482,7 @@ std::string directory_tree(nlohmann::json const& args) {
   }
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
+  print_toolcall_log("directory_tree", {{"path", path}});
   std::error_code err;
   if (!std::filesystem::exists(path, err) ||
       !std::filesystem::is_directory(path, err) || err) {
@@ -463,7 +492,6 @@ std::string directory_tree(nlohmann::json const& args) {
 }
 
 std::string search_files(nlohmann::json const& args) {
-  LOG(INFO) << "call search_files(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function search_files arguments is invalid: expected a JSON "
            "object.";
@@ -488,11 +516,15 @@ std::string search_files(nlohmann::json const& args) {
   }
   path = expand_tilde(path);
   std::string pattern = args["pattern"].get<std::string>();
-
   bool recursive = false;
   if (args.contains("recursive") && args["recursive"].is_boolean()) {
     recursive = args["recursive"].get<bool>();
   }
+
+  print_toolcall_log("search_files",
+                     {{"path", path},
+                      {"pattern", pattern},
+                      {"recursive", recursive ? "true" : "false"}});
 
   bool ignore_case = true;
   auto matches = glob::glob(pattern, path, recursive, ignore_case);
@@ -518,7 +550,6 @@ std::string search_files(nlohmann::json const& args) {
 }
 
 std::string get_file_info(nlohmann::json const& args) {
-  LOG(INFO) << "call get_file_info(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function get_file_info arguments is invalid: expected a JSON "
            "object.";
@@ -534,8 +565,8 @@ std::string get_file_info(nlohmann::json const& args) {
   }
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
+  print_toolcall_log("get_file_info", {{"path", path}});
   std::error_code err;
-
   if (!std::filesystem::exists(path, err)) {
     return "Error: " + path + " does not exist.";
   }
@@ -612,7 +643,6 @@ std::string get_file_info(nlohmann::json const& args) {
 }
 
 std::string disk_space_info(nlohmann::json const& args) {
-  LOG(INFO) << "call disk_space_info(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function disk_space_info arguments is invalid: expected a JSON "
            "object.";
@@ -628,6 +658,7 @@ std::string disk_space_info(nlohmann::json const& args) {
   }
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
+  print_toolcall_log("disk_space_info", {{"path", path}});
   std::error_code err;
   auto space = std::filesystem::space(path, err);
   if (err) {
@@ -672,7 +703,6 @@ std::string disk_space_info(nlohmann::json const& args) {
 }
 
 std::string move_file(nlohmann::json const& args) {
-  LOG(INFO) << "call directory_tree(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function move_file arguments is invalid: expected a JSON object.";
   }
@@ -696,6 +726,8 @@ std::string move_file(nlohmann::json const& args) {
   source = expand_tilde(source);
   std::string distination = args["distination"].get<std::string>();
   distination = expand_tilde(distination);
+  print_toolcall_log("move_file",
+                     {{"source", source}, {"distination", distination}});
   std::error_code err;
   std::filesystem::rename(source, distination, err);
 
@@ -707,8 +739,6 @@ std::string move_file(nlohmann::json const& args) {
 }
 
 std::string replace_lines(nlohmann::json const& args) {
-  LOG(INFO) << "call replace_lines(" << args.dump() << ")";
-
   // ── argument validation ──
   if (!args.is_object()) {
     return "function replace_lines arguments is invalid: expected a JSON "
@@ -753,6 +783,12 @@ std::string replace_lines(nlohmann::json const& args) {
   int start_line = args["start_line"].get<int>();
   int end_line = args["end_line"].get<int>();
   std::string content = args["content"].get<std::string>();
+
+  print_toolcall_log("replace_lines",
+                     {{"path", path},
+                      {"start_line", std::to_string(start_line)},
+                      {"end_line", std::to_string(end_line)},
+                      {"content", append_prefix_per_line(content, "> ")}});
 
   if (start_line < 1) {
     return "function replace_lines: \"start_line\" must be >= 1 (1-indexed), "
@@ -846,7 +882,6 @@ std::string replace_lines(nlohmann::json const& args) {
 }
 
 std::string execute_file(nlohmann::json const& args) {
-  LOG(INFO) << "call execute_file(" << args.dump() << ")";
   if (!args.is_object()) {
     return "function execute_file arguments is invalid: expected a JSON "
            "object.";
@@ -886,6 +921,22 @@ std::string execute_file(nlohmann::json const& args) {
               args["working_directory"].is_string()
           ? args["working_directory"].get<std::string>()
           : "";
+
+  std::string args_str;
+  for (size_t i = 0; i < cmd_args.size(); ++i) {
+    if (i > 0) {
+      args_str += " ";
+    }
+    args_str += cmd_args[i];
+  }
+  print_toolcall_log("execute_file",
+                     {{"path", path},
+                      {"working_directory", working_directory},
+                      {"timeout", timeout_val == $timeout_infinite
+                                      ? "infinite"
+                                      : std::to_string(timeout_val)},
+                      {"args", args_str}});
+
   auto [exit_code, out_buf, err_buf] = subprocess::capture_run(
       cmd_args, timeout = timeout_val, cwd = working_directory);
 
