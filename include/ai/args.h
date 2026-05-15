@@ -44,6 +44,8 @@ struct AiArgs {
     int n{1};
     /// Output format: "text" (human-readable) or "json".
     std::string format{"text"};
+    /// Specific session ID to print; if set, only that session is shown.
+    std::optional<std::string> session_id;
   };
 
   struct UpdateArgs {

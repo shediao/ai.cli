@@ -92,6 +92,10 @@ class HistoryDB {
   /// @param N Maximum number of sessions to return. -1 (default) returns all.
   std::vector<SessionInfo> list_session_infos(int N = -1);
 
+  /// Get a single session by ID.
+  /// @return SessionInfo if found, std::nullopt otherwise.
+  std::optional<SessionInfo> get_session_info(std::string const& session_id);
+
  private:
   void init_db();
   std::string generate_session_id() const;

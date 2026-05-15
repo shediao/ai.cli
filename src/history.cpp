@@ -446,6 +446,73 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
   return infos;
 }
 
+std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
+    std::string const& session_id) {
+  if (!db_) {
+    return std::nullopt;
+  }
+
+  const char* sql =
+      "SELECT session_id, created_at, updated_at, topic, url, model, "
+      "work_dir, parent_id, messages FROM conversations "
+      "WHERE session_id = ?1;";
+
+  sqlite3_stmt* stmt = nullptr;
+  int rc = sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr);
+  if (rc != SQLITE_OK) {
+    LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
+    return std::nullopt;
+  }
+
+  sqlite3_bind_text(stmt, 1, session_id.c_str(),
+                    static_cast<int>(session_id.size()), SQLITE_STATIC);
+
+  std::optional<SessionInfo> result;
+  if (sqlite3_step(stmt) == SQLITE_ROW) {
+    SessionInfo info;
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) {
+      info.session_id = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1))) {
+      info.created_at = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))) {
+      info.updated_at = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
+      info.topic = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
+      info.url = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
+      info.model = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
+      info.work_dir = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
+      info.parent_id = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
+      info.messages = t;
+    }
+    result = std::move(info);
+  }
+
+  sqlite3_finalize(stmt);
+  return result;
+}
+
 void HistoryDB::set_topic(std::string const& session_id,
                           std::string const& topic) {
   if (!db_) {
@@ -603,6 +670,7 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
     }
     if (json_format) {
       nlohmann::json session;
+      session["session_id"] = session_id;
       session["messages"] = msg;
       session["created_at"] = created_at;
       session["updated_at"] = updated_at;
@@ -614,8 +682,8 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
       std::cout << session.dump();
       return;
     }
-    std::cout << "\n================  <" << created_at << ">-<" << updated_at
-              << ">";
+    std::cout << "\n================  <" << session_id << ">\n"
+              << "  " << created_at << " ~ " << updated_at;
     if (!topic.empty()) {
       std::cout << "  [" << topic << "]";
     }
@@ -675,6 +743,28 @@ std::string HistoryDB::default_db_path() {
 int history(AiArgs const& args) {
   try {
     HistoryDB history_db(HistoryDB::default_db_path());
+
+    // When a specific session_id is requested, print only that session
+    if (args.history_args.session_id.has_value() &&
+        !args.history_args.session_id->empty()) {
+      auto info =
+          history_db.get_session_info(args.history_args.session_id.value());
+      if (!info.has_value()) {
+        if (args.history_args.format == "json") {
+          std::cout << "{}\n";
+        } else {
+          std::cout << "Session not found: "
+                    << args.history_args.session_id.value() << "\n";
+        }
+        return 1;
+      }
+      info->print(args.history_args.format == "json");
+      if (args.history_args.format != "json") {
+        std::cout << "\n";
+      }
+      return 0;
+    }
+
     int n = args.history_args.n;
     auto sessions = history_db.list_session_infos(n > 0 ? n : -1);
 

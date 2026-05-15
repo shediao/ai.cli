@@ -499,6 +499,11 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
       .value_placeholder("FORMAT")
       .default_value("text")
       .choices({"json", "text"});
+  history
+      .add_option("session",
+                  "Print the full conversation for a specific session ID",
+                  history_args.session_id)
+      .value_placeholder("SESSION_ID");
   history.callback([]() -> void {
     // nothing to resolve for history command
   });
