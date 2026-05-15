@@ -11,6 +11,7 @@
 #include <string>
 
 #ifdef _WIN32
+#include <objbase.h>
 #include <windows.h>  // For GetEnvironmentVariable
 #else
 #include <unistd.h>  // For access, isatty, STDIN_FILENO/STDOUT_FILENO/STDERR_FILENO
@@ -21,11 +22,79 @@
 
 #include "ai/utils.h"
 
+namespace fs = std::filesystem;
+
 namespace ai::utils {
+#if defined(_WIN32)
+namespace {
+// Helper function to convert a UTF-8 std::string to a UTF-16 std::wstring
+inline std::wstring to_wstring(const std::string& utf8str,
+                               const UINT from_codepage = CP_UTF8) {
+  if (utf8str.empty()) {
+    return {};
+  }
+  int size_needed = MultiByteToWideChar(from_codepage, 0, &utf8str[0],
+                                        (int)utf8str.size(), NULL, 0);
+  if (size_needed <= 0) {
+    // Consider throwing an exception for conversion errors
+    return {};
+  }
+  std::wstring utf16str(size_needed, 0);
+  MultiByteToWideChar(from_codepage, 0, &utf8str[0], (int)utf8str.size(),
+                      &utf16str[0], size_needed);
+  return utf16str;
+}
+
+// Helper function to convert a UTF-16 std::wstring to a UTF-8 std::string
+inline std::string to_string(const std::wstring& utf16str,
+                             const UINT to_codepage = CP_UTF8) {
+  if (utf16str.empty()) {
+    return {};
+  }
+  int size_needed = WideCharToMultiByte(
+      to_codepage, 0, &utf16str[0], (int)utf16str.size(), NULL, 0, NULL, NULL);
+  if (size_needed <= 0) {
+    // Consider throwing an exception for conversion errors
+    return {};
+  }
+  std::string utf8str(size_needed, 0);
+  WideCharToMultiByte(to_codepage, 0, &utf16str[0], (int)utf16str.size(),
+                      &utf8str[0], size_needed, NULL, NULL);
+  return utf8str;
+}
+std::string create_uuid() {
+  GUID guid;
+
+  if (FAILED(CoCreateGuid(&guid))) {
+    throw std::runtime_error("CoCreateGuid failed");
+  }
+
+  char guid_str[64];
+
+  sprintf_s(guid_str, std::size(guid_str), "%08lX-%04X-%04X-%04X-%012llX",
+            guid.Data1, guid.Data2, guid.Data3,
+            static_cast<unsigned int>((guid.Data4[0] << 8) | guid.Data4[1]),
+            ((unsigned long long)guid.Data4[2] << 40) |
+                ((unsigned long long)guid.Data4[3] << 32) |
+                ((unsigned long long)guid.Data4[4] << 24) |
+                ((unsigned long long)guid.Data4[5] << 16) |
+                ((unsigned long long)guid.Data4[6] << 8) |
+                ((unsigned long long)guid.Data4[7]));
+  return std::string(guid_str);
+}
+}  // namespace
+std::optional<std::string> toUtf8(const std::string& s) {
+  auto u8 = to_string(to_wstring(s, GetACP()), CP_UTF8);
+  if (!u8.empty()) {
+    return u8;
+  }
+  return std::nullopt;
+}
+#endif
 
 TempFile::TempFile(std::string const& prefix, std::string const& postfix)
     : path_{getTempFilePath(prefix, postfix)} {}
-TempFile::TempFile() : TempFile("", "") {}
+TempFile::TempFile() : TempFile("", ".tmp") {}
 TempFile::~TempFile() {
   if (!path_.empty() && std::filesystem::exists(path_)) {
     std::filesystem::remove(path_);
@@ -38,25 +107,12 @@ std::optional<std::string> TempFile::content() const {
 
 std::string getTempFilePath(std::string const& prefix,
                             std::string const& postfix) {
+#ifdef _WIN32
+  return to_string(fs::temp_directory_path() /
+                   (to_wstring(prefix + create_uuid() + postfix)));
+#else
   std::string temp_file_path;
 
-#ifdef _WIN32
-  char temp_dir[MAX_PATH];
-  if (GetTempPathA(MAX_PATH, temp_dir) == 0) {
-    throw std::runtime_error("Failed to get temporary directory.");
-  }
-
-  char temp_file[MAX_PATH];
-  if (GetTempFileNameA(temp_dir, prefix.c_str(), 0, temp_file) == 0) {
-    throw std::runtime_error("Failed to create temporary file.");
-  }
-  temp_file_path = temp_file;
-  DeleteFileA(temp_file);
-  if (!postfix.empty()) {
-    temp_file_path += postfix;
-  }
-
-#else
   std::string temp_dir = []() -> std::string {
     auto tmpdir = env::get("TMPDIR");
     if (tmpdir.has_value()) {
@@ -85,8 +141,8 @@ std::string getTempFilePath(std::string const& prefix,
   if (!postfix.empty()) {
     temp_file_path += postfix;
   }
-#endif
   return temp_file_path;
+#endif
 }
 
 TempDir::TempDir(std::string const& prefix) : path_{getTempDirPath(prefix)} {}
@@ -568,53 +624,6 @@ std::string app_data_dir(const std::string& app,
 #endif
   return std::filesystem::current_path().string();
 }
-
-#if defined(_WIN32)
-namespace {
-// Helper function to convert a UTF-8 std::string to a UTF-16 std::wstring
-inline std::wstring to_wstring(const std::string& utf8str,
-                               const UINT from_codepage = CP_UTF8) {
-  if (utf8str.empty()) {
-    return {};
-  }
-  int size_needed = MultiByteToWideChar(from_codepage, 0, &utf8str[0],
-                                        (int)utf8str.size(), NULL, 0);
-  if (size_needed <= 0) {
-    // Consider throwing an exception for conversion errors
-    return {};
-  }
-  std::wstring utf16str(size_needed, 0);
-  MultiByteToWideChar(from_codepage, 0, &utf8str[0], (int)utf8str.size(),
-                      &utf16str[0], size_needed);
-  return utf16str;
-}
-
-// Helper function to convert a UTF-16 std::wstring to a UTF-8 std::string
-inline std::string to_string(const std::wstring& utf16str,
-                             const UINT to_codepage = CP_UTF8) {
-  if (utf16str.empty()) {
-    return {};
-  }
-  int size_needed = WideCharToMultiByte(
-      to_codepage, 0, &utf16str[0], (int)utf16str.size(), NULL, 0, NULL, NULL);
-  if (size_needed <= 0) {
-    // Consider throwing an exception for conversion errors
-    return {};
-  }
-  std::string utf8str(size_needed, 0);
-  WideCharToMultiByte(to_codepage, 0, &utf16str[0], (int)utf16str.size(),
-                      &utf8str[0], size_needed, NULL, NULL);
-  return utf8str;
-}
-}  // namespace
-std::optional<std::string> toUtf8(const std::string& s) {
-  auto u8 = to_string(to_wstring(s, GetACP()), CP_UTF8);
-  if (!u8.empty()) {
-    return u8;
-  }
-  return std::nullopt;
-}
-#endif
 
 std::optional<std::string> read_file(std::string const& path) {
   // On some platforms (e.g. Linux/GCC) std::ifstream::open() can succeed on a
