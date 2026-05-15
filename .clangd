@@ -1,0 +1,50 @@
+# clangd configuration for ai.cli
+# https://clangd.llvm.org/config
+
+CompileFlags:
+  # Use compile_commands.json from the build directory
+  CompilationDatabase: build/
+  # Additional flags applied to all files
+  Add:
+    - -std=c++20
+    - -Wall
+    - -Wextra
+    # Allow clangd to see the same defines as the build
+    - -DCURL_STATICLIB
+  Remove:
+    # Remove flags that may confuse clangd's parser
+    - -municode
+    - -mconsole
+    - -fvisibility=hidden
+    - -fvisibility-inlines-hidden
+
+Diagnostics:
+  # Unused includes are noisy in large projects; comment out to enable
+  #UnusedIncludes: None
+  # Missing includes are often false positives with generated headers
+  MissingIncludes: None
+  # Integrate with .clang-tidy
+  ClangTidy:
+    CheckOptions:
+      # Use the .clang-tidy file at project root
+      UseColor: true
+
+Index:
+  # Index in background for better code navigation
+  Background: Build
+
+InlayHints:
+  # Show deduced types for auto variables
+  DeducedTypes: true
+  # Show parameter names at call sites
+  ParameterNames: true
+  # Show designators for aggregate initialization
+  Designators: true
+
+Completion:
+  # Show all completions including less relevant ones
+  AllScopes: true
+
+Hover:
+  # Show AKG (AST Knowledge Graph) information
+  ShowAKA: true
