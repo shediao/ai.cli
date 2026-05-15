@@ -56,15 +56,14 @@ int chat(AiArgs const& args) {
                                           &last_session, &args, &work_dir,
                                           &prompt_tokens, &completion_tokens,
                                           &total_tokens]() {
-      std::string session_id;
+      std::string parent_id;
       if (last_session.has_value()) {
-        session_id = last_session.value().session_id;
-      } else {
-        session_id = history_db.create_session(args.chat_args.api_url,
-                                               args.chat_args.model, work_dir);
+        parent_id = last_session.value().session_id;
       }
+      std::string session_id = history_db.create_session(
+          args.chat_args.api_url, args.chat_args.model, work_dir, parent_id);
       history_db.save_messages(session_id, chat_history, args.chat_args.api_url,
-                               args.chat_args.model, work_dir);
+                               args.chat_args.model, work_dir, parent_id);
       auto chat_history_snashot = chat_history;
       auto topic = HistoryDB::generate_topic(chat_history_snashot, args);
       std::cout << term::bright_black << "\n[TOPIC]: " << topic << term::reset

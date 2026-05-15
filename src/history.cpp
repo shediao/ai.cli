@@ -127,6 +127,7 @@ void HistoryDB::init_db() {
       url         TEXT    NOT NULL DEFAULT '',
       model       TEXT    NOT NULL DEFAULT '',
       work_dir    TEXT    NOT NULL DEFAULT '',
+      parent_id   TEXT    DEFAULT NULL,
       messages    TEXT    NOT NULL
     );
   )SQL";
@@ -170,6 +171,7 @@ void HistoryDB::init_db() {
   add_column_if_missing("url", "TEXT NOT NULL DEFAULT ''");
   add_column_if_missing("model", "TEXT NOT NULL DEFAULT ''");
   add_column_if_missing("work_dir", "TEXT NOT NULL DEFAULT ''");
+  add_column_if_missing("parent_id", "TEXT DEFAULT NULL");
 
   // Create index for ordering by updated_at
   exec_sql(db_,
@@ -189,7 +191,8 @@ std::string HistoryDB::generate_session_id() const {
 
 std::string HistoryDB::create_session(std::string const& url,
                                       std::string const& model,
-                                      std::string const& work_dir) {
+                                      std::string const& work_dir,
+                                      std::string const& parent_id) {
   if (!db_) {
     return "";
   }
@@ -199,8 +202,8 @@ std::string HistoryDB::create_session(std::string const& url,
   // Insert an empty messages row with session metadata
   const char* insert_sql =
       "INSERT INTO conversations "
-      "(session_id, url, model, work_dir, messages) "
-      "VALUES (?1, ?2, ?3, ?4, ?5);";
+      "(session_id, url, model, work_dir, parent_id, messages) "
+      "VALUES (?1, ?2, ?3, ?4, ?5, ?6);";
   sqlite3_stmt* stmt = nullptr;
   int rc = sqlite3_prepare_v2(db_, insert_sql, -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
@@ -216,10 +219,16 @@ std::string HistoryDB::create_session(std::string const& url,
                     SQLITE_STATIC);
   sqlite3_bind_text(stmt, 4, work_dir.c_str(),
                     static_cast<int>(work_dir.size()), SQLITE_STATIC);
+  if (parent_id.empty()) {
+    sqlite3_bind_null(stmt, 5);
+  } else {
+    sqlite3_bind_text(stmt, 5, parent_id.c_str(),
+                      static_cast<int>(parent_id.size()), SQLITE_STATIC);
+  }
 
   nlohmann::json empty_array = nlohmann::json::array();
   std::string empty_json = empty_array.dump();
-  sqlite3_bind_text(stmt, 5, empty_json.c_str(),
+  sqlite3_bind_text(stmt, 6, empty_json.c_str(),
                     static_cast<int>(empty_json.size()), SQLITE_STATIC);
 
   rc = sqlite3_step(stmt);
@@ -274,7 +283,8 @@ std::optional<nlohmann::json> HistoryDB::get_messages(
 void HistoryDB::save_messages(std::string const& session_id,
                               nlohmann::json const& messages,
                               std::string const& url, std::string const& model,
-                              std::string const& work_dir) {
+                              std::string const& work_dir,
+                              std::string const& parent_id) {
   if (!db_) {
     return;
   }
@@ -287,13 +297,14 @@ void HistoryDB::save_messages(std::string const& session_id,
 
   const char* upsert_sql = R"SQL(
     INSERT INTO conversations
-      (session_id, updated_at, url, model, work_dir, messages)
-    VALUES (?1, datetime('now'), ?2, ?3, ?4, ?5)
+      (session_id, updated_at, url, model, work_dir, parent_id, messages)
+    VALUES (?1, datetime('now'), ?2, ?3, ?4, ?5, ?6)
     ON CONFLICT(session_id) DO UPDATE SET
       updated_at = excluded.updated_at,
       url        = excluded.url,
       model      = excluded.model,
       work_dir   = excluded.work_dir,
+      parent_id  = excluded.parent_id,
       messages   = excluded.messages;
   )SQL";
 
@@ -313,9 +324,15 @@ void HistoryDB::save_messages(std::string const& session_id,
                     SQLITE_STATIC);
   sqlite3_bind_text(stmt, 4, work_dir.c_str(),
                     static_cast<int>(work_dir.size()), SQLITE_STATIC);
+  if (parent_id.empty()) {
+    sqlite3_bind_null(stmt, 5);
+  } else {
+    sqlite3_bind_text(stmt, 5, parent_id.c_str(),
+                      static_cast<int>(parent_id.size()), SQLITE_STATIC);
+  }
 
   std::string messages_json = messages.dump();
-  sqlite3_bind_text(stmt, 5, messages_json.c_str(),
+  sqlite3_bind_text(stmt, 6, messages_json.c_str(),
                     static_cast<int>(messages_json.size()), SQLITE_STATIC);
 
   rc = sqlite3_step(stmt);
@@ -366,7 +383,7 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
 
   std::string sql =
       "SELECT session_id, created_at, updated_at, topic, url, model, "
-      "work_dir, messages FROM conversations "
+      "work_dir, parent_id, messages FROM conversations "
       "ORDER BY updated_at DESC";
   if (N > 0) {
     sql += " LIMIT ?1";
@@ -416,6 +433,10 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
     }
     if (auto const* t =
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
+      info.parent_id = t;
+    }
+    if (auto const* t =
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
       info.messages = t;
     }
     infos.push_back(std::move(info));
@@ -589,6 +610,7 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
       session["url"] = url;
       session["model"] = model;
       session["work_dir"] = work_dir;
+      session["parent_id"] = parent_id;
       std::cout << session.dump();
       return;
     }
@@ -606,6 +628,9 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
     }
     if (!work_dir.empty()) {
       std::cout << "  work_dir: " << work_dir << "\n";
+    }
+    if (!parent_id.empty()) {
+      std::cout << "  parent_id: " << parent_id << "\n";
     }
     for (auto it = msg.begin(); it != msg.end(); it++) {
       auto const& m = *it;
