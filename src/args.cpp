@@ -230,6 +230,11 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
   chat.add_flag("C", "Continue conversation from the last saved chat history",
                 chat_args.continue_with_last_history);
 
+  chat.add_option("continue-from",
+                  "Continue conversation from a specific session ID",
+                  chat_args.continue_with_history_id)
+      .value_placeholder("SESSION_ID");
+
   chat.add_option("m,model",
                   "AI model name to use for chat completion (e.g., gpt-4o, "
                   "deepseek-chat)",

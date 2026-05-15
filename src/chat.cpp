@@ -28,19 +28,36 @@ int chat(AiArgs const& args) {
     nlohmann::json chat_history = nlohmann::json::array();
     HistoryDB history_db(HistoryDB::default_db_path());
 
-    std::optional<HistoryDB::SessionInfo> last_session{std::nullopt};
-    if (chat_args.continue_with_last_history) {
-      auto last_sessions = history_db.list_session_infos(1);
-      if (!last_sessions.empty()) {
-        last_session = std::move(last_sessions[0]);
+    std::optional<HistoryDB::SessionInfo> continued_session{std::nullopt};
+    if (chat_args.continue_with_history_id.has_value()) {
+      auto messages_opt =
+          history_db.get_messages(chat_args.continue_with_history_id.value());
+      if (messages_opt.has_value()) {
+        chat_history = messages_opt.value();
+        continued_session = HistoryDB::SessionInfo{};
+        continued_session->session_id =
+            chat_args.continue_with_history_id.value();
+        LOG(INFO) << "Continuing from session "
+                  << chat_args.continue_with_history_id.value() << " ("
+                  << chat_history.size() << " messages)";
+      } else {
+        LOG(ERROR) << "Session " << chat_args.continue_with_history_id.value()
+                   << " not found, starting fresh";
+        chat_history = nlohmann::json::array();
+      }
+    } else if (chat_args.continue_with_last_history) {
+      auto recent_sessions = history_db.list_session_infos(1);
+      if (!recent_sessions.empty()) {
+        continued_session = std::move(recent_sessions[0]);
         try {
-          chat_history = nlohmann::json::parse(last_session.value().messages);
+          chat_history =
+              nlohmann::json::parse(continued_session.value().messages);
           LOG(INFO) << "Continuing from last messages (" << chat_history.size()
                     << " messages)";
         } catch (nlohmann::json::parse_error const& e) {
           LOG(ERROR) << "Failed to parse last messages, starting fresh: "
                      << e.what();
-          last_session.reset();
+          continued_session.reset();
           chat_history = nlohmann::json::array();
         }
       }
@@ -53,12 +70,12 @@ int chat(AiArgs const& args) {
     std::string work_dir = std::filesystem::current_path().string();
 
     ai::utils::AutoRun scope_exit_runner([&chat_history, &history_db,
-                                          &last_session, &args, &work_dir,
+                                          &continued_session, &args, &work_dir,
                                           &prompt_tokens, &completion_tokens,
                                           &total_tokens]() {
       std::string parent_id;
-      if (last_session.has_value()) {
-        parent_id = last_session.value().session_id;
+      if (continued_session.has_value()) {
+        parent_id = continued_session.value().session_id;
       }
       std::string session_id = history_db.create_session(
           args.chat_args.api_url, args.chat_args.model, work_dir, parent_id);

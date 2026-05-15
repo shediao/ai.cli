@@ -27,6 +27,7 @@ struct AiArgs {
     std::set<std::string> tools;
     std::optional<std::string> tool_choice;
     bool continue_with_last_history{false};
+    std::optional<std::string> continue_with_history_id;
     bool no_tools{false};
     bool list_tools{false};
     std::optional<std::string> topic_base_url;
