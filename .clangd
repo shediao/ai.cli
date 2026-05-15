@@ -5,12 +5,6 @@ CompileFlags:
   # Use compile_commands.json from the build directory
   CompilationDatabase: build/
   # Additional flags applied to all files
-  Add:
-    - -std=c++20
-    - -Wall
-    - -Wextra
-    # Allow clangd to see the same defines as the build
-    - -DCURL_STATICLIB
   Remove:
     # Remove flags that may confuse clangd's parser
     - -municode
