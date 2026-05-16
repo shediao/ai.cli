@@ -1,3 +1,4 @@
+#include <chrono>
 #include <environment/environment.hpp>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -88,9 +89,11 @@ std::string bash(nlohmann::json const& args) {
     std::cerr.write(reinterpret_cast<const char*>(data), size);
   }};
 
+  auto start = std::chrono::steady_clock::now();
   auto ret = subprocess::run(bash_cmd, "-c", command, $stdout > out_buf,
                              $stderr > err_buf, $timeout = timeout_val,
                              $cwd = working_directory);
+  auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string result;
   if (!out_buf.empty()) {
@@ -103,11 +106,17 @@ std::string bash(nlohmann::json const& args) {
     result += err_buf.to_string();
   }
 
-  if (result.empty()) {
-    result = "Command executed successfully with no output. Exit code: " +
-             std::to_string(ret);
+  if (ret != 0 && timeout_val != $timeout_infinite &&
+      elapsed >= std::chrono::seconds(timeout_val)) {
+    result +=
+        ("\n\n\nError: command timed out after " + std::to_string(timeout_val) +
+         " seconds. Exit code: " + std::to_string(ret));
+  } else {
+    if (result.empty()) {
+      result = "Command executed successfully with no output. Exit code: " +
+               std::to_string(ret);
+    }
   }
-
   return result;
 }
 

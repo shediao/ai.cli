@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <chrono>
 #include <environment/environment.hpp>
 #include <filesystem>
 #include <iostream>
@@ -937,8 +938,10 @@ std::string execute_file(nlohmann::json const& args) {
                                       : std::to_string(timeout_val)},
                       {"args", args_str}});
 
+  auto start = std::chrono::steady_clock::now();
   auto [exit_code, out_buf, err_buf] = subprocess::capture_run(
       cmd_args, timeout = timeout_val, cwd = working_directory);
+  auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string result;
   result += "Exit code: " + std::to_string(exit_code) + "\n";
@@ -956,8 +959,15 @@ std::string execute_file(nlohmann::json const& args) {
     result += "stderr:\n" + err_str;
   }
 
-  if (out_str.empty() && err_str.empty()) {
-    result += "(no output)";
+  if (exit_code != 0 && timeout_val != timeout_infinite &&
+      elapsed >= std::chrono::seconds(timeout_val)) {
+    result +=
+        ("\n\n\nError: command timed out after " + std::to_string(timeout_val) +
+         " seconds. Exit code: " + std::to_string(exit_code));
+  } else {
+    if (out_str.empty() && err_str.empty()) {
+      result += "(no output)";
+    }
   }
 
   return result;
