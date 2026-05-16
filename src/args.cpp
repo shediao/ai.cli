@@ -4,6 +4,7 @@
 #include <argparse/argparse.hpp>
 #include <cstdlib>
 #include <environment/environment.hpp>
+#include <filesystem>
 #include <limits>
 
 #include "ai/terminal.h"
@@ -572,7 +573,50 @@ static void bind_ai_args(argparse::ArgParser& parser, AiArgs& args) {
   parser.add_alias("warn", "log-level", "2");
   parser.add_alias("error", "log-level", "3");
   parser.add_alias("fatal", "log-level", "4");
-  parser.add_option("log-to", "Path to the log file", args.log_file);
+  parser.add_option("log-to", "Path to the log file", args.log_file)
+      .validator([](const std::string& path) {
+        if (path.empty()) {
+          return std::pair<bool, std::string>{true, ""};
+        }
+        std::filesystem::path p(path);
+        auto parent = p.parent_path();
+        if (parent.empty()) {
+          parent = ".";
+        }
+        std::error_code ec;
+        if (!std::filesystem::exists(parent, ec)) {
+          return std::pair<bool, std::string>{
+              false,
+              "log-to: parent directory does not exist: " + parent.string()};
+        }
+        if (!std::filesystem::is_directory(parent, ec)) {
+          return std::pair<bool, std::string>{
+              false,
+              "log-to: parent path is not a directory: " + parent.string()};
+        }
+        if (std::filesystem::exists(p, ec)) {
+          if (!std::filesystem::is_regular_file(p, ec)) {
+            return std::pair<bool, std::string>{
+                false,
+                "log-to: path exists but is not a regular file: " + p.string()};
+          }
+          auto perms = std::filesystem::status(p, ec).permissions();
+          if ((perms & std::filesystem::perms::owner_write) ==
+              std::filesystem::perms::none) {
+            return std::pair<bool, std::string>{
+                false, "log-to: file is not writable: " + p.string()};
+          }
+        } else {
+          auto perms = std::filesystem::status(parent, ec).permissions();
+          if ((perms & std::filesystem::perms::owner_write) ==
+              std::filesystem::perms::none) {
+            return std::pair<bool, std::string>{
+                false,
+                "log-to: parent directory is not writable: " + parent.string()};
+          }
+        }
+        return std::pair<bool, std::string>{true, ""};
+      });
   parser
       .add_flag("print-bash-complete", "Print bash completion script",
                 args.print_bash_completion)
