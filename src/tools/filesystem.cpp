@@ -78,8 +78,18 @@ std::string read_file(nlohmann::json const& args) {
   }
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
+  bool has_offset =
+      args.contains("offset") && args["offset"].is_number_integer();
+  bool has_limit = args.contains("limit") && args["limit"].is_number_integer();
 
-  print_toolcall_log("read_file", {{"path", path}});
+  std::vector<std::pair<std::string, std::string>> params = {{"path", path}};
+  if (has_offset) {
+    params.emplace_back("offset", std::to_string(args["offset"].get<int>()));
+  }
+  if (has_limit) {
+    params.emplace_back("limit", std::to_string(args["limit"].get<int>()));
+  }
+  print_toolcall_log("read_file", params);
 
   auto content_opt = ai::utils::read_file(path);
   if (!content_opt.has_value()) {
@@ -89,10 +99,6 @@ std::string read_file(nlohmann::json const& args) {
   if (content.empty()) {
     return path + " is empty.";
   }
-
-  bool has_offset =
-      args.contains("offset") && args["offset"].is_number_integer();
-  bool has_limit = args.contains("limit") && args["limit"].is_number_integer();
 
   if (has_limit || has_offset) {
     int limit = has_limit ? args["limit"].get<int>() : -1;
