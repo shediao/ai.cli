@@ -110,6 +110,10 @@ Response Response::from_json(json const& response_json) {
       get_integer("completion_tokens", usage_json,
                   response.usage_.completion_tokens);
       get_integer("total_tokens", usage_json, response.usage_.total_tokens);
+      get_integer("prompt_cache_hit_tokens", usage_json,
+                  response.usage_.prompt_cache_hit_tokens);
+      get_integer("prompt_cache_miss_tokens", usage_json,
+                  response.usage_.prompt_cache_miss_tokens);
     }
     if (response_json.contains("choices") &&
         response_json["choices"].is_array()) {

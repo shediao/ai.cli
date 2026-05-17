@@ -62,6 +62,8 @@ class Response {
     int prompt_tokens{0};
     int completion_tokens{0};
     int total_tokens{0};
+    int prompt_cache_hit_tokens{0};
+    int prompt_cache_miss_tokens{0};
   };
 
   Response(Response&&) = default;

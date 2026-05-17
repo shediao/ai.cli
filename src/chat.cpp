@@ -63,16 +63,17 @@ int chat(AiArgs const& args) {
       }
     }
 
-    int prompt_tokens{0};
-    int completion_tokens{0};
-    int total_tokens{0};
+    std::tuple<int, int, int, int, int> tokens = {0, 0, 0, 0, 0};
+    auto& [total_tokens, prompt_tokens, completion_tokens,
+           prompt_cache_hit_tokens, prompt_cache_miss_tokens] = tokens;
 
     std::string work_dir = std::filesystem::current_path().string();
 
     ai::utils::AutoRun scope_exit_runner([&chat_history, &history_db,
                                           &continued_session, &args, &work_dir,
-                                          &prompt_tokens, &completion_tokens,
-                                          &total_tokens]() {
+                                          tokens]() {
+      auto& [total_tokens, prompt_tokens, completion_tokens,
+             prompt_cache_hit_tokens, prompt_cache_miss_tokens] = tokens;
       std::string parent_id;
       if (continued_session.has_value()) {
         parent_id = continued_session.value().session_id;
@@ -87,7 +88,9 @@ int chat(AiArgs const& args) {
                 << "\n";
       std::cout << term::bright_black << "\nTokens: [prompt:" << prompt_tokens
                 << ", completion:" << completion_tokens
-                << ", total:" << total_tokens << "]\n"
+                << ", total:" << total_tokens
+                << ", cache_hit:" << prompt_cache_hit_tokens
+                << ", cache_miss:" << prompt_cache_miss_tokens << "]\n"
                 << term::reset;
       if (!topic.empty()) {
         history_db.set_topic(session_id, topic);
@@ -162,6 +165,8 @@ int chat(AiArgs const& args) {
         prompt_tokens += usage.prompt_tokens;
         completion_tokens += usage.completion_tokens;
         total_tokens += usage.total_tokens;
+        prompt_cache_hit_tokens += usage.prompt_cache_hit_tokens;
+        prompt_cache_miss_tokens += usage.prompt_cache_miss_tokens;
 
         LOG_IF(INFO,
                !response.value().choices().back().message.tool_calls.empty())
