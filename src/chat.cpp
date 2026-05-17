@@ -188,7 +188,12 @@ int chat(AiArgs const& args) {
               auto function = tool_call.function.name;
               auto arguments = json::parse(tool_call.function.arguments);
               LOG(INFO) << function + "(" + arguments.dump() + ")";
+              auto start = std::chrono::steady_clock::now();
               auto ret = call_tool(function, arguments);
+              auto elapsed = std::chrono::steady_clock::now() - start;
+              auto elapsed_ms =
+                  std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
+                      .count();
               if (ret.size() > 120) {
                 std::cout << term::bold_color::yellow << ret.substr(0, 114)
                           << "......" << term::reset << "\n";
@@ -196,6 +201,8 @@ int chat(AiArgs const& args) {
                 std::cout << term::bold_color::yellow << ret << term::reset
                           << "\n";
               }
+              std::cout << "[Done] " << function << " use time: " << elapsed_ms
+                        << "ms\n";
               chat_history.push_back(
                   nlohmann::json::object({{"role", "tool"},
                                           {"tool_call_id", tool_call.id},
