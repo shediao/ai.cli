@@ -71,7 +71,7 @@ int chat(AiArgs const& args) {
 
     ai::utils::AutoRun scope_exit_runner([&chat_history, &history_db,
                                           &continued_session, &args, &work_dir,
-                                          tokens]() {
+                                          &tokens]() {
       auto& [total_tokens, prompt_tokens, completion_tokens,
              prompt_cache_hit_tokens, prompt_cache_miss_tokens] = tokens;
       std::string parent_id;
