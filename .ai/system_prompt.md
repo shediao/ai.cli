@@ -60,7 +60,7 @@ MSVC note: `test_stream_response.cc` and `test_tool_calls_stream_response.cc` ar
 
 If the remote repository URL is `http://github.com/*` or `git@github.com:*`, then GitHub Actions (configuration files located at `.github/workflows/*.yml`) is used as CI.
 
-通过 `gh` 命令浏览和操作 GitHub Actions：
+Browse and manage GitHub Actions via the `gh` command:
 
 ```bash
 # View recent workflow runs
@@ -81,6 +81,36 @@ gh workflow list
 # View workflow file contents
 gh workflow view <workflow-name>
 ```
+
+**When the user wants to resolve GitHub Actions failures, they should first use `gh` commands to get logs and analyze the problem**, rather than blindly guessing the cause. How to get logs:
+
+```bash
+# Get logs of the latest run (usually the failed run)
+gh run list --limit 1 --json databaseId -q '.[].databaseId' | xargs gh run view --log
+
+# Get logs of a specific run-id (including failed steps)
+gh run view <run-id> --log
+
+# Get logs of the run corresponding to a specific commit
+gh run list --commit <commit-sha> --limit 1 --json databaseId -q '.[].databaseId' | xargs gh run view --log
+
+# Only view failed runs
+gh run list --status failure --limit 5
+
+# View logs of a failed job in a run (if the run has multiple jobs)
+gh run view <run-id> --log --job <job-id>
+```
+
+After getting the logs, identify the specific failure cause based on the error messages in the logs (compilation errors, test failures, environment issues, etc.), then make targeted fixes.
+
+**Fix Verification**: If the failure occurs on a platform different from the current machine (e.g., currently on macOS ARM64, but the failure is on Linux x86_64), and a corresponding cross-compilation environment `build/{platform}-{arch}/` exists locally, after fixing, you **must** verify the build through that cross-compilation environment to ensure the fix also passes on the target platform:
+
+```bash
+# For example: fixed a compilation error on Linux x86_64, with build/linux-x86_64/ available locally
+cmake --build build/linux-x86_64
+```
+
+If the corresponding cross-compilation environment does not exist locally, just push the fix directly and let CI verify.
 
 ## Architecture
 

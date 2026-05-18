@@ -56,7 +56,24 @@ std::string build_default_system_prompt() {
 #else
   os_name = "Unix/POSIX";
 #endif
-  prompt += "Operating system: " + os_name + "\n\n";
+
+  // Architecture detection
+  std::string arch;
+#if defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64)
+  arch = "x86_64";
+#elif defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
+  arch = "arm64";
+#elif defined(__i386__) || defined(__i686__) || defined(_M_IX86)
+  arch = "x86";
+#elif defined(__arm__) || defined(_M_ARM)
+  arch = "arm";
+#elif defined(__riscv) && (__riscv_xlen == 64)
+  arch = "riscv64";
+#else
+  arch = "unknown";
+#endif
+
+  prompt += "Operating system: " + os_name + " (" + arch + ")\n\n";
 
   // ── 3. Shell ─────────────────────────────────────────────────────
   std::string shell = "unknown";
