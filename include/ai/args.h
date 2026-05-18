@@ -42,8 +42,14 @@ struct AiArgs {
   struct HistoryArgs {
     /// Number of recent sessions to list; 0 means all.
     int limit{1};
-    /// Output format: "text" (human-readable) or "json".
-    std::string format{"text"};
+    /// Output in detailed human-readable text format (like legacy
+    /// --format=text).
+    bool text{false};
+    /// Comma-separated list of fields to include in JSON output
+    /// (session-id, created_at, topic, messages).
+    /// When set, output is a JSON array of objects containing only the
+    /// specified fields.
+    std::optional<std::string> json_fields;
     /// Specific session ID to print; if set, only that session is shown.
     std::optional<std::string> session_id;
   };

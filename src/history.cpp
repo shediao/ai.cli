@@ -734,6 +734,54 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
   }
 }
 
+/// Print session info as a single JSON object containing only the fields
+/// listed in @p fields.  Unknown fields are silently ignored.
+static void print_session_json_fields(HistoryDB::SessionInfo const& info,
+                                      std::vector<std::string> const& fields) {
+  nlohmann::json obj;
+  for (auto const& f : fields) {
+    if (f == "session-id") {
+      obj["session-id"] = info.session_id;
+    } else if (f == "created_at") {
+      obj["created_at"] = info.created_at;
+    } else if (f == "topic") {
+      obj["topic"] = info.topic;
+    } else if (f == "messages") {
+      try {
+        obj["messages"] = nlohmann::json::parse(info.messages);
+      } catch (...) {
+        obj["messages"] = nlohmann::json::array();
+      }
+    }
+  }
+  std::cout << obj.dump();
+}
+
+/// Print a single-line summary: [session-id]|[created_at]|[topic]
+static void print_session_line(HistoryDB::SessionInfo const& info) {
+  std::cout << info.session_id << "|" << info.created_at << "|" << info.topic
+            << "\n";
+}
+
+/// Split @p s on commas, trim whitespace around each token.
+static std::vector<std::string> split_fields(std::string const& s) {
+  std::vector<std::string> result;
+  std::string token;
+  for (size_t i = 0; i <= s.size(); ++i) {
+    if (i == s.size() || s[i] == ',') {
+      auto start = token.find_first_not_of(" \t");
+      auto end = token.find_last_not_of(" \t");
+      if (start != std::string::npos) {
+        result.push_back(token.substr(start, end - start + 1));
+      }
+      token.clear();
+    } else {
+      token += s[i];
+    }
+  }
+  return result;
+}
+
 std::string HistoryDB::default_db_path() {
   return (std::filesystem::path(ai::utils::app_data_dir("ai.cli")) /
           "chat_history.db")
@@ -744,13 +792,23 @@ int history(AiArgs const& args) {
   try {
     HistoryDB history_db(HistoryDB::default_db_path());
 
+    bool use_json = args.history_args.json_fields.has_value() &&
+                    !args.history_args.json_fields->empty();
+    bool use_text = args.history_args.text;
+
+    // Parse JSON fields if --json was specified
+    std::vector<std::string> json_fields;
+    if (use_json) {
+      json_fields = split_fields(args.history_args.json_fields.value());
+    }
+
     // When a specific session_id is requested, print only that session
     if (args.history_args.session_id.has_value() &&
         !args.history_args.session_id->empty()) {
       auto info =
           history_db.get_session_info(args.history_args.session_id.value());
       if (!info.has_value()) {
-        if (args.history_args.format == "json") {
+        if (use_json) {
           std::cout << "{}\n";
         } else {
           std::cout << "Session not found: "
@@ -758,8 +816,11 @@ int history(AiArgs const& args) {
         }
         return 1;
       }
-      info->print(args.history_args.format == "json");
-      if (args.history_args.format != "json") {
+      if (use_json) {
+        print_session_json_fields(*info, json_fields);
+        std::cout << "\n";
+      } else {
+        info->print(false);
         std::cout << "\n";
       }
       return 0;
@@ -769,7 +830,7 @@ int history(AiArgs const& args) {
     auto sessions = history_db.list_session_infos(n > 0 ? n : -1);
 
     if (sessions.empty()) {
-      if (args.history_args.format == "json") {
+      if (use_json) {
         std::cout << "[]\n";
       } else {
         std::cout << "No chat history found.\n";
@@ -777,19 +838,40 @@ int history(AiArgs const& args) {
       return 0;
     }
 
-    if (args.history_args.format == "json") {
-      std::cout << "[";
-      auto it = sessions.begin();
-      it->print(true);
-      for (; it != sessions.end(); it++) {
-        std::cout << "  ,";
-        it->print(true);
+    if (use_json) {
+      // Output as JSON array with specified fields
+      nlohmann::json arr = nlohmann::json::array();
+      for (auto const& s : sessions) {
+        nlohmann::json obj;
+        for (auto const& f : json_fields) {
+          if (f == "session-id") {
+            obj["session-id"] = s.session_id;
+          } else if (f == "created_at") {
+            obj["created_at"] = s.created_at;
+          } else if (f == "topic") {
+            obj["topic"] = s.topic;
+          } else if (f == "messages") {
+            try {
+              obj["messages"] = nlohmann::json::parse(s.messages);
+            } catch (...) {
+              obj["messages"] = nlohmann::json::array();
+            }
+          }
+        }
+        arr.push_back(obj);
       }
-      std::cout << "]";
-    } else {
+      std::cout << arr.dump() << "\n";
+    } else if (use_text) {
+      // Detailed text format (same as legacy --format=text)
       // list_session_infos returns newest-first; reverse to print oldest-first
       for (auto it = sessions.rbegin(); it != sessions.rend(); it++) {
         it->print(false);
+      }
+    } else {
+      // Default: single-line format [session-id]|[created_at]|[topic]
+      // Print newest-first (same order as returned by list_session_infos)
+      for (auto const& s : sessions) {
+        print_session_line(s);
       }
     }
     return 0;
