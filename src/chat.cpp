@@ -22,6 +22,9 @@ namespace ai {
 
 int chat(AiArgs const& args) {
   auto& chat_args = args.chat_args;
+  auto start_ts = std::chrono::duration_cast<std::chrono::seconds>(
+                      std::chrono::system_clock::now().time_since_epoch())
+                      .count();
   try {
     OpenAIClient client(args);
 
@@ -71,17 +74,19 @@ int chat(AiArgs const& args) {
 
     ai::utils::AutoRun scope_exit_runner([&chat_history, &history_db,
                                           &continued_session, &args, &work_dir,
-                                          &tokens]() {
+                                          &tokens, start_ts]() {
       auto& [total_tokens, prompt_tokens, completion_tokens,
              prompt_cache_hit_tokens, prompt_cache_miss_tokens] = tokens;
+      auto end_ts = std::chrono::duration_cast<std::chrono::seconds>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
       std::string parent_id;
       if (continued_session.has_value()) {
         parent_id = continued_session.value().session_id;
       }
       std::string session_id = history_db.create_session(
-          args.chat_args.api_url, args.chat_args.model, work_dir, parent_id);
-      history_db.save_messages(session_id, chat_history, args.chat_args.api_url,
-                               args.chat_args.model, work_dir, parent_id);
+          chat_history, args.chat_args.api_url, args.chat_args.model, work_dir,
+          parent_id, start_ts, end_ts);
       auto chat_history_snashot = chat_history;
       auto topic = HistoryDB::generate_topic(chat_history_snashot, args);
       std::cout << term::bright_black << "\n[TOPIC]: " << topic << term::reset

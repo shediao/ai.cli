@@ -137,13 +137,14 @@ void HistoryDB::init_db() {
   // Enable foreign keys (good practice; not strictly needed for single table)
   exec_sql(db_, "PRAGMA foreign_keys=ON;");
 
-  // ── v1 table: Unix-timestamp time fields, no updated_at ──────────────
+  // ── v1 table: Unix-timestamp time fields ─────────────────────────────
   char* err_msg = nullptr;
   const char* create_v1_sql = R"SQL(
     CREATE TABLE IF NOT EXISTS conversations_v1 (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id  TEXT    NOT NULL UNIQUE,
-      created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+      start       INTEGER NOT NULL DEFAULT (unixepoch()),
+      end         INTEGER NOT NULL DEFAULT 0,
       topic       TEXT    NOT NULL DEFAULT '',
       url         TEXT    NOT NULL DEFAULT '',
       model       TEXT    NOT NULL DEFAULT '',
@@ -160,10 +161,10 @@ void HistoryDB::init_db() {
     return;
   }
 
-  // Create index for ordering by created_at
+  // Create index for ordering by start
   exec_sql(db_,
-           "CREATE INDEX IF NOT EXISTS idx_conversations_v1_created_at "
-           "ON conversations_v1(created_at);");
+           "CREATE INDEX IF NOT EXISTS idx_conversations_v1_start "
+           "ON conversations_v1(start);");
 
   // ── Legacy table: kept for backward compatibility with older versions ─
   const char* create_legacy_sql = R"SQL(
@@ -237,58 +238,84 @@ std::string HistoryDB::generate_session_id() const {
   return oss.str();
 }
 
-std::string HistoryDB::create_session(std::string const& url,
+std::string HistoryDB::create_session(nlohmann::json const& messages,
+                                      std::string const& url,
                                       std::string const& model,
                                       std::string const& work_dir,
-                                      std::string const& parent_id) {
+                                      std::string const& parent_id,
+                                      int64_t start_ts, int64_t end_ts) {
   if (!db_) {
     return "";
   }
 
   std::string session_id = generate_session_id();
 
-  // Insert an empty messages row with session metadata
-  // created_at uses the DB default (unixepoch())
+  // Use provided timestamps or fall back to current time
+  if (start_ts == 0) {
+    start_ts = std::chrono::duration_cast<std::chrono::seconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+                   .count();
+  }
+  if (end_ts == 0) {
+    end_ts = std::chrono::duration_cast<std::chrono::seconds>(
+                 std::chrono::system_clock::now().time_since_epoch())
+                 .count();
+  }
+
+  std::string messages_json;
+  if (messages.is_array()) {
+    messages_json = messages.dump();
+  } else {
+    messages_json = nlohmann::json::array().dump();
+  }
+
+  // Wrap in a transaction for atomicity
+  exec_sql(db_, "BEGIN TRANSACTION;");
+
   std::string insert_sql = std::string("INSERT INTO ") + kTableName +
-                           " (session_id, url, model, work_dir, parent_id, "
-                           "messages) VALUES (?1, ?2, ?3, ?4, ?5, ?6);";
+                           " (session_id, start, end, url, model, work_dir, "
+                           "parent_id, messages) "
+                           "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8);";
   sqlite3_stmt* stmt = nullptr;
   int rc = sqlite3_prepare_v2(db_, insert_sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to prepare insert: " << sqlite3_errmsg(db_);
+    exec_sql(db_, "ROLLBACK;");
     return "";
   }
 
   sqlite3_bind_text(stmt, 1, session_id.c_str(),
                     static_cast<int>(session_id.size()), SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 2, url.c_str(), static_cast<int>(url.size()),
+  sqlite3_bind_int64(stmt, 2, start_ts);
+  sqlite3_bind_int64(stmt, 3, end_ts);
+  sqlite3_bind_text(stmt, 4, url.c_str(), static_cast<int>(url.size()),
                     SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 3, model.c_str(), static_cast<int>(model.size()),
+  sqlite3_bind_text(stmt, 5, model.c_str(), static_cast<int>(model.size()),
                     SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 4, work_dir.c_str(),
+  sqlite3_bind_text(stmt, 6, work_dir.c_str(),
                     static_cast<int>(work_dir.size()), SQLITE_STATIC);
   if (parent_id.empty()) {
-    sqlite3_bind_null(stmt, 5);
+    sqlite3_bind_null(stmt, 7);
   } else {
-    sqlite3_bind_text(stmt, 5, parent_id.c_str(),
+    sqlite3_bind_text(stmt, 7, parent_id.c_str(),
                       static_cast<int>(parent_id.size()), SQLITE_STATIC);
   }
-
-  nlohmann::json empty_array = nlohmann::json::array();
-  std::string empty_json = empty_array.dump();
-  sqlite3_bind_text(stmt, 6, empty_json.c_str(),
-                    static_cast<int>(empty_json.size()), SQLITE_STATIC);
+  sqlite3_bind_text(stmt, 8, messages_json.c_str(),
+                    static_cast<int>(messages_json.size()), SQLITE_STATIC);
 
   rc = sqlite3_step(stmt);
   sqlite3_finalize(stmt);
 
-  if (rc != SQLITE_DONE) {
-    LOG(ERROR) << "Failed to create session: " << sqlite3_errmsg(db_);
-    return "";
+  if (rc == SQLITE_DONE) {
+    exec_sql(db_, "COMMIT;");
+    LOG(INFO) << "Created session: " << session_id << " ("
+              << (messages.is_array() ? messages.size() : 0) << " messages)";
+    return session_id;
   }
 
-  LOG(INFO) << "Created session: " << session_id;
-  return session_id;
+  LOG(ERROR) << "Failed to create session: " << sqlite3_errmsg(db_);
+  exec_sql(db_, "ROLLBACK;");
+  return "";
 }
 
 std::optional<nlohmann::json> HistoryDB::get_messages(
@@ -328,71 +355,6 @@ std::optional<nlohmann::json> HistoryDB::get_messages(
   return result;
 }
 
-void HistoryDB::save_messages(std::string const& session_id,
-                              nlohmann::json const& messages,
-                              std::string const& url, std::string const& model,
-                              std::string const& work_dir,
-                              std::string const& parent_id) {
-  if (!db_) {
-    return;
-  }
-  if (!messages.is_array() || messages.empty()) {
-    return;
-  }
-
-  // Wrap in a transaction for atomicity and performance
-  exec_sql(db_, "BEGIN TRANSACTION;");
-
-  std::string upsert_sql = std::string("INSERT INTO ") + kTableName +
-                           " (session_id, url, model, work_dir, parent_id, "
-                           "messages) VALUES (?1, ?2, ?3, ?4, ?5, ?6) "
-                           "ON CONFLICT(session_id) DO UPDATE SET "
-                           "url        = excluded.url, "
-                           "model      = excluded.model, "
-                           "work_dir   = excluded.work_dir, "
-                           "parent_id  = excluded.parent_id, "
-                           "messages   = excluded.messages;";
-
-  sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, upsert_sql.c_str(), -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to prepare upsert: " << sqlite3_errmsg(db_);
-    exec_sql(db_, "ROLLBACK;");
-    return;
-  }
-
-  sqlite3_bind_text(stmt, 1, session_id.c_str(),
-                    static_cast<int>(session_id.size()), SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 2, url.c_str(), static_cast<int>(url.size()),
-                    SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 3, model.c_str(), static_cast<int>(model.size()),
-                    SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 4, work_dir.c_str(),
-                    static_cast<int>(work_dir.size()), SQLITE_STATIC);
-  if (parent_id.empty()) {
-    sqlite3_bind_null(stmt, 5);
-  } else {
-    sqlite3_bind_text(stmt, 5, parent_id.c_str(),
-                      static_cast<int>(parent_id.size()), SQLITE_STATIC);
-  }
-
-  std::string messages_json = messages.dump();
-  sqlite3_bind_text(stmt, 6, messages_json.c_str(),
-                    static_cast<int>(messages_json.size()), SQLITE_STATIC);
-
-  rc = sqlite3_step(stmt);
-  sqlite3_finalize(stmt);
-
-  if (rc == SQLITE_DONE) {
-    exec_sql(db_, "COMMIT;");
-    LOG(INFO) << "Saved messages " << session_id << " (" << messages.size()
-              << " messages)";
-  } else {
-    LOG(ERROR) << "Failed to save messages: " << sqlite3_errmsg(db_);
-    exec_sql(db_, "ROLLBACK;");
-  }
-}
-
 std::vector<std::string> HistoryDB::list_sessions() {
   std::vector<std::string> sessions;
   if (!db_) {
@@ -400,7 +362,7 @@ std::vector<std::string> HistoryDB::list_sessions() {
   }
 
   std::string select_sql = std::string("SELECT session_id FROM ") + kTableName +
-                           " ORDER BY created_at DESC;";
+                           " ORDER BY start DESC;";
   sqlite3_stmt* stmt = nullptr;
   int rc = sqlite3_prepare_v2(db_, select_sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
@@ -427,9 +389,9 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
   }
 
   std::string sql = std::string(
-                        "SELECT session_id, created_at, topic, url, model, "
+                        "SELECT session_id, start, end, topic, url, model, "
                         "work_dir, parent_id, messages FROM ") +
-                    kTableName + " ORDER BY created_at DESC";
+                    kTableName + " ORDER BY start DESC";
   if (N > 0) {
     sql += " LIMIT ?1";
   }
@@ -452,29 +414,30 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) {
       info.session_id = t;
     }
-    info.created_at = sqlite3_column_int64(stmt, 1);
+    info.start = sqlite3_column_int64(stmt, 1);
+    info.end = sqlite3_column_int64(stmt, 2);
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
       info.topic = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
       info.url = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
       info.model = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
       info.work_dir = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
       info.parent_id = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
       info.messages = t;
     }
     infos.push_back(std::move(info));
@@ -491,7 +454,7 @@ std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
   }
 
   std::string sql = std::string(
-                        "SELECT session_id, created_at, topic, url, model, "
+                        "SELECT session_id, start, end, topic, url, model, "
                         "work_dir, parent_id, messages FROM ") +
                     kTableName + " WHERE session_id = ?1;";
 
@@ -512,29 +475,30 @@ std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) {
       info.session_id = t;
     }
-    info.created_at = sqlite3_column_int64(stmt, 1);
+    info.start = sqlite3_column_int64(stmt, 1);
+    info.end = sqlite3_column_int64(stmt, 2);
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
       info.topic = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
       info.url = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
       info.model = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
       info.work_dir = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
       info.parent_id = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
       info.messages = t;
     }
     result = std::move(info);
@@ -703,7 +667,8 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
       nlohmann::json session;
       session["session_id"] = session_id;
       session["messages"] = msg;
-      session["created_at"] = created_at;
+      session["start"] = start;
+      session["end"] = end;
       session["topic"] = topic;
       session["url"] = url;
       session["model"] = model;
@@ -713,7 +678,7 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
       return;
     }
     std::cout << "\n================  <" << session_id << ">\n"
-              << "  " << format_timestamp(created_at);
+              << "  " << format_timestamp(start);
     if (!topic.empty()) {
       std::cout << "  [" << topic << "]";
     }
@@ -772,8 +737,10 @@ static void print_session_json_fields(HistoryDB::SessionInfo const& info,
   for (auto const& f : fields) {
     if (f == "session-id") {
       obj["session-id"] = info.session_id;
-    } else if (f == "created_at") {
-      obj["created_at"] = info.created_at;
+    } else if (f == "start" || f == "created_at") {
+      obj["start"] = info.start;
+    } else if (f == "end") {
+      obj["end"] = info.end;
     } else if (f == "topic") {
       obj["topic"] = info.topic;
     } else if (f == "messages") {
@@ -789,8 +756,8 @@ static void print_session_json_fields(HistoryDB::SessionInfo const& info,
 
 /// Print a single-line summary with the specified fields in order,
 /// separated by '|'.  Each field is one of:
-///   session_id, create_at (or created_at), work_dir, topic, messages (or
-///   message)
+///   session_id, start (or create_at or created_at), end,
+///   work_dir, topic, messages (or message)
 static void print_session_line(HistoryDB::SessionInfo const& info,
                                std::vector<std::string> const& fields) {
   bool first = true;
@@ -801,8 +768,10 @@ static void print_session_line(HistoryDB::SessionInfo const& info,
     first = false;
     if (f == "session_id" || f == "session-id") {
       std::cout << info.session_id;
-    } else if (f == "create_at" || f == "created_at") {
-      std::cout << format_timestamp(info.created_at);
+    } else if (f == "start" || f == "create_at" || f == "created_at") {
+      std::cout << format_timestamp(info.start);
+    } else if (f == "end") {
+      std::cout << format_timestamp(info.end);
     } else if (f == "work_dir") {
       std::cout << info.work_dir;
     } else if (f == "topic") {
@@ -867,7 +836,7 @@ int history(AiArgs const& args) {
     } else if (!use_json && !use_text) {
       // Default line fields matching current print_session_line behavior
       // plus messages as a single-line JSON dump
-      line_fields = {"create_at", "work_dir", "topic"};
+      line_fields = {"start", "work_dir", "topic"};
     }
 
     // When a specific session_id is requested, print only that session
@@ -916,8 +885,10 @@ int history(AiArgs const& args) {
         for (auto const& f : json_fields) {
           if (f == "session-id") {
             obj["session-id"] = s.session_id;
-          } else if (f == "created_at") {
-            obj["created_at"] = s.created_at;
+          } else if (f == "start" || f == "created_at") {
+            obj["start"] = s.start;
+          } else if (f == "end") {
+            obj["end"] = s.end;
           } else if (f == "topic") {
             obj["topic"] = s.topic;
           } else if (f == "messages") {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <nlohmann/json_fwd.hpp>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <vector>
@@ -23,9 +23,8 @@ struct AiArgs;
 ///
 /// Usage:
 ///   HistoryDB db("/path/to/chat_history.db");
-///   std::string session_id = db.create_session();        // new session
-///   db.save_messages(session_id, messages);          // persist
-///   auto last = db.list_session_infos(1);            // get last session
+///   std::string session_id = db.create_session(messages);  // create + save
+///   auto last = db.list_session_infos(1);                  // get last session
 class HistoryDB {
  public:
   /// Open (or create) the database at @p db_path.
@@ -38,28 +37,26 @@ class HistoryDB {
   HistoryDB(HistoryDB&&) = delete;
   HistoryDB& operator=(HistoryDB&&) = delete;
 
-  /// Create a new session.
+  /// Create a new session and persist its messages in one step.
+  /// @param messages The conversation messages JSON array.
   /// @param url The API base URL used for this session.
   /// @param model The AI model name used for this session.
   /// @param work_dir The working directory when the session was created.
   /// @param parent_id The session_id of the previous session this continues
   ///                  from, or empty if this is a fresh session.
+  /// @param start_ts Unix timestamp when the chat started (0 = use current
+  ///                 time).
+  /// @param end_ts Unix timestamp when the chat ended (0 = use current time).
   /// @return A unique session_id string.
-  std::string create_session(std::string const& url = "",
-                             std::string const& model = "",
-                             std::string const& work_dir = "",
-                             std::string const& parent_id = "");
+  std::string create_session(
+      nlohmann::json const& messages = nlohmann::json::array(),
+      std::string const& url = "", std::string const& model = "",
+      std::string const& work_dir = "", std::string const& parent_id = "",
+      int64_t start_ts = 0, int64_t end_ts = 0);
 
   /// Retrieve specific messages by session_id.
   /// @return The messages JSON array, or std::nullopt if not found.
   std::optional<nlohmann::json> get_messages(std::string const& session_id);
-
-  /// Save (insert or update) messages for a session.
-  void save_messages(std::string const& session_id,
-                     nlohmann::json const& messages,
-                     std::string const& url = "", std::string const& model = "",
-                     std::string const& work_dir = "",
-                     std::string const& parent_id = "");
 
   /// List all saved session IDs, ordered by most recent first.
   std::vector<std::string> list_sessions();
@@ -70,7 +67,8 @@ class HistoryDB {
   /// Per-session metadata.
   struct SessionInfo {
     std::string session_id;
-    int64_t created_at = 0;  ///< Unix timestamp in seconds.
+    int64_t start = 0;  ///< Unix timestamp in seconds (session start).
+    int64_t end = 0;    ///< Unix timestamp in seconds (session end).
     std::string topic;
     std::string url;
     std::string model;
