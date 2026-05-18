@@ -121,8 +121,8 @@ void HistoryDB::init_db() {
     CREATE TABLE IF NOT EXISTS conversations (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id  TEXT    NOT NULL UNIQUE,
-      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
-      updated_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
+      updated_at  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
       topic       TEXT    NOT NULL DEFAULT '',
       url         TEXT    NOT NULL DEFAULT '',
       model       TEXT    NOT NULL DEFAULT '',
@@ -298,7 +298,7 @@ void HistoryDB::save_messages(std::string const& session_id,
   const char* upsert_sql = R"SQL(
     INSERT INTO conversations
       (session_id, updated_at, url, model, work_dir, parent_id, messages)
-    VALUES (?1, datetime('now'), ?2, ?3, ?4, ?5, ?6)
+    VALUES (?1, datetime('now', 'localtime'), ?2, ?3, ?4, ?5, ?6)
     ON CONFLICT(session_id) DO UPDATE SET
       updated_at = excluded.updated_at,
       url        = excluded.url,
