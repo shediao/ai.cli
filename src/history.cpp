@@ -765,7 +765,7 @@ int history(AiArgs const& args) {
       return 0;
     }
 
-    int n = args.history_args.n;
+    int n = args.history_args.limit;
     auto sessions = history_db.list_session_infos(n > 0 ? n : -1);
 
     if (sessions.empty()) {

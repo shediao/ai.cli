@@ -41,7 +41,7 @@ struct AiArgs {
 
   struct HistoryArgs {
     /// Number of recent sessions to list; 0 means all.
-    int n{1};
+    int limit{1};
     /// Output format: "text" (human-readable) or "json".
     std::string format{"text"};
     /// Specific session ID to print; if set, only that session is shown.

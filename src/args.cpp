@@ -508,8 +508,9 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
   auto& history_args = args.history_args;
 
   history
-      .add_option("n", "Number of recent sessions to list (0 or omit for all)",
-                  history_args.n)
+      .add_option("limit",
+                  "Number of recent sessions to list (0 or omit for all)",
+                  history_args.limit)
       .range(-1, std::numeric_limits<int>::max())
       .default_value("1");
   history
