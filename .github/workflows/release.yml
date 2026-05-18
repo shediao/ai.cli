@@ -72,7 +72,7 @@ jobs:
           lipo -info build/ai
 
       # -----------------------------------------------------------------------
-      # Package binary → zip it with the target name
+      # Package binary → zip + tar.gz (Unix) or zip only (Windows)
       # -----------------------------------------------------------------------
       - name: Prepare artifact
         shell: bash
@@ -82,6 +82,7 @@ jobs:
             powershell -Command "Compress-Archive -Path 'build/Release/ai.exe' -DestinationPath 'dist/ai-${{ matrix.target }}.zip'"
           else
             zip -j "dist/ai-${{ matrix.target }}.zip" build/ai
+            tar -czf "dist/ai-${{ matrix.target }}.tar.gz" -C build ai
           fi
 
       - name: Upload artifact
@@ -174,7 +175,7 @@ jobs:
         run: |
           mkdir -p dist
           zip -j "dist/ai-${{ matrix.target }}.zip" build/ai
-
+          tar -czf "dist/ai-${{ matrix.target }}.tar.gz" -C build ai
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

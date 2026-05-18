@@ -413,7 +413,11 @@ int update(AiArgs const& args) {
   }
 
   // 5. Find the right asset
+#if defined(_WIN32) || defined(_WIN64)
   std::string expected_name = "ai-" + platform + ".zip";
+#else
+  std::string expected_name = "ai-" + platform + ".tar.gz";
+#endif
   std::string download_url;
   for (const auto& asset : release["assets"]) {
     if (asset.value("name", "") == expected_name) {
@@ -430,34 +434,37 @@ int update(AiArgs const& args) {
 
   std::cout << "Downloading " << expected_name << "...\n";
 
-  // 6. Download the zip to a temporary file
-  ai::utils::TempFile tmp_zip("ai-update.", ".zip");
+  // 6. Download the archive to a temporary file
+#if defined(_WIN32) || defined(_WIN64)
+  ai::utils::TempFile tmp_archive("ai-update.", ".zip");
+#else
+  ai::utils::TempFile tmp_archive("ai-update.", ".tar.gz");
+#endif
   std::string mime;
-  if (!ai::utils::download_image(download_url, tmp_zip.path(), mime,
+  if (!ai::utils::download_image(download_url, tmp_archive.path(), mime,
                                  args.proxy.value_or(""))) {
     std::cerr << "update: download failed\n";
     return 1;
   }
 
-  // 7. Extract the binary from the zip using system unzip / powershell
-  ai::utils::TempFile tmp_dir("ai-update-dir.", ".zip");
+  // 7. Extract the binary from the archive
+  ai::utils::TempFile tmp_dir("ai-update-dir.", ".d");
   // Remove the temp dir path so we can create it as a directory
   std::filesystem::remove(tmp_dir.path());
   std::filesystem::create_directories(tmp_dir.path());
 
-  std::string extract_cmd;
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(_WIN64)
   auto [ret, _, stderr_] = subprocess::capture_run(
       {"powershell", "-NoProfile", "-Command",
-       "Expand-Archive -Path '" + tmp_zip.path() + "' -DestinationPath '" +
+       "Expand-Archive -Path '" + tmp_archive.path() + "' -DestinationPath '" +
            tmp_dir.path() + "' -Force"});
 #else
   auto [ret, _, stderr_] = subprocess::capture_run(
-      {"unzip", "-o", tmp_zip.path(), "-d", tmp_dir.path()});
+      {"tar", "-xzf", tmp_archive.path(), "-C", tmp_dir.path()});
 #endif
 
   if (ret != 0) {
-    std::cerr << "update: failed to extract zip (exit code " << ret << ")\n"
+    std::cerr << "update: failed to extract archive (exit code " << ret << ")\n"
               << stderr_.to_string() << "\n";
     return 1;
   }
