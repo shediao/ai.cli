@@ -1,70 +1,14 @@
 #include "ai/system_prompt.h"
 
-#include <algorithm>
-#include <chrono>
-#include <ctime>
 #include <environment/environment.hpp>
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <subprocess/subprocess.hpp>
-#include <vector>
 
 namespace ai {
 
 namespace {
-
-/// Generate a simple indented tree view of a directory (limited depth).
-/// Directories matching names in |skip_dirs| are displayed but not recursed.
-std::string make_tree(std::filesystem::path const& root, int max_depth = 2,
-                      int max_entries_per_dir = 50,
-                      std::vector<std::string> const& skip_dirs = {}) {
-  std::string out;
-  auto build = [&](auto& self, std::filesystem::path const& dir,
-                   std::string const& prefix, int depth) -> void {
-    if (depth > max_depth) {
-      return;
-    }
-    std::error_code ec;
-    int count = 0;
-    std::vector<std::filesystem::directory_entry> entries;
-    for (auto const& e : std::filesystem::directory_iterator(dir, ec)) {
-      entries.push_back(e);
-      if (++count >= max_entries_per_dir) {
-        break;
-      }
-    }
-    // Sort: directories first, then files, alphabetically
-    std::sort(entries.begin(), entries.end(), [](auto const& a, auto const& b) {
-      if (a.is_directory() != b.is_directory()) {
-        return a.is_directory() > b.is_directory();
-      }
-      return a.path().filename() < b.path().filename();
-    });
-    for (size_t i = 0; i < entries.size(); ++i) {
-      bool last = (i == entries.size() - 1);
-      std::string branch = last ? "\u2514\u2500\u2500 " : "\u251C\u2500\u2500 ";
-      std::string next_prefix = prefix + (last ? "    " : "\u2502   ");
-      auto const& entry = entries[i];
-      auto name = entry.path().filename().string();
-      if (entry.is_directory(ec)) {
-        bool skip = std::find(skip_dirs.begin(), skip_dirs.end(), name) !=
-                    skip_dirs.end();
-        if (skip) {
-          out += prefix + branch + name + "/ (skipped)\n";
-        } else {
-          out += prefix + branch + name + "/\n";
-          self(self, entry.path(), next_prefix, depth + 1);
-        }
-      } else {
-        out += prefix + branch + name + "\n";
-      }
-    }
-  };
-  out += root.string() + "\n";
-  build(build, root, "", 0);
-  return out;
-}
 
 /// Check if a path is inside a git repository by walking up to find .git.
 std::optional<std::string> find_git_root() {
@@ -89,28 +33,12 @@ std::optional<std::string> find_git_root() {
 std::string build_default_system_prompt() {
   std::string prompt;
 
-  // ── 1. Current date & time ───────────────────────────────────────
-  auto now = std::chrono::system_clock::now();
-  std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-#if defined(_WIN32)
-  char buf[64]{0};
-  ::ctime_s(buf, std::size(buf), &now_time);
-  buf[std::size(buf) - 1] = '\0';
-  std::string time_str = buf;
-#else
-  std::string time_str = std::ctime(&now_time);
-#endif
-  if (!time_str.empty() && time_str.back() == '\n') {
-    time_str.pop_back();
-  }
-  prompt += "Current time: " + time_str + "\n\n";
-
-  // ── 2. Current working directory ─────────────────────────────────
+  // ── 1. Current working directory ─────────────────────────────────
   std::error_code ec;
   prompt += "Current working directory: " +
             std::filesystem::current_path(ec).string() + "\n\n";
 
-  // ── 3. Operating system ──────────────────────────────────────────
+  // ── 2. Operating system ──────────────────────────────────────────
   std::string os_name;
 #if defined(_WIN32) || defined(_WIN64)
   os_name = "Windows";
@@ -130,7 +58,7 @@ std::string build_default_system_prompt() {
 #endif
   prompt += "Operating system: " + os_name + "\n\n";
 
-  // ── 4. Shell ─────────────────────────────────────────────────────
+  // ── 3. Shell ─────────────────────────────────────────────────────
   std::string shell = "unknown";
 #if defined(_WIN32) || defined(_WIN64)
   if (auto comspec = env::get("COMSPEC"); comspec.has_value()) {
@@ -154,7 +82,7 @@ std::string build_default_system_prompt() {
 #endif
   prompt += "Default shell: " + shell + "\n\n";
 
-  // ── 5. Git repository context ────────────────────────────────────
+  // ── 4. Git repository context ────────────────────────────────────
   auto git_root = find_git_root();
   if (git_root.has_value()) {
     prompt += "You are inside a git repository.\n";
@@ -173,19 +101,6 @@ std::string build_default_system_prompt() {
           "Current branch: " + (branch.empty() ? "(detached HEAD)" : branch) +
           "\n";
     }
-    // Git status (porcelain)
-    auto [ret_st, out_st,
-          err_st] = subprocess::capture_run(std::vector<std::string>{
-        "git", "-C", git_root.value(), "status", "--porcelain", "--branch"});
-    std::string status = out_st.to_string();
-    if (!status.empty()) {
-      prompt += "Git status:\n" + status + "\n";
-    }
-
-    // Repository structure (top 2 levels, skip .git and build dirs)
-    prompt += "\nRepository structure:\n" +
-              make_tree(std::filesystem::path(git_root.value()), 2, 60,
-                        {".cache", ".git", "build", "_deps", "third_party"});
   }
 
   return prompt;
