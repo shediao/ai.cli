@@ -99,11 +99,11 @@ int chat(AiArgs const& args) {
 
     try {
       auto user_prompt = chat_args.prompts;
-      if (chat_args.system_prompt.has_value() &&
-          !utfx::is_utf8(chat_args.system_prompt->data(),
-                         chat_args.system_prompt->size())) {
-        LOG(ERROR) << "system prompt not an utf8 string";
-        return 1;
+      for (auto const& sp : chat_args.system_prompt) {
+        if (!utfx::is_utf8(sp.data(), sp.size())) {
+          LOG(ERROR) << "system prompt not an utf8 string";
+          return 1;
+        }
       }
 
 #if defined(_WIN32)
@@ -129,8 +129,13 @@ int chat(AiArgs const& args) {
 #endif
 
       std::string system_prompt;
-      if (chat_args.system_prompt.has_value()) {
-        system_prompt = chat_args.system_prompt.value();
+      if (!chat_args.system_prompt.empty()) {
+        for (size_t i = 0; i < chat_args.system_prompt.size(); ++i) {
+          if (i > 0) {
+            system_prompt += "\n\n";
+          }
+          system_prompt += chat_args.system_prompt[i];
+        }
       } else {
         if (chat_history.empty()) {
           system_prompt = build_default_system_prompt();

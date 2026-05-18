@@ -15,7 +15,7 @@ struct AiArgs {
     std::vector<std::string> prompts;
     std::string model;
     std::string api_url;
-    std::optional<std::string> system_prompt;
+    std::vector<std::string> system_prompt;
     std::optional<unsigned int> max_tokens;
     std::optional<unsigned int> n;
     std::optional<double> temperature;

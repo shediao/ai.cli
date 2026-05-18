@@ -246,7 +246,9 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       });
   chat.add_option(
       "s,system-prompt",
-      "System prompt that sets the behavior, role, and context for the AI",
+      "System prompt that sets the behavior, role, and context for the AI. "
+      "If the value starts with '@' (e.g., @./prompt.txt), the file at that "
+      "path will be read and its contents used as the system prompt",
       chat_args.system_prompt);
   chat.add_option("t,temperature",
                   "Sampling temperature [0.0–2.0]: lower values produce more "
@@ -353,6 +355,20 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
 
   chat.callback([&args]() -> void {
     auto& chat_args = args.chat_args;
+
+    // If any system-prompt starts with '@', treat it as a file path and read
+    // its contents
+    for (auto& sp : chat_args.system_prompt) {
+      if (!sp.empty() && sp[0] == '@') {
+        auto file_path = std::filesystem::path(sp.substr(1));
+        if (!is_directory(file_path)) {
+          auto content = ai::utils::read_file(file_path);
+          if (content.has_value()) {
+            sp = content.value();
+          }
+        }
+      }
+    }
 
     if (chat_args.model.empty()) {
       auto model = getDefaultModelForUrl(chat_args.api_url);
