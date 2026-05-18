@@ -47,12 +47,19 @@ class HistoryDB {
   /// @param start_ts Unix timestamp when the chat started (0 = use current
   ///                 time).
   /// @param end_ts Unix timestamp when the chat ended (0 = use current time).
+  /// @param prompt_tokens Number of prompt tokens used.
+  /// @param completion_tokens Number of completion tokens used.
+  /// @param total_tokens Total number of tokens used.
+  /// @param prompt_cache_hit_tokens Number of prompt cache hit tokens.
+  /// @param prompt_cache_miss_tokens Number of prompt cache miss tokens.
   /// @return A unique session_id string.
   std::string create_session(
       nlohmann::json const& messages = nlohmann::json::array(),
       std::string const& url = "", std::string const& model = "",
       std::string const& work_dir = "", std::string const& parent_id = "",
-      int64_t start_ts = 0, int64_t end_ts = 0);
+      int64_t start_ts = 0, int64_t end_ts = 0, int prompt_tokens = 0,
+      int completion_tokens = 0, int total_tokens = 0,
+      int prompt_cache_hit_tokens = 0, int prompt_cache_miss_tokens = 0);
 
   /// Retrieve specific messages by session_id.
   /// @return The messages JSON array, or std::nullopt if not found.
@@ -75,6 +82,11 @@ class HistoryDB {
     std::string work_dir;
     std::string parent_id;
     std::string messages;
+    int prompt_tokens = 0;
+    int completion_tokens = 0;
+    int total_tokens = 0;
+    int prompt_cache_hit_tokens = 0;
+    int prompt_cache_miss_tokens = 0;
     void print(bool json_format) const;
   };
 

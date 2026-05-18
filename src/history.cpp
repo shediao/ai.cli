@@ -141,16 +141,21 @@ void HistoryDB::init_db() {
   char* err_msg = nullptr;
   const char* create_v1_sql = R"SQL(
     CREATE TABLE IF NOT EXISTS conversations_v1 (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      session_id  TEXT    NOT NULL UNIQUE,
-      start       INTEGER NOT NULL DEFAULT (unixepoch()),
-      end         INTEGER NOT NULL DEFAULT 0,
-      topic       TEXT    NOT NULL DEFAULT '',
-      url         TEXT    NOT NULL DEFAULT '',
-      model       TEXT    NOT NULL DEFAULT '',
-      work_dir    TEXT    NOT NULL DEFAULT '',
-      parent_id   TEXT    DEFAULT NULL,
-      messages    TEXT    NOT NULL
+      id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id              TEXT    NOT NULL UNIQUE,
+      start                   INTEGER NOT NULL DEFAULT (unixepoch()),
+      end                     INTEGER NOT NULL DEFAULT 0,
+      topic                   TEXT    NOT NULL DEFAULT '',
+      url                     TEXT    NOT NULL DEFAULT '',
+      model                   TEXT    NOT NULL DEFAULT '',
+      work_dir                TEXT    NOT NULL DEFAULT '',
+      parent_id               TEXT    DEFAULT NULL,
+      messages                TEXT    NOT NULL,
+      prompt_tokens           INTEGER NOT NULL DEFAULT 0,
+      completion_tokens       INTEGER NOT NULL DEFAULT 0,
+      total_tokens            INTEGER NOT NULL DEFAULT 0,
+      prompt_cache_hit_tokens  INTEGER NOT NULL DEFAULT 0,
+      prompt_cache_miss_tokens INTEGER NOT NULL DEFAULT 0
     );
   )SQL";
   int rc = sqlite3_exec(db_, create_v1_sql, nullptr, nullptr, &err_msg);
@@ -238,12 +243,12 @@ std::string HistoryDB::generate_session_id() const {
   return oss.str();
 }
 
-std::string HistoryDB::create_session(nlohmann::json const& messages,
-                                      std::string const& url,
-                                      std::string const& model,
-                                      std::string const& work_dir,
-                                      std::string const& parent_id,
-                                      int64_t start_ts, int64_t end_ts) {
+std::string HistoryDB::create_session(
+    nlohmann::json const& messages, std::string const& url,
+    std::string const& model, std::string const& work_dir,
+    std::string const& parent_id, int64_t start_ts, int64_t end_ts,
+    int prompt_tokens, int completion_tokens, int total_tokens,
+    int prompt_cache_hit_tokens, int prompt_cache_miss_tokens) {
   if (!db_) {
     return "";
   }
@@ -274,8 +279,11 @@ std::string HistoryDB::create_session(nlohmann::json const& messages,
 
   std::string insert_sql = std::string("INSERT INTO ") + kTableName +
                            " (session_id, start, end, url, model, work_dir, "
-                           "parent_id, messages) "
-                           "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8);";
+                           "parent_id, messages, prompt_tokens, "
+                           "completion_tokens, total_tokens, "
+                           "prompt_cache_hit_tokens, prompt_cache_miss_tokens) "
+                           "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, "
+                           "?9, ?10, ?11, ?12, ?13);";
   sqlite3_stmt* stmt = nullptr;
   int rc = sqlite3_prepare_v2(db_, insert_sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
@@ -302,6 +310,11 @@ std::string HistoryDB::create_session(nlohmann::json const& messages,
   }
   sqlite3_bind_text(stmt, 8, messages_json.c_str(),
                     static_cast<int>(messages_json.size()), SQLITE_STATIC);
+  sqlite3_bind_int(stmt, 9, prompt_tokens);
+  sqlite3_bind_int(stmt, 10, completion_tokens);
+  sqlite3_bind_int(stmt, 11, total_tokens);
+  sqlite3_bind_int(stmt, 12, prompt_cache_hit_tokens);
+  sqlite3_bind_int(stmt, 13, prompt_cache_miss_tokens);
 
   rc = sqlite3_step(stmt);
   sqlite3_finalize(stmt);
@@ -390,7 +403,10 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
 
   std::string sql = std::string(
                         "SELECT session_id, start, end, topic, url, model, "
-                        "work_dir, parent_id, messages FROM ") +
+                        "work_dir, parent_id, messages, prompt_tokens, "
+                        "completion_tokens, total_tokens, "
+                        "prompt_cache_hit_tokens, prompt_cache_miss_tokens "
+                        "FROM ") +
                     kTableName + " ORDER BY start DESC";
   if (N > 0) {
     sql += " LIMIT ?1";
@@ -440,6 +456,11 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
       info.messages = t;
     }
+    info.prompt_tokens = sqlite3_column_int(stmt, 9);
+    info.completion_tokens = sqlite3_column_int(stmt, 10);
+    info.total_tokens = sqlite3_column_int(stmt, 11);
+    info.prompt_cache_hit_tokens = sqlite3_column_int(stmt, 12);
+    info.prompt_cache_miss_tokens = sqlite3_column_int(stmt, 13);
     infos.push_back(std::move(info));
   }
 
@@ -455,7 +476,10 @@ std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
 
   std::string sql = std::string(
                         "SELECT session_id, start, end, topic, url, model, "
-                        "work_dir, parent_id, messages FROM ") +
+                        "work_dir, parent_id, messages, prompt_tokens, "
+                        "completion_tokens, total_tokens, "
+                        "prompt_cache_hit_tokens, prompt_cache_miss_tokens "
+                        "FROM ") +
                     kTableName + " WHERE session_id = ?1;";
 
   sqlite3_stmt* stmt = nullptr;
@@ -501,6 +525,11 @@ std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
       info.messages = t;
     }
+    info.prompt_tokens = sqlite3_column_int(stmt, 9);
+    info.completion_tokens = sqlite3_column_int(stmt, 10);
+    info.total_tokens = sqlite3_column_int(stmt, 11);
+    info.prompt_cache_hit_tokens = sqlite3_column_int(stmt, 12);
+    info.prompt_cache_miss_tokens = sqlite3_column_int(stmt, 13);
     result = std::move(info);
   }
 
@@ -674,6 +703,11 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
       session["model"] = model;
       session["work_dir"] = work_dir;
       session["parent_id"] = parent_id;
+      session["prompt_tokens"] = prompt_tokens;
+      session["completion_tokens"] = completion_tokens;
+      session["total_tokens"] = total_tokens;
+      session["prompt_cache_hit_tokens"] = prompt_cache_hit_tokens;
+      session["prompt_cache_miss_tokens"] = prompt_cache_miss_tokens;
       std::cout << session.dump();
       return;
     }
@@ -695,6 +729,11 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
     if (!parent_id.empty()) {
       std::cout << "  parent_id: " << parent_id << "\n";
     }
+    std::cout << "  tokens: [prompt:" << prompt_tokens
+              << ", completion:" << completion_tokens
+              << ", total:" << total_tokens
+              << ", cache_hit:" << prompt_cache_hit_tokens
+              << ", cache_miss:" << prompt_cache_miss_tokens << "]\n";
     for (auto it = msg.begin(); it != msg.end(); it++) {
       auto const& m = *it;
       if (!m.is_object()) {
