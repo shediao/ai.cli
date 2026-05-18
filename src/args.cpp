@@ -362,7 +362,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       if (!sp.empty() && sp[0] == '@') {
         auto file_path = std::filesystem::path(sp.substr(1));
         if (!is_directory(file_path)) {
-          auto content = ai::utils::read_file(file_path);
+          auto content = ai::utils::read_file(file_path.string());
           if (content.has_value()) {
             sp = content.value();
           }
