@@ -50,6 +50,11 @@ struct AiArgs {
     /// When set, output is a JSON array of objects containing only the
     /// specified fields.
     std::optional<std::string> json_fields;
+    /// Comma-separated list of fields for line output
+    /// (session_id, create_at, work_dir, topic, messages).
+    /// When set, output is pipe-delimited one-line-per-session with the
+    /// specified fields in the given order.
+    std::optional<std::string> line_fields;
     /// Specific session ID to print; if set, only that session is shown.
     std::optional<std::string> session_id;
   };

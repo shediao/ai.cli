@@ -512,7 +512,7 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
                   "Number of recent sessions to list (0 for all, default: 1)",
                   history_args.limit)
       .range(0, std::numeric_limits<int>::max())
-      .default_value("1");
+      .default_value("20");
   history
       .add_option("json",
                   "Output as JSON array with the specified fields "
@@ -523,6 +523,14 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
                    "Output in detailed human-readable text format "
                    "(same as legacy --format=text)",
                    history_args.text);
+  history
+      .add_option("line",
+                  "Output as pipe-delimited lines with specified fields in "
+                  "order (comma-separated: "
+                  "session_id,create_at,work_dir,topic,messages). "
+                  "Default when no output format is specified.",
+                  history_args.line_fields)
+      .value_placeholder("FIELDS");
   history
       .add_option("session",
                   "Print the full conversation for a specific session ID",

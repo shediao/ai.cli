@@ -757,10 +757,36 @@ static void print_session_json_fields(HistoryDB::SessionInfo const& info,
   std::cout << obj.dump();
 }
 
-/// Print a single-line summary: [session-id]|[created_at]|[topic]
-static void print_session_line(HistoryDB::SessionInfo const& info) {
-  std::cout << info.session_id << "|" << info.created_at << "|" << info.topic
-            << "\n";
+/// Print a single-line summary with the specified fields in order,
+/// separated by '|'.  Each field is one of:
+///   session_id, create_at (or created_at), work_dir, topic, messages (or
+///   message)
+static void print_session_line(HistoryDB::SessionInfo const& info,
+                               std::vector<std::string> const& fields) {
+  bool first = true;
+  for (auto const& f : fields) {
+    if (!first) {
+      std::cout << "|";
+    }
+    first = false;
+    if (f == "session_id" || f == "session-id") {
+      std::cout << info.session_id;
+    } else if (f == "create_at" || f == "created_at") {
+      std::cout << info.created_at;
+    } else if (f == "work_dir") {
+      std::cout << info.work_dir;
+    } else if (f == "topic") {
+      std::cout << info.topic;
+    } else if (f == "messages" || f == "message") {
+      try {
+        auto msg = nlohmann::json::parse(info.messages);
+        std::cout << msg.dump();
+      } catch (...) {
+        std::cout << "[]";
+      }
+    }
+  }
+  std::cout << "\n";
 }
 
 /// Split @p s on commas, trim whitespace around each token.
@@ -795,11 +821,24 @@ int history(AiArgs const& args) {
     bool use_json = args.history_args.json_fields.has_value() &&
                     !args.history_args.json_fields->empty();
     bool use_text = args.history_args.text;
+    bool use_line = args.history_args.line_fields.has_value() &&
+                    !args.history_args.line_fields->empty();
 
     // Parse JSON fields if --json was specified
     std::vector<std::string> json_fields;
     if (use_json) {
       json_fields = split_fields(args.history_args.json_fields.value());
+    }
+
+    // Parse line fields if --line was specified, otherwise use defaults
+    std::vector<std::string> line_fields;
+    if (use_line) {
+      line_fields = split_fields(args.history_args.line_fields.value());
+    } else if (!use_json && !use_text) {
+      // Default line fields matching current print_session_line behavior
+      // plus messages as a single-line JSON dump
+      line_fields = {"session_id", "create_at", "work_dir", "topic",
+                     "messages"};
     }
 
     // When a specific session_id is requested, print only that session
@@ -819,9 +858,11 @@ int history(AiArgs const& args) {
       if (use_json) {
         print_session_json_fields(*info, json_fields);
         std::cout << "\n";
-      } else {
+      } else if (use_text) {
         info->print(false);
         std::cout << "\n";
+      } else {
+        print_session_line(*info, line_fields);
       }
       return 0;
     }
@@ -868,10 +909,10 @@ int history(AiArgs const& args) {
         it->print(false);
       }
     } else {
-      // Default: single-line format [session-id]|[created_at]|[topic]
+      // Line format (either explicit --line or default)
       // Print newest-first (same order as returned by list_session_infos)
       for (auto const& s : sessions) {
-        print_session_line(s);
+        print_session_line(s, line_fields);
       }
     }
     return 0;
