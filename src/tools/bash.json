@@ -8,7 +8,7 @@
       "properties": {
         "command": {
           "type": "string",
-          "description": "The bash command to execute. This will be passed to 'bash -c'. Can include pipes, redirects, variable expansions, and any valid bash syntax."
+          "description": "The bash command to execute. This will be passed to 'bash -c'. Can include pipes, redirects, variable expansions, and any valid bash syntax. To reduce log noise, prefer piping through 'tail -n N' to limit output lines or 'grep xxx' to filter for relevant content, especially when running commands that produce verbose output (e.g., builds, logs, large listings)."
         },
         "requires_confirmation": {
           "type": "boolean",
