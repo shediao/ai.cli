@@ -837,8 +837,7 @@ int history(AiArgs const& args) {
     } else if (!use_json && !use_text) {
       // Default line fields matching current print_session_line behavior
       // plus messages as a single-line JSON dump
-      line_fields = {"session_id", "create_at", "work_dir", "topic",
-                     "messages"};
+      line_fields = {"create_at", "work_dir", "topic"};
     }
 
     // When a specific session_id is requested, print only that session
