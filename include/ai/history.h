@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <string>
@@ -16,6 +17,9 @@ struct AiArgs;
 ///
 /// Supports concurrent access from multiple processes via WAL journal mode.
 /// Each conversation is stored as a row keyed by a unique session_id.
+///
+/// Uses table `conversations_v1` with Unix-timestamp time fields.
+/// The legacy `conversations` table is left untouched for older versions.
 ///
 /// Usage:
 ///   HistoryDB db("/path/to/chat_history.db");
@@ -51,8 +55,6 @@ class HistoryDB {
   std::optional<nlohmann::json> get_messages(std::string const& session_id);
 
   /// Save (insert or update) messages for a session.
-  /// Automatically updates the `updated_at` timestamp, and optionally
-  /// the url, model, work_dir, and parent_id fields.
   void save_messages(std::string const& session_id,
                      nlohmann::json const& messages,
                      std::string const& url = "", std::string const& model = "",
@@ -68,8 +70,7 @@ class HistoryDB {
   /// Per-session metadata.
   struct SessionInfo {
     std::string session_id;
-    std::string created_at;
-    std::string updated_at;
+    int64_t created_at = 0;  ///< Unix timestamp in seconds.
     std::string topic;
     std::string url;
     std::string model;

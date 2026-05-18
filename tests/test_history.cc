@@ -349,7 +349,7 @@ TEST_F(HistoryDBTest, SaveMessagesRejectsEmptyArray) {
   EXPECT_EQ(result->size(), 1u);
 }
 
-TEST_F(HistoryDBTest, SaveMessagesUpdatesTimestamp) {
+TEST_F(HistoryDBTest, SaveMessagesUpsertsPreservingCreatedAt) {
   ai::HistoryDB db(db_path_->path());
   std::string session_id = db.create_session();
 
@@ -358,18 +358,18 @@ TEST_F(HistoryDBTest, SaveMessagesUpdatesTimestamp) {
 
   auto infos = db.list_session_infos(1);
   ASSERT_EQ(infos.size(), 1u);
-  std::string first_updated = infos[0].updated_at;
+  int64_t first_created = infos[0].created_at;
+  EXPECT_GT(first_created, 0);
 
-  // Wait a tiny bit then save again
+  // Wait a bit then save again
   std::this_thread::sleep_for(std::chrono::seconds(2));
 
   db.save_messages(session_id, make_simple_messages());
 
   infos = db.list_session_infos(1);
   ASSERT_EQ(infos.size(), 1u);
-  std::string second_updated = infos[0].updated_at;
-
-  EXPECT_NE(first_updated, second_updated);
+  // created_at should be unchanged after upsert (no updated_at column)
+  EXPECT_EQ(infos[0].created_at, first_created);
 }
 
 // ── list_sessions ───────────────────────────────────────────────────────
@@ -407,7 +407,7 @@ TEST_F(HistoryDBTest, ListSessionsMostRecentFirst) {
   EXPECT_EQ(sessions[2], id1);
 }
 
-TEST_F(HistoryDBTest, ListSessionsReflectsUpdates) {
+TEST_F(HistoryDBTest, ListSessionsOrderedByCreatedAt) {
   ai::HistoryDB db(db_path_->path());
 
   // Create sessions in order: id1, id2
@@ -415,20 +415,21 @@ TEST_F(HistoryDBTest, ListSessionsReflectsUpdates) {
   std::this_thread::sleep_for(std::chrono::seconds(1));
   std::string id2 = db.create_session();
 
-  // Before update: id2 first, then id1
+  // id2 created later, so should be first
   auto sessions = db.list_sessions();
   ASSERT_EQ(sessions.size(), 2u);
   EXPECT_EQ(sessions[0], id2);
   EXPECT_EQ(sessions[1], id1);
 
-  // Update id1 - now id1 should be first
+  // Updating id1 does NOT change its position (no updated_at column)
   std::this_thread::sleep_for(std::chrono::seconds(1));
   db.save_messages(id1, make_single_message());
 
   sessions = db.list_sessions();
   ASSERT_EQ(sessions.size(), 2u);
-  EXPECT_EQ(sessions[0], id1);
-  EXPECT_EQ(sessions[1], id2);
+  // Order stays: id2 first (created later), id1 second
+  EXPECT_EQ(sessions[0], id2);
+  EXPECT_EQ(sessions[1], id1);
 }
 
 // ── list_session_infos ──────────────────────────────────────────────────
@@ -448,8 +449,7 @@ TEST_F(HistoryDBTest, ListSessionInfosContainsMetadata) {
   ASSERT_EQ(infos.size(), 1u);
 
   EXPECT_EQ(infos[0].session_id, session_id);
-  EXPECT_FALSE(infos[0].created_at.empty());
-  EXPECT_FALSE(infos[0].updated_at.empty());
+  EXPECT_GT(infos[0].created_at, 0);
   EXPECT_FALSE(infos[0].messages.empty());
   // New sessions should have an empty topic by default
   EXPECT_TRUE(infos[0].topic.empty());
@@ -553,10 +553,12 @@ TEST_F(HistoryDBTest, PrintJsonFormat) {
   json parsed = json::parse(output);
   EXPECT_TRUE(parsed.contains("messages"));
   EXPECT_TRUE(parsed.contains("created_at"));
-  EXPECT_TRUE(parsed.contains("updated_at"));
   EXPECT_TRUE(parsed.contains("topic"));
   EXPECT_TRUE(parsed["messages"].is_array());
   EXPECT_EQ(parsed["messages"].size(), 2u);
+  // created_at should be a Unix timestamp integer
+  EXPECT_TRUE(parsed["created_at"].is_number_integer());
+  EXPECT_GT(parsed["created_at"].get<int64_t>(), 0);
 }
 
 TEST_F(HistoryDBTest, PrintWithToolCalls) {

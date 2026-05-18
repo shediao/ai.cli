@@ -4,7 +4,9 @@
 
 #include <chrono>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <nlohmann/json.hpp>
@@ -69,6 +71,26 @@ std::string random_hex(size_t len) {
   return out;
 }
 
+/// Format a Unix timestamp (seconds since epoch) as a human-readable string.
+/// Uses std::chrono for the conversion.
+std::string format_timestamp(int64_t unix_secs) {
+  auto tp = std::chrono::system_clock::from_time_t(
+      static_cast<std::time_t>(unix_secs));
+  auto time_t_val = std::chrono::system_clock::to_time_t(tp);
+  struct tm tm_val;
+#if defined(_WIN32)
+  localtime_s(&tm_val, &time_t_val);
+#else
+  localtime_r(&time_t_val, &tm_val);
+#endif
+  std::ostringstream oss;
+  oss << std::put_time(&tm_val, "%Y/%m/%d %H:%M:%S %z");
+  return oss.str();
+}
+
+/// Table name used by the current version.
+constexpr const char* kTableName = "conversations_v1";
+
 }  // namespace
 
 // ── HistoryDB ──────────────────────────────────────────────────────────────
@@ -115,9 +137,36 @@ void HistoryDB::init_db() {
   // Enable foreign keys (good practice; not strictly needed for single table)
   exec_sql(db_, "PRAGMA foreign_keys=ON;");
 
-  // Create the conversations table
+  // ── v1 table: Unix-timestamp time fields, no updated_at ──────────────
   char* err_msg = nullptr;
-  const char* create_sql = R"SQL(
+  const char* create_v1_sql = R"SQL(
+    CREATE TABLE IF NOT EXISTS conversations_v1 (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id  TEXT    NOT NULL UNIQUE,
+      created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+      topic       TEXT    NOT NULL DEFAULT '',
+      url         TEXT    NOT NULL DEFAULT '',
+      model       TEXT    NOT NULL DEFAULT '',
+      work_dir    TEXT    NOT NULL DEFAULT '',
+      parent_id   TEXT    DEFAULT NULL,
+      messages    TEXT    NOT NULL
+    );
+  )SQL";
+  int rc = sqlite3_exec(db_, create_v1_sql, nullptr, nullptr, &err_msg);
+  if (rc != SQLITE_OK) {
+    LOG(ERROR) << "Failed to create conversations_v1 table: "
+               << (err_msg ? err_msg : "unknown");
+    sqlite3_free(err_msg);
+    return;
+  }
+
+  // Create index for ordering by created_at
+  exec_sql(db_,
+           "CREATE INDEX IF NOT EXISTS idx_conversations_v1_created_at "
+           "ON conversations_v1(created_at);");
+
+  // ── Legacy table: kept for backward compatibility with older versions ─
+  const char* create_legacy_sql = R"SQL(
     CREATE TABLE IF NOT EXISTS conversations (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id  TEXT    NOT NULL UNIQUE,
@@ -131,16 +180,15 @@ void HistoryDB::init_db() {
       messages    TEXT    NOT NULL
     );
   )SQL";
-  int rc = sqlite3_exec(db_, create_sql, nullptr, nullptr, &err_msg);
+  rc = sqlite3_exec(db_, create_legacy_sql, nullptr, nullptr, &err_msg);
   if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to create conversations table: "
+    LOG(ERROR) << "Failed to create legacy conversations table: "
                << (err_msg ? err_msg : "unknown");
     sqlite3_free(err_msg);
     return;
   }
 
-  // Migration: add columns if upgrading from older schema
-  // Check which columns already exist before attempting to add them.
+  // Migration for legacy table: add columns if upgrading from older schema
   auto add_column_if_missing = [this](char const* col_name,
                                       char const* col_def) {
     sqlite3_stmt* stmt = nullptr;
@@ -173,7 +221,7 @@ void HistoryDB::init_db() {
   add_column_if_missing("work_dir", "TEXT NOT NULL DEFAULT ''");
   add_column_if_missing("parent_id", "TEXT DEFAULT NULL");
 
-  // Create index for ordering by updated_at
+  // Create index for legacy table ordering by updated_at
   exec_sql(db_,
            "CREATE INDEX IF NOT EXISTS idx_conversations_updated_at "
            "ON conversations(updated_at);");
@@ -200,12 +248,12 @@ std::string HistoryDB::create_session(std::string const& url,
   std::string session_id = generate_session_id();
 
   // Insert an empty messages row with session metadata
-  const char* insert_sql =
-      "INSERT INTO conversations "
-      "(session_id, url, model, work_dir, parent_id, messages) "
-      "VALUES (?1, ?2, ?3, ?4, ?5, ?6);";
+  // created_at uses the DB default (unixepoch())
+  std::string insert_sql = std::string("INSERT INTO ") + kTableName +
+                           " (session_id, url, model, work_dir, parent_id, "
+                           "messages) VALUES (?1, ?2, ?3, ?4, ?5, ?6);";
   sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, insert_sql, -1, &stmt, nullptr);
+  int rc = sqlite3_prepare_v2(db_, insert_sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to prepare insert: " << sqlite3_errmsg(db_);
     return "";
@@ -249,10 +297,10 @@ std::optional<nlohmann::json> HistoryDB::get_messages(
     return std::nullopt;
   }
 
-  const char* select_sql =
-      "SELECT messages FROM conversations WHERE session_id = ?1;";
+  std::string select_sql = std::string("SELECT messages FROM ") + kTableName +
+                           " WHERE session_id = ?1;";
   sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, select_sql, -1, &stmt, nullptr);
+  int rc = sqlite3_prepare_v2(db_, select_sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
     return std::nullopt;
@@ -295,21 +343,18 @@ void HistoryDB::save_messages(std::string const& session_id,
   // Wrap in a transaction for atomicity and performance
   exec_sql(db_, "BEGIN TRANSACTION;");
 
-  const char* upsert_sql = R"SQL(
-    INSERT INTO conversations
-      (session_id, updated_at, url, model, work_dir, parent_id, messages)
-    VALUES (?1, datetime('now', 'localtime'), ?2, ?3, ?4, ?5, ?6)
-    ON CONFLICT(session_id) DO UPDATE SET
-      updated_at = excluded.updated_at,
-      url        = excluded.url,
-      model      = excluded.model,
-      work_dir   = excluded.work_dir,
-      parent_id  = excluded.parent_id,
-      messages   = excluded.messages;
-  )SQL";
+  std::string upsert_sql = std::string("INSERT INTO ") + kTableName +
+                           " (session_id, url, model, work_dir, parent_id, "
+                           "messages) VALUES (?1, ?2, ?3, ?4, ?5, ?6) "
+                           "ON CONFLICT(session_id) DO UPDATE SET "
+                           "url        = excluded.url, "
+                           "model      = excluded.model, "
+                           "work_dir   = excluded.work_dir, "
+                           "parent_id  = excluded.parent_id, "
+                           "messages   = excluded.messages;";
 
   sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, upsert_sql, -1, &stmt, nullptr);
+  int rc = sqlite3_prepare_v2(db_, upsert_sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to prepare upsert: " << sqlite3_errmsg(db_);
     exec_sql(db_, "ROLLBACK;");
@@ -354,10 +399,10 @@ std::vector<std::string> HistoryDB::list_sessions() {
     return sessions;
   }
 
-  const char* select_sql =
-      "SELECT session_id FROM conversations ORDER BY updated_at DESC;";
+  std::string select_sql = std::string("SELECT session_id FROM ") + kTableName +
+                           " ORDER BY created_at DESC;";
   sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, select_sql, -1, &stmt, nullptr);
+  int rc = sqlite3_prepare_v2(db_, select_sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
     return sessions;
@@ -381,10 +426,10 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
     return infos;
   }
 
-  std::string sql =
-      "SELECT session_id, created_at, updated_at, topic, url, model, "
-      "work_dir, parent_id, messages FROM conversations "
-      "ORDER BY updated_at DESC";
+  std::string sql = std::string(
+                        "SELECT session_id, created_at, topic, url, model, "
+                        "work_dir, parent_id, messages FROM ") +
+                    kTableName + " ORDER BY created_at DESC";
   if (N > 0) {
     sql += " LIMIT ?1";
   }
@@ -407,36 +452,29 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) {
       info.session_id = t;
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1))) {
-      info.created_at = t;
-    }
+    info.created_at = sqlite3_column_int64(stmt, 1);
     if (auto const* t =
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))) {
-      info.updated_at = t;
-    }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
       info.topic = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
       info.url = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
       info.model = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
       info.work_dir = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
       info.parent_id = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
       info.messages = t;
     }
     infos.push_back(std::move(info));
@@ -452,13 +490,13 @@ std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
     return std::nullopt;
   }
 
-  const char* sql =
-      "SELECT session_id, created_at, updated_at, topic, url, model, "
-      "work_dir, parent_id, messages FROM conversations "
-      "WHERE session_id = ?1;";
+  std::string sql = std::string(
+                        "SELECT session_id, created_at, topic, url, model, "
+                        "work_dir, parent_id, messages FROM ") +
+                    kTableName + " WHERE session_id = ?1;";
 
   sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr);
+  int rc = sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
     return std::nullopt;
@@ -474,36 +512,29 @@ std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) {
       info.session_id = t;
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1))) {
-      info.created_at = t;
-    }
+    info.created_at = sqlite3_column_int64(stmt, 1);
     if (auto const* t =
             reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2))) {
-      info.updated_at = t;
-    }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
       info.topic = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
       info.url = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
       info.model = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
       info.work_dir = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
       info.parent_id = t;
     }
     if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
+            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
       info.messages = t;
     }
     result = std::move(info);
@@ -519,10 +550,10 @@ void HistoryDB::set_topic(std::string const& session_id,
     return;
   }
 
-  const char* update_sql =
-      "UPDATE conversations SET topic = ?1 WHERE session_id = ?2;";
+  std::string update_sql = std::string("UPDATE ") + kTableName +
+                           " SET topic = ?1 WHERE session_id = ?2;";
   sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, update_sql, -1, &stmt, nullptr);
+  int rc = sqlite3_prepare_v2(db_, update_sql.c_str(), -1, &stmt, nullptr);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to prepare topic update: " << sqlite3_errmsg(db_);
     return;
@@ -673,7 +704,6 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
       session["session_id"] = session_id;
       session["messages"] = msg;
       session["created_at"] = created_at;
-      session["updated_at"] = updated_at;
       session["topic"] = topic;
       session["url"] = url;
       session["model"] = model;
@@ -683,7 +713,7 @@ void HistoryDB::SessionInfo::print(bool json_format) const {
       return;
     }
     std::cout << "\n================  <" << session_id << ">\n"
-              << "  " << created_at << " ~ " << updated_at;
+              << "  " << format_timestamp(created_at);
     if (!topic.empty()) {
       std::cout << "  [" << topic << "]";
     }
@@ -772,7 +802,7 @@ static void print_session_line(HistoryDB::SessionInfo const& info,
     if (f == "session_id" || f == "session-id") {
       std::cout << info.session_id;
     } else if (f == "create_at" || f == "created_at") {
-      std::cout << info.created_at;
+      std::cout << format_timestamp(info.created_at);
     } else if (f == "work_dir") {
       std::cout << info.work_dir;
     } else if (f == "topic") {
