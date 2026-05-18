@@ -361,11 +361,15 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     for (auto& sp : chat_args.system_prompt) {
       if (!sp.empty() && sp[0] == '@') {
         auto file_path = std::filesystem::path(sp.substr(1));
-        if (!is_directory(file_path)) {
+        if (exists(file_path) && !is_directory(file_path)) {
           auto content = ai::utils::read_file(file_path.string());
           if (content.has_value()) {
             sp = content.value();
           }
+        } else {
+          std::cerr << "Error: System prompt file not found: "
+                    << file_path.string() << std::endl;
+          exit(EXIT_FAILURE);
         }
       }
     }
