@@ -1,7 +1,9 @@
 #pragma once
 
+#include <chrono>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace ai::utils {
 
@@ -70,7 +72,12 @@ std::string getMEMI(std::string const& url, std::string const& proxy);
 
 std::string app_data_dir(const std::string& app,
                          const std::string& author = "");
-std::string timestamp(const char* format = "%Y/%m/%d %H:%M:%S %z");
+
+std::string format_timestamp(
+    std::chrono::time_point<std::chrono::system_clock> =
+        std::chrono::system_clock::now(),
+    const char* = "%Y/%m/%d %H:%M:%S %z");
+std::string format_timenow(const char* = "%Y/%m/%d %H:%M:%S %z");
 
 // Fast file I/O: single-shot binary read/write with preallocated buffer.
 std::optional<std::string> read_file(std::string const& path);
@@ -84,4 +91,6 @@ bool stdin_is_atty();
 bool stdout_is_atty();
 bool stderr_is_atty();
 
+std::vector<std::string> split(const std::string& s, char delim);
+std::vector<std::wstring> split(const std::wstring& s, wchar_t delim);
 }  // namespace ai::utils

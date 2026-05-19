@@ -61,8 +61,8 @@ std::string_view get_tool_schema(std::string const& category) {
 void print_toolcall_log(
     std::string_view func_name,
     std::vector<std::pair<std::string, std::string>> const& args) {
-  std::cout << ai::term::bold_color::green << "\n● [" << ai::utils::timestamp()
-            << "]\n";
+  std::cout << ai::term::bold_color::green << "\n● ["
+            << ai::utils::format_timestamp() << "]\n";
 
   std::cout << ai::term::bold_color::green
             << "Function: " << ai::term::bold_color::magenta << func_name

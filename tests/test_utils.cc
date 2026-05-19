@@ -695,11 +695,11 @@ TEST(GetTempDirPathTest, RespectsCustomTmpdir) {
 }
 
 // =============================================================================
-// timestamp
+// format_timestamp
 // =============================================================================
 
 TEST(TimestampTest, DefaultFormatIsNonEmpty) {
-  std::string ts = utils::timestamp();
+  std::string ts = utils::format_timestamp();
   EXPECT_FALSE(ts.empty());
   // Default format "%Y/%m/%d %H:%M:%S %z" looks like: "2025/07/11 14:30:00
   // +0800"
@@ -707,12 +707,12 @@ TEST(TimestampTest, DefaultFormatIsNonEmpty) {
 }
 
 TEST(TimestampTest, DefaultFormatContainsSlash) {
-  std::string ts = utils::timestamp();
+  std::string ts = utils::format_timestamp();
   EXPECT_NE(ts.find('/'), std::string::npos);
 }
 
 TEST(TimestampTest, CustomFormatYearOnly) {
-  std::string ts = utils::timestamp("%Y");
+  std::string ts = utils::format_timenow("%Y");
   EXPECT_EQ(ts.size(), 4u);
   for (char c : ts) {
     EXPECT_TRUE(std::isdigit(static_cast<unsigned char>(c)));
@@ -720,24 +720,27 @@ TEST(TimestampTest, CustomFormatYearOnly) {
 }
 
 TEST(TimestampTest, CustomFormatFullDate) {
-  std::string ts = utils::timestamp("%Y-%m-%d");
+  std::string ts = utils::format_timenow("%Y-%m-%d");
   EXPECT_EQ(ts.size(), 10u);
   EXPECT_EQ(ts[4], '-');
   EXPECT_EQ(ts[7], '-');
 }
 
 TEST(TimestampTest, CustomFormatTimeOnly) {
-  std::string ts = utils::timestamp("%H:%M:%S");
+  std::string ts =
+      utils::format_timestamp(std::chrono::system_clock::now(), "%H:%M:%S");
   EXPECT_EQ(ts.size(), 8u);
   EXPECT_EQ(ts[2], ':');
   EXPECT_EQ(ts[5], ':');
 }
 
 TEST(TimestampTest, TwoCallsReturnCloseValues) {
-  std::string ts1 = utils::timestamp("%Y%m%d%H%M%S");
+  std::string ts1 =
+      utils::format_timestamp(std::chrono::system_clock::now(), "%Y%m%d%H%M%S");
   // Sleep into the next second to guarantee difference
   std::this_thread::sleep_for(std::chrono::seconds(1));
-  std::string ts2 = utils::timestamp("%Y%m%d%H%M%S");
+  std::string ts2 =
+      utils::format_timestamp(std::chrono::system_clock::now(), "%Y%m%d%H%M%S");
   EXPECT_NE(ts1, ts2);
 }
 
@@ -933,4 +936,153 @@ TEST(IsAttyTest, ReturnBool) {
   (void)result_stdin;
   (void)result_stdout;
   (void)result_stderr;
+}
+
+// =============================================================================
+// split
+// =============================================================================
+
+TEST(SplitTest, NormalSplit) {
+  auto result = utils::split("a,b,c", ',');
+  ASSERT_EQ(result.size(), 3u);
+  EXPECT_EQ(result[0], "a");
+  EXPECT_EQ(result[1], "b");
+  EXPECT_EQ(result[2], "c");
+}
+
+TEST(SplitTest, EmptyString) {
+  auto result = utils::split("", ',');
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(SplitTest, NoDelimiter) {
+  auto result = utils::split("hello", ',');
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_EQ(result[0], "hello");
+}
+
+TEST(SplitTest, SingleChar) {
+  auto result = utils::split("x", ',');
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_EQ(result[0], "x");
+}
+
+TEST(SplitTest, DelimiterAtStart) {
+  auto result = utils::split(",a,b", ',');
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0], "a");
+  EXPECT_EQ(result[1], "b");
+}
+
+TEST(SplitTest, DelimiterAtEnd) {
+  auto result = utils::split("a,b,", ',');
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0], "a");
+  EXPECT_EQ(result[1], "b");
+}
+
+TEST(SplitTest, ConsecutiveDelimiters) {
+  auto result = utils::split("a,,b", ',');
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0], "a");
+  EXPECT_EQ(result[1], "b");
+}
+
+TEST(SplitTest, MultipleConsecutiveDelimiters) {
+  auto result = utils::split("a,,,b", ',');
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0], "a");
+  EXPECT_EQ(result[1], "b");
+}
+
+TEST(SplitTest, OnlyDelimiters) {
+  auto result = utils::split(",,,", ',');
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(SplitTest, SingleToken) {
+  auto result = utils::split("onlyone", ',');
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_EQ(result[0], "onlyone");
+}
+
+TEST(SplitTest, TrimsSpacesAroundTokens) {
+  auto result = utils::split(" a , b , c ", ',');
+  ASSERT_EQ(result.size(), 3u);
+  EXPECT_EQ(result[0], "a");
+  EXPECT_EQ(result[1], "b");
+  EXPECT_EQ(result[2], "c");
+}
+
+TEST(SplitTest, TrimsTabsAroundTokens) {
+  auto result = utils::split("\ta\t,\tb\t,\tc\t", ',');
+  ASSERT_EQ(result.size(), 3u);
+  EXPECT_EQ(result[0], "a");
+  EXPECT_EQ(result[1], "b");
+  EXPECT_EQ(result[2], "c");
+}
+
+TEST(SplitTest, MixedWhitespaceAndEmpty) {
+  auto result = utils::split(" a ,  , c ", ',');
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0], "a");
+  EXPECT_EQ(result[1], "c");
+}
+
+TEST(SplitTest, PreservesInternalSpaces) {
+  auto result = utils::split("hello world,foo bar", ',');
+  ASSERT_EQ(result.size(), 2u);
+  EXPECT_EQ(result[0], "hello world");
+  EXPECT_EQ(result[1], "foo bar");
+}
+
+TEST(SplitTest, AllSpacesTokens) {
+  auto result = utils::split("   ,   ,   ", ',');
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(SplitTest, WideString) {
+  auto result = utils::split(std::wstring(L"a,b,c"), L',');
+  ASSERT_EQ(result.size(), 3u);
+  EXPECT_EQ(result[0], L"a");
+  EXPECT_EQ(result[1], L"b");
+  EXPECT_EQ(result[2], L"c");
+}
+
+TEST(SplitTest, WideStringEmpty) {
+  auto result = utils::split(std::wstring(L""), L',');
+  EXPECT_TRUE(result.empty());
+}
+
+TEST(SplitTest, WideStringNoDelimiter) {
+  auto result = utils::split(std::wstring(L"hello"), L',');
+  ASSERT_EQ(result.size(), 1u);
+  EXPECT_EQ(result[0], L"hello");
+}
+
+// =============================================================================
+// format_timenow
+// =============================================================================
+
+TEST(FormatTimenowTest, ReturnsNonEmpty) {
+  std::string ts = utils::format_timenow();
+  EXPECT_FALSE(ts.empty());
+  EXPECT_GE(ts.size(), 20u);
+}
+
+TEST(FormatTimenowTest, CustomFormat) {
+  std::string ts = utils::format_timenow("%Y-%m-%d");
+  EXPECT_EQ(ts.size(), 10u);
+  EXPECT_EQ(ts[4], '-');
+  EXPECT_EQ(ts[7], '-');
+}
+
+TEST(FormatTimenowTest, TwoCallsReturnCloseValues) {
+  std::string ts1 = utils::format_timenow("%Y%m%d%H%M%S");
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::string ts2 = utils::format_timenow("%Y%m%d%H%M%S");
+  // They should be equal or differ by at most 1 second
+  EXPECT_LE(std::abs(static_cast<long long>(std::stoll(ts1)) -
+                     static_cast<long long>(std::stoll(ts2))),
+            1);
 }

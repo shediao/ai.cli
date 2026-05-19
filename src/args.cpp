@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <environment/environment.hpp>
 #include <filesystem>
+#include <initializer_list>
 #include <limits>
 
 #include "ai/terminal.h"
@@ -527,10 +528,28 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
       .add_option("line",
                   "Output as pipe-delimited lines with specified fields in "
                   "order (comma-separated: "
-                  "session_id,create_at,work_dir,topic,messages). "
+                  "session_id,start,work_dir,topic,messages). "
                   "Default when no output format is specified.",
                   history_args.line_fields)
-      .value_placeholder("FIELDS");
+      .value_placeholder("FIELDS")
+      .validator([](const std::string& fields_str) {
+        auto fields = ai::utils::split(fields_str, ',');
+        std::initializer_list<std::string> expected_fields{
+            "session_id", "start", "work_dir", "messages", "topic"};
+        auto it = std::find_if(
+            fields.begin(), fields.end(),
+            [&expected_fields](auto const& field) {
+              return std::find(begin(expected_fields), end(expected_fields),
+                               field) == end(expected_fields);
+            });
+        if (it == fields.end()) {
+          return std::pair<bool, std::string>(true, "");
+        } else {
+          return std::pair<bool, std::string>(
+              false,
+              "expected fields: session_id,start,work_dir,messages,topic");
+        }
+      });
   history
       .add_option("session",
                   "Print the full conversation for a specific session ID",

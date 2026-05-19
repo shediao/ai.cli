@@ -76,16 +76,7 @@ std::string random_hex(size_t len) {
 std::string format_timestamp(int64_t unix_secs) {
   auto tp = std::chrono::system_clock::from_time_t(
       static_cast<std::time_t>(unix_secs));
-  auto time_t_val = std::chrono::system_clock::to_time_t(tp);
-  struct tm tm_val;
-#if defined(_WIN32)
-  localtime_s(&tm_val, &time_t_val);
-#else
-  localtime_r(&time_t_val, &tm_val);
-#endif
-  std::ostringstream oss;
-  oss << std::put_time(&tm_val, "%Y/%m/%d %H:%M:%S %z");
-  return oss.str();
+  return ai::utils::format_timestamp(tp);
 }
 
 /// Table name used by the current version.
@@ -238,7 +229,8 @@ void HistoryDB::init_db() {
 std::string HistoryDB::generate_session_id() const {
   // Format: "YYYYMMDD-HHMMSS-<16hex>"
   std::ostringstream oss;
-  oss << ai::utils::timestamp("%Y%m%d-%H%M%S");
+  oss << ai::utils::format_timestamp(std::chrono::system_clock::now(),
+                                     "%Y%m%d-%H%M%S");
   oss << '-' << random_hex(8);
   return oss.str();
 }
@@ -776,7 +768,7 @@ static void print_session_json_fields(HistoryDB::SessionInfo const& info,
   for (auto const& f : fields) {
     if (f == "session-id") {
       obj["session-id"] = info.session_id;
-    } else if (f == "start" || f == "created_at") {
+    } else if (f == "start") {
       obj["start"] = info.start;
     } else if (f == "end") {
       obj["end"] = info.end;
@@ -805,9 +797,9 @@ static void print_session_line(HistoryDB::SessionInfo const& info,
       std::cout << "|";
     }
     first = false;
-    if (f == "session_id" || f == "session-id") {
+    if (f == "session_id") {
       std::cout << info.session_id;
-    } else if (f == "start" || f == "create_at" || f == "created_at") {
+    } else if (f == "start") {
       std::cout << format_timestamp(info.start);
     } else if (f == "end") {
       std::cout << format_timestamp(info.end);
@@ -815,7 +807,7 @@ static void print_session_line(HistoryDB::SessionInfo const& info,
       std::cout << info.work_dir;
     } else if (f == "topic") {
       std::cout << info.topic;
-    } else if (f == "messages" || f == "message") {
+    } else if (f == "messages") {
       try {
         auto msg = nlohmann::json::parse(info.messages);
         std::cout << msg.dump();
@@ -825,25 +817,6 @@ static void print_session_line(HistoryDB::SessionInfo const& info,
     }
   }
   std::cout << "\n";
-}
-
-/// Split @p s on commas, trim whitespace around each token.
-static std::vector<std::string> split_fields(std::string const& s) {
-  std::vector<std::string> result;
-  std::string token;
-  for (size_t i = 0; i <= s.size(); ++i) {
-    if (i == s.size() || s[i] == ',') {
-      auto start = token.find_first_not_of(" \t");
-      auto end = token.find_last_not_of(" \t");
-      if (start != std::string::npos) {
-        result.push_back(token.substr(start, end - start + 1));
-      }
-      token.clear();
-    } else {
-      token += s[i];
-    }
-  }
-  return result;
 }
 
 std::string HistoryDB::default_db_path() {
@@ -865,13 +838,15 @@ int history(AiArgs const& args) {
     // Parse JSON fields if --json was specified
     std::vector<std::string> json_fields;
     if (use_json) {
-      json_fields = split_fields(args.history_args.json_fields.value());
+      json_fields =
+          ai::utils::split(args.history_args.json_fields.value(), ',');
     }
 
     // Parse line fields if --line was specified, otherwise use defaults
     std::vector<std::string> line_fields;
     if (use_line) {
-      line_fields = split_fields(args.history_args.line_fields.value());
+      line_fields =
+          ai::utils::split(args.history_args.line_fields.value(), ',');
     } else if (!use_json && !use_text) {
       // Default line fields matching current print_session_line behavior
       // plus messages as a single-line JSON dump
@@ -924,7 +899,7 @@ int history(AiArgs const& args) {
         for (auto const& f : json_fields) {
           if (f == "session-id") {
             obj["session-id"] = s.session_id;
-          } else if (f == "start" || f == "created_at") {
+          } else if (f == "start") {
             obj["start"] = s.start;
           } else if (f == "end") {
             obj["end"] = s.end;

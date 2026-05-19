@@ -1,5 +1,6 @@
 #include <curl/curl.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>  // For std::remove
 #include <ctime>
@@ -7,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <stdexcept>  // For std::runtime_error
 #include <string>
 
@@ -580,9 +582,10 @@ std::string getMEMI(std::string const& url, std::string const& proxy) {
   return content_type;
 }
 
-std::string timestamp(const char* format) {
-  auto now = std::chrono::system_clock::now();
-  auto time_t_now = std::chrono::system_clock::to_time_t(now);
+std::string format_timestamp(
+    std::chrono::time_point<std::chrono::system_clock> time,
+    const char* format) {
+  auto time_t_now = std::chrono::system_clock::to_time_t(time);
 #if defined(_WIN32)
   struct tm tm;
   localtime_s(&tm, &time_t_now);
@@ -595,6 +598,9 @@ std::string timestamp(const char* format) {
     buf[0] = '\0';
   }
   return std::string(buf);
+}
+std::string format_timenow(const char* format) {
+  return format_timestamp(std::chrono::system_clock::now(), format);
 }
 
 std::string app_data_dir(const std::string& app,
@@ -685,6 +691,91 @@ bool stderr_is_atty() {
 #else
   return is_atty(STDERR_FILENO);
 #endif
+}
+
+template <typename C, typename CharT>
+concept has_emplace_back_range = requires(C c, std::basic_string<CharT> s) {
+  c.emplace_back(s.begin(), s.end());
+};
+
+template <typename C, typename CharT, typename F>
+  requires requires(F f, CharT c) {
+    { f(c) } -> std::convertible_to<bool>;
+  } && (has_emplace_back_range<C, CharT> ||
+        requires(C c) {
+          c.insert(c.end(), std::declval<std::basic_string<CharT>>());
+        })
+void split_to_if(
+    C& c, const std::basic_string<CharT>& str, F f,
+    std::size_t split_count = (std::numeric_limits<std::size_t>::max)(),
+    bool compress_tokens = false) {
+  auto begin = str.begin();
+  auto delimiter = begin;
+  std::size_t count = 0;
+
+  if constexpr (requires { c.reserve(std::declval<std::size_t>()); }) {
+    if (split_count < (std::numeric_limits<std::size_t>::max)()) {
+      c.reserve(c.size() + split_count + 1);
+    }
+  }
+
+  while ((count++ < split_count) &&
+         (delimiter = std::find_if(begin, str.end(), f)) != str.end()) {
+    if constexpr (has_emplace_back_range<C, CharT>) {
+      c.emplace_back(begin, delimiter);
+    } else {
+      c.insert(c.end(), std::basic_string<CharT>{begin, delimiter});
+    }
+    if (compress_tokens) {
+      begin = std::find_if_not(delimiter, str.end(), f);
+    } else {
+      begin = std::next(delimiter);
+    }
+  }
+
+  if constexpr (has_emplace_back_range<C, CharT>) {
+    c.emplace_back(begin, str.end());
+  } else {
+    c.insert(c.end(), std::basic_string<CharT>{begin, str.end()});
+  }
+}
+
+static std::string trim_token(const std::string& token) {
+  auto start = token.find_first_not_of(" \t");
+  auto end = token.find_last_not_of(" \t");
+  if (start == std::string::npos) {
+    return "";
+  }
+  return token.substr(start, end - start + 1);
+}
+
+std::vector<std::string> split(const std::string& s, char delim) {
+  std::vector<std::string> ret;
+  std::vector<std::string> tokens;
+  split_to_if(tokens, s, [delim](char c) { return c == delim; });
+  ret.reserve(tokens.size());
+  for (auto& token : tokens) {
+    auto trimmed = trim_token(token);
+    if (!trimmed.empty()) {
+      ret.push_back(std::move(trimmed));
+    }
+  }
+  return ret;
+}
+std::vector<std::wstring> split(const std::wstring& s, wchar_t delim) {
+  std::vector<std::wstring> ret;
+  std::vector<std::wstring> tokens;
+  split_to_if(tokens, s, [delim](wchar_t c) { return c == delim; });
+  for (auto& token : tokens) {
+    // Trim leading whitespace
+    auto start = token.find_first_not_of(L" \t");
+    if (start == std::wstring::npos) {
+      continue;  // Skip empty/whitespace-only tokens
+    }
+    auto end = token.find_last_not_of(L" \t");
+    ret.push_back(token.substr(start, end - start + 1));
+  }
+  return ret;
 }
 
 }  // namespace ai::utils
