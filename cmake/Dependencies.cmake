@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(base64)
 FetchContent_Declare(
   subprocess
   GIT_REPOSITORY https://github.com/shediao/subprocess.hpp
-  GIT_TAG v0.0.16)
+  GIT_TAG v0.0.17)
 FetchContent_MakeAvailable(subprocess)
 
 # ── environment (environment variable access) ──────────────────────────────
