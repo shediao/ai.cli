@@ -1,26 +1,30 @@
-#pragma once
+#include "ai/matchglob.h"
 
-#include <filesystem>
+#include <algorithm>
 #include <stack>
-#include <string>
+#include <vector>
 
-namespace glob {
-namespace detail {
-
+namespace ai {
+namespace {
 enum class PatternType { CHAR, ANY /*?*/, ZERO_OR_MORE /***/ };
+
+template <typename CharT>
 struct PatternItem {
-  char value = '\0';
+  CharT value = 0;
   PatternType type = PatternType::CHAR;
 };
 
-inline bool equal(char a, char b, bool ignore_case) {
+template <typename CharT>
+inline bool equal(CharT a, CharT b, bool ignore_case) {
   return a == b ||
          (ignore_case && ((a ^ b) == 32 && (unsigned)((a | 32) - 'a') <= 25));
 }
 
-inline bool matchglob(const std::string& pattern, const std::string& name,
-                      bool ignore_case = false) {
-  std::vector<PatternItem> items;
+template <typename CharT>
+static bool matchglob_impl(std::basic_string_view<CharT> pattern,
+                           std::basic_string_view<CharT> name,
+                           bool ignore_case) {
+  std::vector<PatternItem<CharT>> items;
   auto it = pattern.begin();
   while (it != pattern.end()) {
     if (*it == '?') {
@@ -28,7 +32,7 @@ inline bool matchglob(const std::string& pattern, const std::string& name,
       it++;
     } else if (*it == '*') {
       items.emplace_back('\0', PatternType::ZERO_OR_MORE);
-      it = std::find_if_not(it, pattern.end(), [](char c) { return c == '*'; });
+      it = std::find_if_not(it, pattern.end(), [](auto c) { return c == '*'; });
     } else {
       items.emplace_back(*it, PatternType::CHAR);
       it++;
@@ -38,10 +42,11 @@ inline bool matchglob(const std::string& pattern, const std::string& name,
   auto p = items.begin();
   auto n = name.begin();
 
-  std::stack<std::pair<std::vector<PatternItem>::iterator,
-                       std::string::const_iterator>,
-             std::vector<std::pair<std::vector<PatternItem>::iterator,
-                                   std::string::const_iterator>>>
+  std::stack<std::pair<typename std::vector<PatternItem<CharT>>::iterator,
+                       typename std::basic_string_view<CharT>::const_iterator>,
+             std::vector<std::pair<
+                 typename std::vector<PatternItem<CharT>>::iterator,
+                 typename std::basic_string_view<CharT>::const_iterator>>>
       backtrack;
 
   while (true) {
@@ -116,55 +121,14 @@ inline bool matchglob(const std::string& pattern, const std::string& name,
     n++;
   }
 }
-}  // namespace detail
+}  // namespace
 
-inline std::vector<std::string> glob(std::string const& pattern,
-                                     std::string const& path,
-                                     bool recursive = false,
-                                     bool ignore_case = false) {
-  std::vector<std::string> result;
-
-  std::error_code ec;
-
-  if (recursive) {
-    try {
-      for (auto& entry : std::filesystem::recursive_directory_iterator(
-               path, std::filesystem::directory_options::skip_permission_denied,
-               ec)) {
-        if (ec) {
-          ec.clear();
-          continue;
-        }
-        if (detail::matchglob(pattern, entry.path().filename().string(),
-                              ignore_case)) {
-          result.push_back(entry.path().string());
-        }
-      }
-    } catch (...) {
-    }
-  } else {
-    try {
-      std::filesystem::directory_iterator it(path, ec);
-      if (ec) {
-        return result;
-      }
-      for (auto& entry : it) {
-        if (detail::matchglob(pattern, entry.path().filename().string(),
-                              ignore_case)) {
-          result.push_back(entry.path().string());
-        }
-      }
-    } catch (...) {
-    }
-  }
-
-  return result;
+bool matchglob(std::string_view pattern, std::string_view string,
+               bool ignore_case) {
+  return matchglob_impl(pattern, string, ignore_case);
 }
-
-inline std::vector<std::string> iglob(std::string const& pattern,
-                                      std::string const& path,
-                                      bool recursive = false) {
-  return glob(pattern, path, recursive, true);
+bool matchglob(std::wstring_view pattern, std::wstring_view string,
+               bool ignore_case) {
+  return matchglob_impl(pattern, string, ignore_case);
 }
-
-}  // namespace glob
+}  // namespace ai

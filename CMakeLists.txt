@@ -133,6 +133,8 @@ add_library(
   src/models.cpp
   src/openai.cpp
   src/response.cpp
+  src/matchglob.cpp
+  src/glob.cpp
   src/tools/filesystem.cpp
   src/tools/filesystem/read_file.cpp
   src/tools/filesystem/read_multiple_files.cpp
