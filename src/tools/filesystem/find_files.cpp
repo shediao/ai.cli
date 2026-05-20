@@ -9,27 +9,27 @@
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
-std::string search_files(nlohmann::json const& args) {
+std::string find_files(nlohmann::json const& args) {
   if (!args.is_object()) {
-    return "function search_files arguments is invalid: expected a JSON "
+    return "function find_files arguments is invalid: expected a JSON "
            "object.";
   }
   auto path_opt = resolve_path(args);
   if (!path_opt.has_value()) {
-    return "function search_files arguments is invalid: missing required "
+    return "function find_files arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (path_opt->empty()) {
-    return "function search_files arguments is invalid: \"path\" must be a "
+    return "function find_files arguments is invalid: \"path\" must be a "
            "string.";
   }
   std::string path = std::move(*path_opt);
   if (!args.contains("pattern")) {
-    return "function search_files arguments is invalid: missing required "
+    return "function find_files arguments is invalid: missing required "
            "parameter \"pattern\".";
   }
   if (!args["pattern"].is_string()) {
-    return "function search_files arguments is invalid: \"pattern\" must be "
+    return "function find_files arguments is invalid: \"pattern\" must be "
            "a string.";
   }
   path = expand_tilde(path);
@@ -39,7 +39,7 @@ std::string search_files(nlohmann::json const& args) {
     recursive = args["recursive"].get<bool>();
   }
 
-  print_toolcall_log("search_files",
+  print_toolcall_log("find_files",
                      {{"path", path},
                       {"pattern", pattern},
                       {"recursive", recursive ? "true" : "false"}});

@@ -667,10 +667,10 @@ TEST(MoveFileTest, DistinationNotString) {
 }
 
 // =============================================================================
-// search_files tests
+// find_files tests
 // =============================================================================
 
-TEST(SearchFilesTest, FindsFilesByPattern) {
+TEST(FindFilesTest, FindsFilesByPattern) {
   TempTestDir dir;
   std::ofstream((std::filesystem::path(dir.path()) / "apple.txt").string())
       << "";
@@ -685,13 +685,13 @@ TEST(SearchFilesTest, FindsFilesByPattern) {
       << "";
 
   json args = {{"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", true}};
-  std::string result = call_tool("search_files", args);
+  std::string result = call_tool("find_files", args);
   EXPECT_TRUE(result.find("apple.txt") != std::string::npos);
   EXPECT_TRUE(result.find("banana.txt") != std::string::npos);
   EXPECT_TRUE(result.find("apple.csv") == std::string::npos);
 }
 
-TEST(SearchFilesTest, NonRecursive) {
+TEST(FindFilesTest, NonRecursive) {
   TempTestDir dir;
   std::ofstream((std::filesystem::path(dir.path()) / "root.txt").string())
       << "";
@@ -702,45 +702,45 @@ TEST(SearchFilesTest, NonRecursive) {
 
   json args = {
       {"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", false}};
-  std::string result = call_tool("search_files", args);
+  std::string result = call_tool("find_files", args);
   EXPECT_TRUE(result.find("root.txt") != std::string::npos);
   EXPECT_TRUE(result.find("nested.txt") == std::string::npos);
 }
 
-TEST(SearchFilesTest, NoMatch) {
+TEST(FindFilesTest, NoMatch) {
   TempTestDir dir;
   json args = {{"path", dir.path()}, {"pattern", "xyz_does_not_exist_*"}};
-  std::string result = call_tool("search_files", args);
+  std::string result = call_tool("find_files", args);
   EXPECT_TRUE(result.find("No files or directories matching") !=
               std::string::npos);
 }
 
-TEST(SearchFilesTest, PartialPatternFallback) {
+TEST(FindFilesTest, PartialPatternFallback) {
   TempTestDir dir;
   std::ofstream(
       (std::filesystem::path(dir.path()) / "hello_world.txt").string())
       << "";
 
   json args = {{"path", dir.path()}, {"pattern", "world"}};
-  std::string result = call_tool("search_files", args);
+  std::string result = call_tool("find_files", args);
   EXPECT_TRUE(result.find("hello_world.txt") != std::string::npos);
 }
 
-TEST(SearchFilesTest, NotAnObject) {
+TEST(FindFilesTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("search_files", args);
+  std::string result = call_tool("find_files", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
-TEST(SearchFilesTest, MissingPath) {
+TEST(FindFilesTest, MissingPath) {
   json args = {{"pattern", "*.txt"}};
-  std::string result = call_tool("search_files", args);
+  std::string result = call_tool("find_files", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
-TEST(SearchFilesTest, MissingPattern) {
+TEST(FindFilesTest, MissingPattern) {
   json args = {{"path", "/tmp"}};
-  std::string result = call_tool("search_files", args);
+  std::string result = call_tool("find_files", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 

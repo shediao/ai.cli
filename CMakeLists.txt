@@ -144,7 +144,7 @@ add_library(
   src/tools/filesystem/list_directory.cpp
   src/tools/filesystem/directory_tree.cpp
   src/tools/filesystem/move_file.cpp
-  src/tools/filesystem/search_files.cpp
+  src/tools/filesystem/find_files.cpp
   src/tools/filesystem/get_file_info.cpp
   src/tools/filesystem/disk_space_info.cpp
   src/tools/filesystem/execute_file.cpp

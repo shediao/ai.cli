@@ -64,7 +64,7 @@ std::string create_directory(nlohmann::json const& args);
 std::string list_directory(nlohmann::json const& args);
 std::string directory_tree(nlohmann::json const& args);
 std::string move_file(nlohmann::json const& args);
-std::string search_files(nlohmann::json const& args);
+std::string find_files(nlohmann::json const& args);
 std::string get_file_info(nlohmann::json const& args);
 std::string disk_space_info(nlohmann::json const& args);
 std::string execute_file(nlohmann::json const& args);
@@ -81,7 +81,7 @@ void regist_filesystem_tools() {
   regist_tool_calls("list_directory", list_directory);
   regist_tool_calls("directory_tree", directory_tree);
   regist_tool_calls("move_file", move_file);
-  regist_tool_calls("search_files", search_files);
+  regist_tool_calls("find_files", find_files);
   regist_tool_calls("get_file_info", get_file_info);
   regist_tool_calls("disk_space_info", disk_space_info);
   regist_tool_calls("execute_file", execute_file);
