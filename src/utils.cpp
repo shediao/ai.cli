@@ -36,15 +36,15 @@ inline std::wstring to_wstring(const std::string& utf8str,
   if (utf8str.empty()) {
     return {};
   }
-  int size_needed = MultiByteToWideChar(from_codepage, 0, &utf8str[0],
+  int size_needed = MultiByteToWideChar(from_codepage, 0, utf8str.data(),
                                         (int)utf8str.size(), NULL, 0);
   if (size_needed <= 0) {
     // Consider throwing an exception for conversion errors
     return {};
   }
   std::wstring utf16str(size_needed, 0);
-  MultiByteToWideChar(from_codepage, 0, &utf8str[0], (int)utf8str.size(),
-                      &utf16str[0], size_needed);
+  MultiByteToWideChar(from_codepage, 0, utf8str.data(), (int)utf8str.size(),
+                      utf16str.data(), size_needed);
   return utf16str;
 }
 
@@ -54,15 +54,16 @@ inline std::string to_string(const std::wstring& utf16str,
   if (utf16str.empty()) {
     return {};
   }
-  int size_needed = WideCharToMultiByte(
-      to_codepage, 0, &utf16str[0], (int)utf16str.size(), NULL, 0, NULL, NULL);
+  int size_needed =
+      WideCharToMultiByte(to_codepage, 0, utf16str.data(), (int)utf16str.size(),
+                          NULL, 0, NULL, NULL);
   if (size_needed <= 0) {
     // Consider throwing an exception for conversion errors
     return {};
   }
   std::string utf8str(size_needed, 0);
-  WideCharToMultiByte(to_codepage, 0, &utf16str[0], (int)utf16str.size(),
-                      &utf8str[0], size_needed, NULL, NULL);
+  WideCharToMultiByte(to_codepage, 0, utf16str.data(), (int)utf16str.size(),
+                      utf8str.data(), size_needed, NULL, NULL);
   return utf8str;
 }
 std::string create_uuid() {
@@ -120,9 +121,8 @@ std::string getTempFilePath(std::string const& prefix,
     auto tmpdir = env::get("TMPDIR");
     if (tmpdir.has_value()) {
       return tmpdir.value();
-    } else {
-      return "/tmp";
     }
+    return "/tmp";
   }();
   std::string template_str = temp_dir;
   if (!template_str.ends_with('/')) {
@@ -214,9 +214,8 @@ std::string getTempDirPath(std::string const& prefix) {
     auto tmpdir = env::get("TMPDIR");
     if (tmpdir.has_value()) {
       return tmpdir.value();
-    } else {
-      return "/tmp";
     }
+    return "/tmp";
   }();
   std::string template_str = temp_dir;
   if (!template_str.ends_with('/')) {
@@ -399,7 +398,6 @@ bool download_image(std::string const& image_url, std::string const& image_path,
 
   // 6. 关闭文件流 (确保所有数据都已刷入磁盘)
   outfile.close();
-
   // 7. 检查结果
   if (res != CURLE_OK) {
     std::cerr << "Error: curl_easy_perform() failed: "
@@ -408,31 +406,30 @@ bool download_image(std::string const& image_url, std::string const& image_path,
     std::remove(image_path.c_str());
     curl_easy_cleanup(curl_handle);
     return false;
-  } else {
-    // Request was successful, try to get content type
-    std::string content_type_str;
-    char* ct = nullptr;
-    CURLcode info_res =
-        curl_easy_getinfo(curl_handle, CURLINFO_CONTENT_TYPE, &ct);
-    if (info_res == CURLE_OK && ct) {
-      content_type_str = ct;
-      // The content_type string might have extra info like ";
-      // charset=UTF-8" We might want to strip that, e.g., find the first
-      // ';'
-      auto image_dash_pos = content_type_str.find("image/");
-      if (image_dash_pos != std::string::npos) {
-        content_type_str = content_type_str.substr(image_dash_pos);
-      }
-      size_t semi_colon_pos = content_type_str.find(';');
-      if (semi_colon_pos != std::string::npos) {
-        content_type_str = content_type_str.substr(0, semi_colon_pos);
-      }
-      memi_type = content_type_str;
-    } else {
-      std::cerr << "Warning: Could not get content type. "
-                << curl_easy_strerror(info_res) << std::endl;
-      // content_type_str will remain empty or you could set a default
+  }
+  // Request was successful, try to get content type
+  std::string content_type_str;
+  char* ct = nullptr;
+  CURLcode info_res =
+      curl_easy_getinfo(curl_handle, CURLINFO_CONTENT_TYPE, &ct);
+  if (info_res == CURLE_OK && ct) {
+    content_type_str = ct;
+    // The content_type string might have extra info like ";
+    // charset=UTF-8" We might want to strip that, e.g., find the first
+    // ';'
+    auto image_dash_pos = content_type_str.find("image/");
+    if (image_dash_pos != std::string::npos) {
+      content_type_str = content_type_str.substr(image_dash_pos);
     }
+    size_t semi_colon_pos = content_type_str.find(';');
+    if (semi_colon_pos != std::string::npos) {
+      content_type_str = content_type_str.substr(0, semi_colon_pos);
+    }
+    memi_type = content_type_str;
+  } else {
+    std::cerr << "Warning: Could not get content type. "
+              << curl_easy_strerror(info_res) << std::endl;
+    // content_type_str will remain empty or you could set a default
   }
 
   long http_code = 0;
@@ -588,7 +585,7 @@ std::string format_timestamp(
     const char* format) {
   auto time_t_now = std::chrono::system_clock::to_time_t(time);
 #if defined(_WIN32)
-  struct tm tm;
+  struct tm tm{};
   localtime_s(&tm, &time_t_now);
 #else
   auto tm = *std::localtime(&time_t_now);

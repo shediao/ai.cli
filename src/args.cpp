@@ -179,12 +179,9 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
 
 inline static bool stdin_is_pipe() {
 #ifdef _WIN32
-  if (FILE_TYPE_PIPE == GetFileType(GetStdHandle(STD_INPUT_HANDLE))) {
-    return true;
-  }
-  return false;
+  return FILE_TYPE_PIPE == GetFileType(GetStdHandle(STD_INPUT_HANDLE));
 #else
-  struct stat sb;
+  struct stat sb{};
   if (0 == fstat(STDIN_FILENO, &sb)) {
     return (S_ISFIFO(sb.st_mode));
   }
@@ -194,12 +191,9 @@ inline static bool stdin_is_pipe() {
 
 inline static bool stdin_is_file() {
 #ifdef _WIN32
-  if (FILE_TYPE_DISK == GetFileType(GetStdHandle(STD_INPUT_HANDLE))) {
-    return true;
-  }
-  return false;
+  return FILE_TYPE_DISK == GetFileType(GetStdHandle(STD_INPUT_HANDLE));
 #else
-  struct stat sb;
+  struct stat sb{};
   if (0 == fstat(STDIN_FILENO, &sb)) {
     return S_ISREG(sb.st_mode);
   }
@@ -544,11 +538,9 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
             });
         if (it == fields.end()) {
           return std::pair<bool, std::string>(true, "");
-        } else {
-          return std::pair<bool, std::string>(
-              false,
-              "expected fields: session_id,start,work_dir,messages,topic");
         }
+        return std::pair<bool, std::string>(
+            false, "expected fields: session_id,start,work_dir,messages,topic");
       });
   history
       .add_option("session",

@@ -79,6 +79,11 @@ class OpenAIClient::Impl {
     }
   }
 
+  Impl(Impl const&) = delete;
+  Impl& operator=(Impl const&) = delete;
+  Impl(Impl&&) = delete;
+  Impl& operator=(Impl&&) = delete;
+
   static size_t write_callback(char* ptr, size_t size, size_t nmemb,
                                void* userdata) {
     auto* response = static_cast<std::string*>(userdata);
@@ -117,10 +122,7 @@ class OpenAIClient::Impl {
     LOG_IF(INFO, !user_prompt.empty()) << "User prompt: " << user_prompt;
 
     auto is_image_url = [](std::string const& url) {
-      if (!url.starts_with("https://") && !url.starts_with("http://")) {
-        return false;
-      }
-      return true;
+      return url.starts_with("https://") || url.starts_with("http://");
     };
     std::vector<std::string> image_urls;
     for (auto const& f : files) {
@@ -146,7 +148,7 @@ class OpenAIClient::Impl {
 
     if (user_prompt.empty()) {
       // 当user prompt没有的时候判断历史最后一条是否为用户prompt
-      if (chat_history.size() == 0) {
+      if (chat_history.empty()) {
         return std::nullopt;
       }
       if (auto& last_message = chat_history.back();
@@ -243,7 +245,7 @@ class OpenAIClient::Impl {
         }
       }
 
-      if (tools.size() > 0) {
+      if (!tools.empty()) {
         auto tools_for_deepseek = nlohmann::json::array();
         for (auto tool : tools) {
           auto t = nlohmann::json::object();
@@ -313,11 +315,14 @@ class OpenAIClient::Impl {
 
     long http_code = 0;
     curl_easy_getinfo(curl_, CURLINFO_RESPONSE_CODE, &http_code);
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     LOG_IF(ERROR, http_code >= 400)
         << "HTTP request failed with code " << http_code;
 
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     LOG_IF(FATAL, http_code >= 400 && !args_.chat_args.stream)
         << response_string;
+    // NOLINTNEXTLINE(readability-simplify-boolean-expr)
     LOG_IF(FATAL, http_code >= 400 && args_.chat_args.stream)
         << stream_response.raw_string();
 
@@ -388,9 +393,8 @@ class OpenAIClient::Impl {
           }
         }
         return models;
-      } else {
-        std::cout << response_string << '\n';
       }
+      std::cout << response_string << '\n';
     } catch (const nlohmann::json::exception& e) {
       throw std::runtime_error(response_string + "\n" + e.what());
     }

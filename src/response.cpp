@@ -29,18 +29,16 @@ bool get_string(std::string const& key, json const& j, std::string& result) {
   if (is_string(key, j)) {
     result = j[key].get<std::string>();
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 [[maybe_unused]]
 bool append_string(std::string const& key, json const& j, std::string& result) {
   if (is_string(key, j)) {
     result += j[key].get<std::string>();
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 [[maybe_unused]]
 bool get_string(std::string const& key, json const& j,
@@ -48,9 +46,8 @@ bool get_string(std::string const& key, json const& j,
   if (is_string(key, j)) {
     result = j[key].get<std::string>();
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 [[maybe_unused]]
 bool append_string(std::string const& key, json const& j,
@@ -62,17 +59,15 @@ bool append_string(std::string const& key, json const& j,
       result = j[key].get<std::string>();
     }
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 bool get_integer(std::string const& key, json const& j, int& result) {
   if (is_integer(key, j)) {
     result = j[key].get<int>();
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 }  // namespace
 namespace openai {

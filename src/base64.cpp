@@ -10,7 +10,6 @@ std::string base64_encode(std::string const& input_file) {
   if (content_opt.has_value()) {
     auto& content = content_opt.value();
     return base64::encode(std::string_view{content.data(), content.size()});
-  } else {
-    return "";
   }
+  return "";
 }

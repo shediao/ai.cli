@@ -15,6 +15,10 @@ class CurlGlobalInitGuard {
  public:
   CurlGlobalInitGuard() { curl_global_init(CURL_GLOBAL_DEFAULT); }
   ~CurlGlobalInitGuard() { curl_global_cleanup(); }
+  CurlGlobalInitGuard(CurlGlobalInitGuard const&) = delete;
+  CurlGlobalInitGuard& operator=(CurlGlobalInitGuard const&) = delete;
+  CurlGlobalInitGuard(CurlGlobalInitGuard&&) = delete;
+  CurlGlobalInitGuard& operator=(CurlGlobalInitGuard&&) = delete;
 };
 
 #if defined(_WIN32)
@@ -35,15 +39,17 @@ int main(int argc, char* argv[])
 
     if (cmd.command() == "chat") {
       return chat(args);
-    } else if (cmd.command() == "models") {
-      return models(args);
-    } else if (cmd.command() == "history") {
-      return history(args);
-    } else if (cmd.command() == "update") {
-      return update(args);
-    } else {
-      cmd.print_usage();
     }
+    if (cmd.command() == "models") {
+      return models(args);
+    }
+    if (cmd.command() == "history") {
+      return history(args);
+    }
+    if (cmd.command() == "update") {
+      return update(args);
+    }
+    cmd.print_usage();
   } catch (std::exception const& e) {
     std::cerr << e.what() << "\n";
     exit(EXIT_FAILURE);

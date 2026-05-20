@@ -56,10 +56,9 @@ inline std::string get_last_error_msg() {
   auto* err_msg = strerror(error);
   if (err_msg) {
     return std::string(err_msg);
-  } else {
-    return "Unknown error or strerror failed, error code: " +
-           std::to_string(errno);
   }
+  return "Unknown error or strerror failed, error code: " +
+         std::to_string(errno);
 #endif  // !_WIN32
 }
 
@@ -119,7 +118,7 @@ NativeHandle GetLogFileNativeHandle() {
 
 LogMessage::~LogMessage() { Flush(); }
 LogMessage::LogMessage(const char* file, int line, LogSeverity severity)
-    : severity_{severity}, file_(file), line_(line) {
+    : severity_{severity}, message_start_{0}, file_(file), line_(line) {
   Init(file, line);
 }
 
@@ -161,10 +160,10 @@ void LogMessage::Init(const char* file, int line) {
             << std::setw(2) << local_time.wSecond << '.' << std::setw(3)
             << local_time.wMilliseconds << ':';
 #else
-    timeval tv;
+    timeval tv{};
     gettimeofday(&tv, nullptr);
     time_t t = tv.tv_sec;
-    struct tm local_time;
+    struct tm local_time{};
     localtime_r(&t, &local_time);
     struct tm* tm_time = &local_time;
     stream_ << std::setfill('0') << std::setw(2) << 1 + tm_time->tm_mon

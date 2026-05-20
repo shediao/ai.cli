@@ -249,18 +249,19 @@ int chat(AiArgs const& args) {
             LOG(ERROR)
                 << "Output content was filtered due to content filter policy.";
             return 1;
-          } else if (finish_reason == "length") {
+          }
+          if (finish_reason == "length") {
             LOG(ERROR)
                 << "Output length reached the model context length limit, "
                    "or the max_tokens limit.";
             return 1;
-          } else if (finish_reason == "insufficient_system_resources") {
+          }
+          if (finish_reason == "insufficient_system_resources") {
             LOG(ERROR) << "Request was interrupted due to insufficient backend "
                           "inference resources.";
             return 1;
-          } else {
-            LOG(WARNING) << "Unknown finish_reason: " << finish_reason;
           }
+          LOG(WARNING) << "Unknown finish_reason: " << finish_reason;
         }
         if (finish_reason != "tool_calls") {
           break;
