@@ -222,7 +222,7 @@ int chat(AiArgs const& args) {
                           << "\n";
               }
               std::cout << "[Done] " << function << " use time: " << elapsed_ms
-                        << "ms\n";
+                        << "ms, result length: " << ret.size() << "\n";
               chat_history.push_back(
                   nlohmann::json::object({{"role", "tool"},
                                           {"tool_call_id", tool_call.id},
