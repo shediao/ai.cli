@@ -134,6 +134,19 @@ add_library(
   src/openai.cpp
   src/response.cpp
   src/tools/filesystem.cpp
+  src/tools/filesystem/read_file.cpp
+  src/tools/filesystem/read_multiple_files.cpp
+  src/tools/filesystem/write_file.cpp
+  src/tools/filesystem/edit_file.cpp
+  src/tools/filesystem/create_directory.cpp
+  src/tools/filesystem/list_directory.cpp
+  src/tools/filesystem/directory_tree.cpp
+  src/tools/filesystem/move_file.cpp
+  src/tools/filesystem/search_files.cpp
+  src/tools/filesystem/get_file_info.cpp
+  src/tools/filesystem/disk_space_info.cpp
+  src/tools/filesystem/execute_file.cpp
+  src/tools/filesystem/replace_lines.cpp
   src/tools/bash.cpp
   src/tools/cmd.cpp
   src/tools/powershell.cpp

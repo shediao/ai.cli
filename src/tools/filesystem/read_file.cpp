@@ -1,0 +1,94 @@
+#include <algorithm>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "ai/function.h"
+#include "ai/utils.h"
+
+extern std::string expand_tilde(std::string const& path);
+extern std::optional<std::string> resolve_path(nlohmann::json const& args);
+
+std::string read_file(nlohmann::json const& args) {
+  if (!args.is_object()) {
+    return "function read_file arguments is invalid: expected a JSON object.";
+  }
+  auto path_opt = resolve_path(args);
+  if (!path_opt.has_value()) {
+    return "function read_file arguments is invalid: missing required "
+           "parameter \"path\".";
+  }
+  if (path_opt->empty()) {
+    return "function read_file arguments is invalid: \"path\" must be a "
+           "string.";
+  }
+  std::string path = std::move(*path_opt);
+  path = expand_tilde(path);
+  bool has_offset =
+      args.contains("offset") && args["offset"].is_number_integer();
+  bool has_limit = args.contains("limit") && args["limit"].is_number_integer();
+
+  std::vector<std::pair<std::string, std::string>> params = {{"path", path}};
+  if (has_offset) {
+    params.emplace_back("offset", std::to_string(args["offset"].get<int>()));
+  }
+  if (has_limit) {
+    params.emplace_back("limit", std::to_string(args["limit"].get<int>()));
+  }
+  print_toolcall_log("read_file", params);
+
+  auto content_opt = ai::utils::read_file(path);
+  if (!content_opt.has_value()) {
+    return path + " is not exists.";
+  }
+  std::string content = std::move(content_opt.value());
+  if (content.empty()) {
+    return path + " is empty.";
+  }
+
+  if (has_limit || has_offset) {
+    int limit = has_limit ? args["limit"].get<int>() : -1;
+    int offset = has_offset ? args["offset"].get<int>() : 1;
+    if (offset < 1) {
+      offset = 1;
+    }
+    // Count total lines for accurate error reporting
+    int total_lines =
+        static_cast<int>(std::count(content.begin(), content.end(), '\n'));
+    // A non-empty file without trailing newline still has 1 line;
+    // a file ending with newline has that many lines.
+    if (!content.empty() && content.back() != '\n') {
+      ++total_lines;
+    }
+
+    auto it = content.begin();
+    for (int i = 0; i < offset - 1; ++i) {
+      it = std::find(it, content.end(), '\n');
+      if (it == content.end()) {
+        return path + " has only " + std::to_string(total_lines) +
+               " lines, offset " + std::to_string(offset) + " is out of range.";
+      }
+      ++it;
+    }
+
+    if (limit == 0) {
+      return std::string{};  // limit=0 means read zero lines
+    } else if (limit > 0) {
+      auto end = it;
+      for (int i = 0; i < limit; ++i) {
+        end = std::find(end, content.end(), '\n');
+        if (end == content.end()) {
+          break;
+        }
+        ++end;
+      }
+      return std::string(it, end);
+    } else {
+      return std::string(it, content.end());
+    }
+  }
+
+  return content;
+}
