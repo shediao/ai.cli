@@ -1,6 +1,4 @@
-# Ai.md
-
-This file provides guidance to Ai Coder when working with code in this repository.
+This Content provides guidance to Ai tool when working with code in this repository.
 
 ## Build & Test Commands
 
@@ -100,6 +98,13 @@ gh run list --status failure --limit 5
 # View logs of a failed job in a run (if the run has multiple jobs)
 gh run view <run-id> --log --job <job-id>
 ```
+
+**When fetching logs with `gh` commands, always prefer getting only the key information rather than the full logs unless absolutely necessary.** For example:
+
+- Use `gh run view <run-id> --log --failed` to get only failed step logs (if supported).
+- Pipe through `grep` to filter for error messages, failed test names, or compilation errors: `gh run view <run-id> --log 2>&1 | grep -E '(error:|FAILED|failure)'`.
+- For test failures, look for the specific test output rather than the entire build log.
+- Only fetch full logs when the filtered output does not provide enough context to diagnose the issue.
 
 After getting the logs, identify the specific failure cause based on the error messages in the logs (compilation errors, test failures, environment issues, etc.), then make targeted fixes.
 
