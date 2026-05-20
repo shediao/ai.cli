@@ -6,7 +6,6 @@
 #include <cstring>
 #include <ctime>
 #include <filesystem>
-#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <nlohmann/json.hpp>
@@ -37,21 +36,6 @@ bool exec_sql(sqlite3* db, std::string const& sql) {
     return false;
   }
   return true;
-}
-
-/// Truncate a UTF-8 string to at most @p max_bytes, ensuring we don't cut
-/// in the middle of a multi-byte character.
-std::string utf8_truncate(std::string const& s, size_t max_bytes) {
-  if (s.size() <= max_bytes) {
-    return s;
-  }
-  size_t pos = max_bytes;
-  // Walk back past any UTF-8 continuation bytes (10xxxxxx)
-  // to find the start of the character.
-  while (pos > 0 && (static_cast<unsigned char>(s[pos]) & 0xC0) == 0x80) {
-    --pos;
-  }
-  return s.substr(0, pos);
 }
 
 /// Generate a random hex string of length @p len bytes (produces 2*len chars).
@@ -585,7 +569,7 @@ std::string HistoryDB::generate_topic(nlohmann::json const& messages,
     }
     // Truncate each message to keep total reasonable
     if (content.size() > 1024) {
-      content = utf8_truncate(content, 1021) + "...";
+      content = ai::utils::utf8_truncate(content, 1021) + "...";
     }
     conversation_text += role + ": " + content + "\n";
     ++message_count;
@@ -601,7 +585,8 @@ std::string HistoryDB::generate_topic(nlohmann::json const& messages,
 
   // Truncate total text to avoid overly long prompts
   if (conversation_text.size() > 8192) {
-    conversation_text = utf8_truncate(conversation_text, 8189) + "...";
+    conversation_text =
+        ai::utils::utf8_truncate(conversation_text, 8189) + "...";
   }
 
   try {

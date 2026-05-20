@@ -218,9 +218,10 @@ int chat(AiArgs const& args) {
               auto elapsed_ms =
                   std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
                       .count();
-              if (ret.size() > 120) {
-                std::cout << term::bold_color::yellow << ret.substr(0, 114)
-                          << "......" << term::reset << "\n";
+              if (ret.size() > 160) {
+                std::cout << term::bold_color::yellow
+                          << ai::utils::utf8_truncate(ret, 128) << "......"
+                          << term::reset << "\n";
               } else {
                 std::cout << term::bold_color::yellow << ret << term::reset
                           << "\n";

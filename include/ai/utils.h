@@ -93,4 +93,6 @@ bool stderr_is_atty();
 
 std::vector<std::string> split(const std::string& s, char delim);
 std::vector<std::wstring> split(const std::wstring& s, wchar_t delim);
+
+std::string utf8_truncate(std::string const& s, size_t max_length);
 }  // namespace ai::utils

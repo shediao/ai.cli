@@ -36,7 +36,7 @@ FetchContent_MakeAvailable(environment)
 FetchContent_Declare(
   utfx
   GIT_REPOSITORY https://github.com/shediao/utfx.hpp
-  GIT_TAG 272b036d6a25e3a24cf1685d5ce361003e2cc576)
+  GIT_TAG 1325b349d1d044a1b728daa56ecc45568234486d)
 FetchContent_MakeAvailable(utfx)
 
 # ── libcurl (HTTP client) ──────────────────────────────────────────────────

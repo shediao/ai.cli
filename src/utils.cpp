@@ -23,6 +23,7 @@
 #include <subprocess/subprocess.hpp>
 
 #include "ai/utils.h"
+#include "utfx/utfx.hpp"
 
 namespace fs = std::filesystem;
 
@@ -776,6 +777,13 @@ std::vector<std::wstring> split(const std::wstring& s, wchar_t delim) {
     ret.push_back(token.substr(start, end - start + 1));
   }
   return ret;
+}
+
+/// Truncate a UTF-8 string to at most @p max_length not byte length.
+std::string utf8_truncate(std::string const& s, size_t max_length) {
+  utfx::utf8_view u8(s);
+  auto ret = u8.substr(0, max_length);
+  return std::string(ret.data(), ret.data() + ret.byte_size());
 }
 
 }  // namespace ai::utils
