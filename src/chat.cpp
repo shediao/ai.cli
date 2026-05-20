@@ -147,6 +147,10 @@ int chat(AiArgs const& args) {
           system_prompt = build_default_system_prompt();
         }
       }
+      if (!chat_args.tools.empty() && !system_prompt.empty()) {
+        system_prompt += "\n\nWorking Directory: ";
+        system_prompt += work_dir;
+      }
       LOG(INFO) << "system prompt: "
                 << (system_prompt.empty() ? "(preserved from history)"
                                           : system_prompt);

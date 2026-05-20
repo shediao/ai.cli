@@ -24,34 +24,6 @@ std::string get_working_directory(nlohmann::json const& args) {
   return cwd;
 }
 
-// ── set_working_directory ─────────────────────────────────────────────
-std::string set_working_directory(nlohmann::json const& args) {
-  if (!args.is_object()) {
-    return "function set_working_directory arguments is invalid: expected a "
-           "JSON object.";
-  }
-  if (!args.contains("path")) {
-    return "function set_working_directory arguments is invalid: missing "
-           "required parameter \"path\".";
-  }
-  if (!args["path"].is_string()) {
-    return "function set_working_directory arguments is invalid: \"path\" "
-           "must be a string.";
-  }
-
-  std::string path = args["path"].get<std::string>();
-  print_toolcall_log("set_working_directory", {{"path", path}});
-  std::error_code err;
-  std::filesystem::current_path(path, err);
-  if (err) {
-    return "Error changing working directory to \"" + path +
-           "\": " + err.message();
-  }
-
-  std::string new_cwd = std::filesystem::current_path(err).string();
-  return "Successfully changed working directory to: " + new_cwd;
-}
-
 // ── get_environment_variable ──────────────────────────────────────────
 std::string get_environment_variable(nlohmann::json const& args) {
   if (!args.is_object()) {
@@ -213,7 +185,6 @@ std::string_view get_default_tools() { return default_tools_json_str; }
 
 void regist_default_tools() {
   regist_tool_calls("get_working_directory", get_working_directory);
-  regist_tool_calls("set_working_directory", set_working_directory);
   regist_tool_calls("get_environment_variable", get_environment_variable);
   regist_tool_calls("set_environment_variable", set_environment_variable);
   regist_tool_calls("get_shell", get_shell);

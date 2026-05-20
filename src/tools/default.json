@@ -11,21 +11,6 @@
   },
   {
     "type": "function",
-    "name": "set_working_directory",
-    "description": "Change the current session working directory. Changes the process working directory to the specified path. This affects relative path resolution for all subsequent operations. Use this when the user wants to work in a different directory.",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "path": {
-          "type": "string",
-          "description": "The target directory path. Can be an absolute path or a relative path (resolved against the current working directory)."
-        }
-      },
-      "required": ["path"]
-    }
-  },
-  {
-    "type": "function",
     "name": "get_environment_variable",
     "description": "Get the value of an environment variable from the current session. Returns the value of the specified environment variable, or an empty string if not set.",
     "parameters": {
