@@ -2,7 +2,7 @@ This Content provides guidance to Ai tool when working with code in this reposit
 
 ## Build & Test Commands
 
-````bash
+```bash
 # Build (creates build/Debug/ai or build/Release/ai)
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 cmake --build build
@@ -23,6 +23,8 @@ cmake -B build -S . -DAICLI_ENABLE_ASAN=OFF       # disable sanitizers
 # Format code (Google style, 2-space indent, C++20)
 clang-format -i src/*.cpp include/ai/*.h tests/*.cc tests/*.cpp
 cmake-format -i CMakeLists.txt tests/CMakeLists.txt
+```
+
 ## Cross-Compilation
 
 > **Note:** Cross-compilation environment is currently only available on macOS and Linux platforms.
@@ -31,7 +33,7 @@ When directories matching `build/{platform}-{arch}` exist (e.g., `build/darwin-a
 
 ```bash
 cmake --build build/{platform}-{arch}
-````
+```
 
 Supported build directories:
 
