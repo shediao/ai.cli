@@ -277,26 +277,6 @@ std::string getUserInputViaEditor() {
 #else
   if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
     editor = env_editor.value();
-  } else {
-    std::vector<std::string> editors{"/usr/bin/nano", "/usr/bin/vim",
-                                     "/usr/bin/vi"};
-#if defined(__CYGWIN__) || defined(__MSYS__)
-    for (auto& e : editors) {
-      e += ".exe";
-    }
-#endif
-    auto it = std::find_if(
-        editors.begin(), editors.end(),
-        [](const std::string& e) { return access(e.c_str(), X_OK) == 0; });
-    if (it != editors.end()) {
-      editor = *it;
-    } else {
-      // Default to vi or nano if available
-      // If not available throw an exception.
-      throw std::runtime_error(
-          "No suitable editor found.  Please set the EDITOR environment "
-          "variable.");
-    }
   }
 #endif
   // 2. Create a temporary file
@@ -304,11 +284,16 @@ std::string getUserInputViaEditor() {
   std::string temp_file_path = tempfile.path();
 
   // 3. Open the editor with the temporary file
-  int result = subprocess::run(editor, tempfile.path());
+#if defined(_WIN32)
+  int result =
+      subprocess::run("cmd", "/d", "/c", editor + " " + tempfile.path());
+#else
+  int result = subprocess::run("sh", "-c", editor + " " + tempfile.path());
+#endif
 
   // Handle errors from system call (editor not found, etc.)
   if (result != 0) {
-    throw std::runtime_error("Failed to execute editor: " + editor +
+    throw std::runtime_error("Failed to open editor: " + editor +
                              ", system return code: " + std::to_string(result));
   }
 
@@ -318,45 +303,39 @@ std::string getUserInputViaEditor() {
   return user_input.value_or("");
 }
 
-// 回调函数，用于处理从 libcurl 接收到的数据
-// ptr: 指向接收到的数据块
-// size: 每个数据单元的大小（通常是1）
-// nmemb: 数据单元的数量
-// userdata: 用户自定义指针，这里我们将传递一个 std::ofstream*
+// libcurl write callback: receives data and writes it to an open file stream.
+// ptr:   pointer to the received data block
+// size:  size of each data element (typically 1)
+// nmemb: number of data elements
+// stream: user-defined pointer (a std::ofstream* in this case)
 static size_t write_data_to_file(void* ptr, size_t size, size_t nmemb,
                                  void* stream) {
   std::ofstream* out_file = static_cast<std::ofstream*>(stream);
   if (out_file && out_file->is_open()) {
     out_file->write(static_cast<char*>(ptr), size * nmemb);
     if (out_file->fail()) {
-      // 写入失败，返回0会使libcurl中止传输并返回CURLE_WRITE_ERROR
+      // Write failed — returning 0 makes libcurl abort with CURLE_WRITE_ERROR
       return 0;
     }
-    return size * nmemb;  // 返回成功写入的字节数
+    return size * nmemb;  // Return the number of bytes successfully written
   }
-  return 0;  // 如果文件流无效，也中止传输
+  return 0;  // Invalid file stream — abort transfer
 }
 
 bool download_image(std::string const& image_url, std::string const& image_path,
-                    std::string& memi_type, std::string const& proxy) {
+                    std::string& mime_type, std::string const& proxy) {
   CURL* curl_handle;
   CURLcode res;
   std::ofstream outfile;
 
-  // 1. 初始化 libcurl 全局环境 (通常在程序开始时调用一次)
-  // 如果你的程序中多处使用 libcurl，可以考虑将全局初始化/清理放到 main
-  // 函数或类构造/析构中 这里为了函数的独立性，每次都调用，但注意
-  // curl_global_cleanup 也应对应调用
-  // 为简单起见，假设调用者处理全局初始化/清理，或者在main中处理
-
-  // 2. 获取一个 CURL easy handle
+  // 1. Obtain a CURL easy handle
   curl_handle = curl_easy_init();
   if (!curl_handle) {
     std::cerr << "Error: curl_easy_init() failed." << std::endl;
     return false;
   }
 
-  // 3. 打开本地文件用于写入 (二进制模式)
+  // 2. Open local file for writing (binary mode)
   outfile.open(image_path, std::ios::binary);
   if (!outfile.is_open()) {
     std::cerr << "Error: Cannot open file for writing: " << image_path
@@ -365,44 +344,44 @@ bool download_image(std::string const& image_url, std::string const& image_path,
     return false;
   }
 
-  // 4. 设置 libcurl 选项
-  // 设置要下载的 URL
+  // 3. Set libcurl options
+  // Set the URL to download
   curl_easy_setopt(curl_handle, CURLOPT_URL, image_url.c_str());
 
-  // 设置写入数据的回调函数
+  // Set the write callback function
   curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_data_to_file);
 
-  // 将文件流指针传递给回调函数
+  // Pass the file stream pointer to the callback
   curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &outfile);
 
-  // 启用 HTTP 3xx 重定向跟随
+  // Follow HTTP 3xx redirects
   curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
 
-  // 在遇到 HTTP 4xx 或 5xx 错误时，让 libcurl 返回错误而不是下载错误页面
+  // Treat HTTP 4xx/5xx as errors (don't download the error page)
   curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
 
-  // (可选) 设置超时
-  curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, 60000L);  // 60 秒总超时
+  // Set timeouts
+  curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT_MS, 60000L);  // 60s total
   curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT_MS,
-                   3000L);  // 3 秒连接超时
+                   3000L);  // 3s connect timeout
 
   if (!proxy.empty()) {
     curl_easy_setopt(curl_handle, CURLOPT_PROXY, proxy.c_str());
   }
 
-  // (可选) 详细输出，用于调试
+  // (Optional) verbose output for debugging
   // curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1L);
 
-  // 5. 执行传输
+  // 4. Perform the transfer
   res = curl_easy_perform(curl_handle);
 
-  // 6. 关闭文件流 (确保所有数据都已刷入磁盘)
+  // 5. Close the file stream (ensure all data is flushed to disk)
   outfile.close();
-  // 7. 检查结果
+  // 6. Check the result
   if (res != CURLE_OK) {
     std::cerr << "Error: curl_easy_perform() failed: "
               << curl_easy_strerror(res) << std::endl;
-    // 如果下载失败，删除可能已创建的不完整文件
+    // Download failed — remove the incomplete file
     std::remove(image_path.c_str());
     curl_easy_cleanup(curl_handle);
     return false;
@@ -425,7 +404,7 @@ bool download_image(std::string const& image_url, std::string const& image_path,
     if (semi_colon_pos != std::string::npos) {
       content_type_str = content_type_str.substr(0, semi_colon_pos);
     }
-    memi_type = content_type_str;
+    mime_type = content_type_str;
   } else {
     std::cerr << "Warning: Could not get content type. "
               << curl_easy_strerror(info_res) << std::endl;
@@ -443,7 +422,7 @@ bool download_image(std::string const& image_url, std::string const& image_path,
     return false;
   }
 
-  // 8. 清理 CURL easy handle
+  // 7. Clean up the CURL easy handle
   curl_easy_cleanup(curl_handle);
 
   return true;
@@ -504,7 +483,7 @@ static size_t header_callback(char* buffer, size_t size, size_t nitems,
  *         or an empty string if the Content-Type header is not found or an
  * error occurs.
  */
-std::string getMEMI(std::string const& url, std::string const& proxy) {
+std::string getMIME(std::string const& url, std::string const& proxy) {
   CURL* curl = nullptr;
   CURLcode res = CURLE_OK;
   std::string content_type;  // This will store the result
@@ -519,34 +498,26 @@ std::string getMEMI(std::string const& url, std::string const& proxy) {
   // Set the URL
   curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 
-  // Perform a HEAD request (we only need headers, not the body)
+  // Perform a HEAD request (headers only, no body)
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
 
-  // Follow redirects (important for many URLs)
+  // Follow redirects
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
-  // Set the header callback function to process headers
+  // Set the header callback to capture the Content-Type header
   curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
 
   // Pass the address of our content_type string to the callback
   curl_easy_setopt(curl, CURLOPT_HEADERDATA, &content_type);
 
-  // Set a timeout (e.g., 10 seconds)
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 10000L);  // 30 秒总超时
+  // Set timeouts
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 10000L);  // 10s total timeout
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS,
-                   3000L);  // 3 秒连接超时
+                   3000L);  // 3s connect timeout
 
   if (!proxy.empty()) {
     curl_easy_setopt(curl, CURLOPT_PROXY, proxy.c_str());
   }
-
-  // For HTTPS: Verify peer and host (recommended for security)
-  // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L); // Default is 1L
-  // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L); // Default is 2L
-  // If you have certificate issues in testing, you MIGHT temporarily disable
-  // these but this is NOT recommended for production: curl_easy_setopt(curl,
-  // CURLOPT_SSL_VERIFYPEER, 0L); curl_easy_setopt(curl,
-  // CURLOPT_SSL_VERIFYHOST, 0L);
 
   // Perform the request
   res = curl_easy_perform(curl);
@@ -776,7 +747,7 @@ std::vector<std::wstring> split(const std::wstring& s, wchar_t delim) {
   return ret;
 }
 
-/// Truncate a UTF-8 string to at most @p max_length not byte length.
+/// Truncate a UTF-8 string to at most @p max_length characters (not bytes).
 std::string utf8_truncate(std::string const& s, size_t max_length) {
   utfx::utf8_view u8(s);
   auto ret = u8.substr(0, max_length);

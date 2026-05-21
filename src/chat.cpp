@@ -88,8 +88,8 @@ int chat(AiArgs const& args) {
           chat_history, args.chat_args.api_url, args.chat_args.model, work_dir,
           parent_id, start_ts, end_ts, prompt_tokens, completion_tokens,
           total_tokens, prompt_cache_hit_tokens, prompt_cache_miss_tokens);
-      auto chat_history_snashot = chat_history;
-      auto topic = HistoryDB::generate_topic(chat_history_snashot, args);
+      auto chat_history_snapshot = chat_history;
+      auto topic = HistoryDB::generate_topic(chat_history_snapshot, args);
       std::cout << term::bright_black << "\n[TOPIC]: " << topic << term::reset
                 << "\n";
       std::cout << term::bright_black << "\nTokens: [prompt:" << prompt_tokens
@@ -107,7 +107,7 @@ int chat(AiArgs const& args) {
       auto user_prompt = chat_args.prompts;
       for (auto const& sp : chat_args.system_prompt) {
         if (!utfx::is_utf8(sp.data(), sp.size())) {
-          LOG(ERROR) << "system prompt not an utf8 string";
+          LOG(ERROR) << "system prompt is not a valid UTF-8 string";
           return 1;
         }
       }
@@ -117,7 +117,7 @@ int chat(AiArgs const& args) {
         if (!utfx::is_utf8(s.data(), s.size())) {
           auto u8 = ai::utils::toUtf8(s);
           if (!u8) {
-            LOG(ERROR) << "user prompt not an utf8 string";
+            LOG(ERROR) << "user prompt is not a valid UTF-8 string";
             return 1;
           }
           s = u8.value();
@@ -129,7 +129,7 @@ int chat(AiArgs const& args) {
                                        return utfx::is_utf8(s.data(), s.size());
                                      });
           it != user_prompt.end()) {
-        LOG(ERROR) << "user prompt not an utf8 string";
+        LOG(ERROR) << "user prompt is not a valid UTF-8 string";
         return 1;
       }
 #endif
@@ -202,7 +202,7 @@ int chat(AiArgs const& args) {
 
         if (response.value().choices().back().message.tool_calls.empty() &&
             finish_reason == "tool_calls") {
-          LOG(FATAL) << "not found tool_calls";
+          LOG(FATAL) << "tool_calls not found in response";
         }
 
         if (!response.value().choices().back().message.tool_calls.empty()) {
@@ -226,7 +226,7 @@ int chat(AiArgs const& args) {
                 std::cout << term::bold_color::yellow << ret << term::reset
                           << "\n";
               }
-              std::cout << "[Done] " << function << " use time: " << elapsed_ms
+              std::cout << "[Done] " << function << " took: " << elapsed_ms
                         << "ms, result length: " << ret.size() << "\n";
               chat_history.push_back(
                   nlohmann::json::object({{"role", "tool"},

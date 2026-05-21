@@ -67,8 +67,8 @@ std::string getTempDirPath(std::string const& prefix);
 std::string getUserInputFromTerminal(std::string const& prompt = "");
 std::string getUserInputViaEditor();
 bool download_image(std::string const& image_url, std::string const& image_path,
-                    std::string& memi_type, std::string const& proxy);
-std::string getMEMI(std::string const& url, std::string const& proxy);
+                    std::string& mime_type, std::string const& proxy);
+std::string getMIME(std::string const& url, std::string const& proxy);
 
 std::string app_data_dir(const std::string& app,
                          const std::string& author = "");

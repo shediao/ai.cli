@@ -297,8 +297,8 @@ static void parse_line(std::string const& data, std::vector<json>& all,
       }
     }
     if (is_string("content", delta_json)) {
-      auto constent_str = delta_json["content"].get<std::string>();
-      out << constent_str;
+      auto content_str = delta_json["content"].get<std::string>();
+      out << content_str;
     }
 
     all.push_back(std::move(data_json));

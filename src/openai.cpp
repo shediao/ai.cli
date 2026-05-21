@@ -23,7 +23,7 @@ using json = nlohmann::json;
 namespace ai {
 
 namespace {
-static std::map<std::string, std::string> memi_map{
+static std::map<std::string, std::string> mime_map{
     {"jpg", "image/jpeg"},
     {"jpeg", "image/jpeg"},
     {"png", "image/png"},
@@ -39,7 +39,7 @@ static bool is_image_file(std::string const& f) {
   auto ext_pos = f.find_last_of('.');
   if (ext_pos != std::string::npos) {
     std::string ext = f.substr(ext_pos + 1);
-    if (memi_map.find(ext) == memi_map.end()) {
+    if (mime_map.find(ext) == mime_map.end()) {
       return false;
     }
     if (std::filesystem::exists(f)) {
@@ -48,14 +48,14 @@ static bool is_image_file(std::string const& f) {
   }
   return false;
 }
-static std::string get_image_memi(std::string const& f) {
+static std::string get_image_mime(std::string const& f) {
   auto ext_pos = f.find_last_of('.');
   if (ext_pos != std::string::npos) {
     if (!std::filesystem::exists(f)) {
       return "";
     }
     std::string ext = f.substr(ext_pos + 1);
-    if (auto it = memi_map.find(ext); it != memi_map.end()) {
+    if (auto it = mime_map.find(ext); it != mime_map.end()) {
       return it->second;
     }
   }
@@ -107,8 +107,8 @@ class OpenAIClient::Impl {
         continue;
       }
       if (prompt.starts_with("https://") || prompt.starts_with("http://")) {
-        auto memi = ai::utils::getMEMI(prompt, args_.proxy.value_or(""));
-        if (memi.starts_with("image/")) {
+        auto mime = ai::utils::getMIME(prompt, args_.proxy.value_or(""));
+        if (mime.starts_with("image/")) {
           files.push_back(prompt);
           continue;
         }
@@ -127,27 +127,28 @@ class OpenAIClient::Impl {
     std::vector<std::string> image_urls;
     for (auto const& f : files) {
       if (is_image_url(f)) {
-        std::string memi;
+        std::string mime;
         ai::utils::TempFile img;
-        auto download_sucessful = ai::utils::download_image(
-            f, img.path(), memi, args_.proxy.value_or(""));
-        if (download_sucessful && !memi.empty()) {
+        auto download_successful = ai::utils::download_image(
+            f, img.path(), mime, args_.proxy.value_or(""));
+        if (download_successful && !mime.empty()) {
           auto base64 = base64_encode(img.path());
-          image_urls.push_back("data:" + memi + ";base64," + base64);
+          image_urls.push_back("data:" + mime + ";base64," + base64);
         } else {
           std::cerr << "download failed: " << f << '\n';
         }
       } else if (is_image_file(f)) {
-        auto memi = get_image_memi(f);
-        if (!memi.empty()) {
+        auto mime = get_image_mime(f);
+        if (!mime.empty()) {
           auto base64 = base64_encode(f);
-          image_urls.push_back("data:" + memi + ";base64," + base64);
+          image_urls.push_back("data:" + mime + ";base64," + base64);
         }
       }
     }
 
     if (user_prompt.empty()) {
-      // 当user prompt没有的时候判断历史最后一条是否为用户prompt
+      // When there is no user prompt, check if the last history message
+      // is from a user or tool role.
       if (chat_history.empty()) {
         return std::nullopt;
       }
@@ -166,7 +167,8 @@ class OpenAIClient::Impl {
     for (const auto& message : chat_history) {
       if (!system_prompt.empty() && message.contains("role") &&
           "system" == message["role"].get<std::string>()) {
-        // 已经提供了system prompt情况下会排除history中的system prompt
+        // When a system prompt is already provided, skip any system
+        // messages from the history.
         continue;
       }
       messages.push_back(message);
@@ -186,7 +188,7 @@ class OpenAIClient::Impl {
       }
     }
 
-    // 当前对话成为新的历史内容
+    // The current conversation becomes the new chat history content
     chat_history = messages;
 
     bool contain_tool_calls_message =
