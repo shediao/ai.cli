@@ -268,15 +268,22 @@ std::string getUserInputViaEditor() {
   std::string editor;
 
 #ifdef _WIN32
-  if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
+  if (auto env_editor = env::get("VISUAL"); env_editor.has_value()) {
+    editor = env_editor.value();
+  } else if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
     editor = env_editor.value();
   } else {
     // Try some common Windows editors
     editor = "notepad.exe";  // Default to Notepad
   }
 #else
-  if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
+  if (auto env_editor = env::get("VISUAL"); env_editor.has_value()) {
     editor = env_editor.value();
+  } else if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
+    editor = env_editor.value();
+  }
+  if (editor.empty()) {
+    editor = "vi";
   }
 #endif
   // 2. Create a temporary file
