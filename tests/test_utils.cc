@@ -11,6 +11,7 @@
 #include <type_traits>
 
 #include "ai/utils.h"
+#include "environment/environment.hpp"
 
 namespace fs = std::filesystem;
 namespace utils = ai::utils;
@@ -665,10 +666,10 @@ TEST(GetTempDirPathTest, RespectsCustomTmpdir) {
   fs::create_directories(custom_tmp);
 
   // Save original TMPDIR
-  const char* orig_tmpdir = ::getenv("TMPDIR");
+  auto orig_tmpdir = env::get("TMPDIR");
   std::string orig_tmpdir_saved;
   if (orig_tmpdir) {
-    orig_tmpdir_saved = orig_tmpdir;
+    orig_tmpdir_saved = orig_tmpdir.value();
   }
 
   // Override TMPDIR
@@ -687,9 +688,9 @@ TEST(GetTempDirPathTest, RespectsCustomTmpdir) {
 
   // Restore TMPDIR
   if (orig_tmpdir) {
-    ::setenv("TMPDIR", orig_tmpdir_saved.c_str(), 1);
+    env::set("TMPDIR", orig_tmpdir_saved, 1);
   } else {
-    ::unsetenv("TMPDIR");
+    env::unset("TMPDIR");
   }
   fs::remove_all(custom_tmp);
 #else
@@ -1315,28 +1316,18 @@ class EnvGuard {
   }
 
   void set(std::string const& name, std::string const& value) {
-#if defined(_WIN32)
-    _putenv_s(name.c_str(), value.c_str());
-#else
-    ::setenv(name.c_str(), value.c_str(), 1);
-#endif
+    env::set(name, value);
   }
 
-  void unset(std::string const& name) {
-#if defined(_WIN32)
-    _putenv_s(name.c_str(), "");
-#else
-    ::unsetenv(name.c_str());
-#endif
-  }
+  void unset(std::string const& name) { env::unset(name); }
 
  private:
   std::map<std::string, std::string> saved_;
 
   void save(std::string const& name) {
-    const char* val = ::getenv(name.c_str());
+    auto val = env::get(name);
     if (val) {
-      saved_[name] = val;
+      saved_[name] = val.value();
     } else {
       saved_[name] = "\x1";  // sentinel for "was unset"
     }
