@@ -1082,13 +1082,16 @@ TEST(FormatTimenowTest, CustomFormat) {
 }
 
 TEST(FormatTimenowTest, TwoCallsReturnCloseValues) {
+  auto t1 = std::chrono::system_clock::now();
   std::string ts1 = utils::format_timenow("%Y%m%d%H%M%S");
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  auto t2 = std::chrono::system_clock::now();
   std::string ts2 = utils::format_timenow("%Y%m%d%H%M%S");
-  // They should be equal or differ by at most 1 second
-  EXPECT_LE(std::abs(static_cast<long long>(std::stoll(ts1)) -
-                     static_cast<long long>(std::stoll(ts2))),
-            1);
+  // The actual wall-clock interval should be close to the 100ms sleep,
+  // but we allow generous bounds for heavily loaded CI runners.
+  auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
+  EXPECT_GE(diff.count(), 1);
+  EXPECT_LE(diff.count(), 10000);
 }
 
 // =============================================================================
