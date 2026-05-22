@@ -5,7 +5,19 @@
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h>  // For HANDLE
+#endif
+
 namespace ai::utils {
+
+#if defined(_WIN32)
+using NativeHandle = HANDLE;
+const NativeHandle INVALID_NATIVE_HANDLE_VALUE = INVALID_HANDLE_VALUE;
+#else   // _WIN32
+using NativeHandle = int;
+constexpr NativeHandle INVALID_NATIVE_HANDLE_VALUE = -1;
+#endif  // !_WIN32
 
 template <typename...>
 using void_t = void;
@@ -57,15 +69,36 @@ class TempDir {
   std::string path_;
 };
 
+class Terminal {
+ public:
+  Terminal();
+  ~Terminal();
+  Terminal(Terminal const&) = delete;
+  Terminal(Terminal&&) = delete;
+  Terminal& operator=(Terminal const&) = delete;
+  Terminal& operator=(Terminal&&) = delete;
+
+  bool available() const;
+  void write(const std::string_view s);
+
+  std::string read_line();
+  char read_char();
+
+  bool confirm(std::string_view message, bool default_yes = false);
+
+  std::size_t menu(std::string_view title,
+                   std::vector<std::string> const& items);
+
+  static std::string edit(std::string_view initial_content = "");
+
+ private:
+  NativeHandle in_{INVALID_NATIVE_HANDLE_VALUE};
+  NativeHandle out_{INVALID_NATIVE_HANDLE_VALUE};
+};
+
 std::string getTempFilePath(std::string const& prefix,
                             std::string const& postfix);
 std::string getTempDirPath(std::string const& prefix);
-/// Read a line from the controlling terminal even when stdin is a pipe.
-/// On Unix this opens /dev/tty; on Windows it opens CONIN$.
-/// If prompt is non-empty, it is printed to stderr before reading.
-/// Returns the user's input line (without trailing newline).
-std::string getUserInputFromTerminal(std::string const& prompt = "");
-std::string getUserInputViaEditor();
 bool download_image(std::string const& image_url, std::string const& image_path,
                     std::string& mime_type, std::string const& proxy);
 std::string getMIME(std::string const& url, std::string const& proxy);

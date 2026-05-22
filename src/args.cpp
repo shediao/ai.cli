@@ -439,7 +439,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
 
     if (chat_args.prompts.empty() && utils::stdin_is_atty()) {
       try {
-        if (auto prompt = ai::utils::getUserInputViaEditor(); !prompt.empty()) {
+        if (auto prompt = ai::utils::Terminal::edit(); !prompt.empty()) {
           std::cout << prompt;
           chat_args.prompts.push_back(prompt);
         }

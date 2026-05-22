@@ -1,6 +1,7 @@
 #include <curl/curl.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>  // For std::remove
 #include <ctime>
@@ -16,6 +17,7 @@
 #include <objbase.h>
 #include <windows.h>  // For GetEnvironmentVariable
 #else
+#include <termios.h>
 #include <unistd.h>  // For access, isatty, STDIN_FILENO/STDOUT_FILENO/STDERR_FILENO
 #endif
 
@@ -100,8 +102,8 @@ TempFile::TempFile(std::string const& prefix, std::string const& postfix)
     : path_{getTempFilePath(prefix, postfix)} {}
 TempFile::TempFile() : TempFile("", ".tmp") {}
 TempFile::~TempFile() {
-  if (!path_.empty() && std::filesystem::exists(path_)) {
-    std::filesystem::remove(path_);
+  if (!path_.empty() && fs::exists(path_)) {
+    fs::remove(path_);
   }
 }
 std::string const& TempFile::path() const { return path_; }
@@ -151,29 +153,26 @@ std::string getTempFilePath(std::string const& prefix,
 TempDir::TempDir(std::string const& prefix) : path_{getTempDirPath(prefix)} {}
 TempDir::TempDir() : TempDir("") {}
 TempDir::~TempDir() {
-  if (!path_.empty() && std::filesystem::exists(path_)) {
+  if (!path_.empty() && fs::exists(path_)) {
     // On Windows, remove_all() throws on read-only files and on symlinks
     // (especially in MSYS environments).  Reset permissions and remove
     // symlinks explicitly so removal can succeed, and use the error_code
     // overload to never throw.
 #if defined(_WIN32)
     try {
-      for (auto const& entry :
-           std::filesystem::recursive_directory_iterator(path_)) {
+      for (auto const& entry : fs::recursive_directory_iterator(path_)) {
         std::error_code ec;
         // Remove symlinks without following them (MSYS symlink emulation
         // can cause remove_all to fail on these).
         if (entry.is_symlink(ec) && !ec) {
-          std::filesystem::remove(entry.path(), ec);
+          fs::remove(entry.path(), ec);
           continue;
         }
         // Reset read-only attribute so remove_all won't get "Access denied".
         auto perms = entry.status().permissions();
-        if ((perms & std::filesystem::perms::owner_write) ==
-            std::filesystem::perms::none) {
-          std::filesystem::permissions(entry.path(),
-                                       std::filesystem::perms::owner_write,
-                                       std::filesystem::perm_options::add, ec);
+        if ((perms & fs::perms::owner_write) == fs::perms::none) {
+          fs::permissions(entry.path(), fs::perms::owner_write,
+                          fs::perm_options::add, ec);
         }
       }
     } catch (...) {
@@ -182,10 +181,280 @@ TempDir::~TempDir() {
     }
 #endif
     std::error_code ec;
-    std::filesystem::remove_all(path_, ec);
+    fs::remove_all(path_, ec);
   }
 }
 std::string const& TempDir::path() const { return path_; }
+#if defined(_WIN32)
+Terminal::Terminal() {
+  in_ = CreateFileW(L"CONIN$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ,
+                    nullptr, OPEN_EXISTING, 0, nullptr);
+
+  out_ = CreateFileW(L"CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE, nullptr,
+                     OPEN_EXISTING, 0, nullptr);
+}
+Terminal::~Terminal() {
+  if (in_ != INVALID_HANDLE_VALUE) {
+    CloseHandle(in_);
+  }
+  if (out_ != INVALID_HANDLE_VALUE) {
+    CloseHandle(out_);
+  }
+}
+bool Terminal::available() const {
+  return in_ != INVALID_HANDLE_VALUE && out_ != INVALID_HANDLE_VALUE;
+}
+void Terminal::write(const std::string_view s) {
+  if (INVALID_NATIVE_HANDLE_VALUE == out_) {
+    return;
+  }
+  size_t written{0};
+  while (written < s.size()) {
+    DWORD w{0};
+    BOOL ok = WriteFile(out_, s.data() + written, s.size() - written, &w, 0);
+    if (!ok) {
+      return;
+    }
+    written += w;
+  }
+}
+std::string Terminal::read_line() {
+  std::string line;
+  if (INVALID_NATIVE_HANDLE_VALUE == in_) {
+    return line;
+  }
+  DWORD read{0};
+  char c;
+  while (ReadFile(in_, &c, 1, &read, 0)) {
+    if (read == 0) {
+      break;
+    }
+    if (c == '\r') {
+      continue;
+    }
+    if (c == '\n') {
+      break;
+    }
+    line.push_back(c);
+  }
+  return line;
+}
+char Terminal::read_char() {
+  if (INVALID_NATIVE_HANDLE_VALUE == in_) {
+    return '\0';
+  }
+  INPUT_RECORD rec;
+  DWORD count;
+
+  while (ReadConsoleInputW(in_, &rec, 1, &count)) {
+    if (rec.EventType != KEY_EVENT) {
+      continue;
+    }
+
+    auto& k = rec.Event.KeyEvent;
+
+    if (!k.bKeyDown) {
+      continue;
+    }
+
+    return static_cast<char>(k.uChar.AsciiChar);
+  }
+
+  return '\0';
+}
+
+#else
+Terminal::Terminal() {
+  in_ = ::open("/dev/tty", O_RDONLY);
+  out_ = ::open("/dev/tty", O_WRONLY);
+}
+Terminal::~Terminal() {
+  if (in_ != -1) {
+    close(in_);
+  }
+  if (out_ != -1) {
+    close(out_);
+  }
+}
+bool Terminal::available() const { return in_ != -1 && out_ != -1; }
+void Terminal::write(const std::string_view s) {
+  if (out_ == INVALID_NATIVE_HANDLE_VALUE) {
+    return;
+  }
+  size_t n = 0;
+  while (n < s.size()) {
+    auto written = ::write(out_, s.data() + n, s.size() - n);
+    if (written == -1 && errno == EINTR) {
+      continue;
+    }
+    if (written == -1) {
+      break;
+    }
+    n += written;
+  }
+}
+
+std::string Terminal::read_line() {
+  std::string line;
+  if (in_ == INVALID_NATIVE_HANDLE_VALUE) {
+    return line;
+  }
+  char c;
+  while (::read(in_, &c, 1) == 1) {
+    if (c == '\r') {
+      continue;
+    }
+    if (c == '\n') {
+      break;
+    }
+    line.push_back(c);
+  }
+  return line;
+}
+
+char Terminal::read_char() {
+  if (in_ == INVALID_NATIVE_HANDLE_VALUE) {
+    return '\0';
+  }
+  termios oldt{};
+  tcgetattr(in_, &oldt);
+
+  termios raw = oldt;
+  raw.c_lflag &= ~(ICANON | ECHO);
+
+  tcsetattr(in_, TCSANOW, &raw);
+
+  char c = '\0';
+
+  ::read(in_, &c, 1);
+
+  tcsetattr(in_, TCSANOW, &oldt);
+
+  return c;
+}
+
+#endif
+
+bool Terminal::confirm(std::string_view message, bool default_yes) {
+  for (;;) {
+    std::string msg;
+    msg.reserve(message.size() + 16);
+    msg.append("⚠️ ");
+
+    for (auto c : message) {
+      if (c == '\n') {
+        msg.append("\n   ");
+      } else {
+        msg.push_back(c);
+      }
+    }
+
+    write(msg);
+
+    write(default_yes ? " [Y/n] " : " [y/N] ");
+
+    auto line = read_line();
+
+    std::ranges::transform(line, line.begin(),
+                           [](unsigned char c) { return std::tolower(c); });
+
+    if (line.empty()) {
+      return default_yes;
+    }
+
+    if (line == "y" || line == "yes") {
+      return true;
+    }
+
+    if (line == "n" || line == "no") {
+      return false;
+    }
+
+    write("Please answer yes or no. :");
+  }
+}
+
+std::size_t Terminal::menu(std::string_view title,
+                           std::vector<std::string> const& items) {
+  if (items.empty()) {
+    return 0;
+  }
+  if (!available()) {
+    return 0;
+  }
+  write(std::string(title));
+  write("\n\n");
+
+  for (std::size_t i = 0; i < items.size(); ++i) {
+    write(std::to_string(i + 1));
+    write(". ");
+    write(items[i]);
+    write("\n");
+  }
+
+  for (;;) {
+    write("\nSelection: ");
+
+    auto line = read_line();
+
+    try {
+      auto n = static_cast<std::size_t>(std::stoul(line));
+
+      if (n >= 1 && n <= items.size()) {
+        return n - 1;
+      }
+    } catch (...) {
+    }
+  }
+  return 0;
+}
+
+std::string Terminal::edit(std::string_view initial_content) {
+  // 1. Determine the editor to use
+  std::string editor;
+
+#ifdef _WIN32
+  if (auto env_editor = env::get("VISUAL"); env_editor.has_value()) {
+    editor = env_editor.value();
+  } else if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
+    editor = env_editor.value();
+  } else {
+    // Try some common Windows editors
+    editor = "notepad.exe";  // Default to Notepad
+  }
+#else
+  if (auto env_editor = env::get("VISUAL"); env_editor.has_value()) {
+    editor = env_editor.value();
+  } else if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
+    editor = env_editor.value();
+  }
+  if (editor.empty()) {
+    editor = "vi";
+  }
+#endif
+  // 2. Create a temporary file
+  TempFile tempfile("prompt.", ".md");
+  std::string temp_file_path = tempfile.path();
+  write_file(temp_file_path, std::string(initial_content));
+
+  // 3. Open the editor with the temporary file
+#if defined(_WIN32)
+  (void)subprocess::run("cmd", "/d", "/c", editor + " " + tempfile.path());
+#else
+  (void)subprocess::run("sh", "-c", editor + " " + tempfile.path());
+#endif
+
+  // 4. Read the content of the temporary file
+  auto user_input = tempfile.content();
+  if (user_input.has_value()) {
+    if (*user_input == initial_content) {
+      return "";
+    } else {
+      return *user_input;
+    }
+  }
+  return "";
+}
 
 std::string getTempDirPath(std::string const& prefix) {
   std::string temp_dir_path;
@@ -232,82 +501,6 @@ std::string getTempDirPath(std::string const& prefix) {
   temp_dir_path = template_str;
 #endif
   return temp_dir_path;
-}
-
-std::string getUserInputFromTerminal(std::string const& prompt) {
-  if (!prompt.empty()) {
-    std::cerr << prompt;
-  }
-#ifdef _WIN32
-  FILE* tty = fopen("CONIN$", "r");
-#else
-  FILE* tty = fopen("/dev/tty", "r");
-#endif
-  if (!tty) {
-    // Last-resort fallback: read from stdin (may be a pipe)
-    std::string line;
-    std::getline(std::cin, line);
-    return line;
-  }
-
-  char buffer[4096]{};
-  std::string line;
-  if (fgets(buffer, sizeof(buffer), tty)) {
-    line = buffer;
-    // Strip trailing newline(s)
-    while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
-      line.pop_back();
-    }
-  }
-  fclose(tty);
-  return line;
-}
-
-std::string getUserInputViaEditor() {
-  // 1. Determine the editor to use
-  std::string editor;
-
-#ifdef _WIN32
-  if (auto env_editor = env::get("VISUAL"); env_editor.has_value()) {
-    editor = env_editor.value();
-  } else if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
-    editor = env_editor.value();
-  } else {
-    // Try some common Windows editors
-    editor = "notepad.exe";  // Default to Notepad
-  }
-#else
-  if (auto env_editor = env::get("VISUAL"); env_editor.has_value()) {
-    editor = env_editor.value();
-  } else if (auto env_editor = env::get("EDITOR"); env_editor.has_value()) {
-    editor = env_editor.value();
-  }
-  if (editor.empty()) {
-    editor = "vi";
-  }
-#endif
-  // 2. Create a temporary file
-  TempFile tempfile("prompt.", ".md");
-  std::string temp_file_path = tempfile.path();
-
-  // 3. Open the editor with the temporary file
-#if defined(_WIN32)
-  int result =
-      subprocess::run("cmd", "/d", "/c", editor + " " + tempfile.path());
-#else
-  int result = subprocess::run("sh", "-c", editor + " " + tempfile.path());
-#endif
-
-  // Handle errors from system call (editor not found, etc.)
-  if (result != 0) {
-    throw std::runtime_error("Failed to open editor: " + editor +
-                             ", system return code: " + std::to_string(result));
-  }
-
-  // 4. Read the content of the temporary file
-  auto user_input = tempfile.content();
-
-  return user_input.value_or("");
 }
 
 // libcurl write callback: receives data and writes it to an open file stream.
@@ -604,14 +797,14 @@ std::string app_data_dir(const std::string& app,
     return home_dir.value() + "/.local/share/" + app;
   }
 #endif
-  return std::filesystem::current_path().string();
+  return fs::current_path().string();
 }
 
 std::optional<std::string> read_file(std::string const& path) {
   // On some platforms (e.g. Linux/GCC) std::ifstream::open() can succeed on a
   // directory, but reading from it later throws an exception.  Check early.
   std::error_code ec;
-  if (std::filesystem::is_directory(path, ec)) {
+  if (fs::is_directory(path, ec)) {
     return std::nullopt;
   }
   std::ifstream file(path);
@@ -632,11 +825,6 @@ bool write_file(std::string const& path, std::string const& content) {
   return file.good();
 }
 
-#if defined(_WIN32)
-using NativeHandle = HANDLE;
-#else   // _WIN32
-using NativeHandle = int;
-#endif  // !_WIN32
 static bool is_atty(NativeHandle f) {
 #if defined(_WIN32)
   return GetFileType(f) == FILE_TYPE_CHAR;

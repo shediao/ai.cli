@@ -45,10 +45,10 @@ std::string cmd(nlohmann::json const& args) {
 
   // Check if user confirmation is required
   if (requires_confirmation) {
-    std::string answer = ai::utils::getUserInputFromTerminal(
-        "\n⚠️  CMD command requires confirmation:\n   " + command +
-        "\n   Execute? (y/n): ");
-    if (answer != "y" && answer != "Y" && answer != "yes" && answer != "Yes") {
+    ai::utils::Terminal tty;
+    auto confirmed = tty.confirm("CMD command requires confirmation\n" +
+                                 command + "\nExecute?");
+    if (!confirmed) {
       return "Command cancelled by user: " + command;
     }
   }
