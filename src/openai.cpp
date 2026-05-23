@@ -304,6 +304,8 @@ class OpenAIClient::Impl {
     }
     curl_easy_setopt(curl_, CURLOPT_FOLLOWLOCATION, 1L);
 
+    char error_buffer[CURL_ERROR_SIZE]{0};
+    curl_easy_setopt(curl_, CURLOPT_ERRORBUFFER, error_buffer);
     CURLcode res = curl_easy_perform(curl_);
     curl_slist_free_all(headers);
     if (args_.chat_args.stream) {
@@ -311,8 +313,14 @@ class OpenAIClient::Impl {
     }
 
     if (res != CURLE_OK) {
-      LOG(ERROR) << curl_easy_strerror(res);
-      throw std::runtime_error(curl_easy_strerror(res));
+      LOG(ERROR) << "curl error code: " << res << " ("
+                 << curl_easy_strerror(res) << ")";
+      if (error_buffer[0] != '\0') {
+        LOG(ERROR) << "curl error: " << error_buffer;
+        throw std::runtime_error(error_buffer);
+      } else {
+        throw std::runtime_error(curl_easy_strerror(res));
+      }
     }
 
     long http_code = 0;
@@ -376,13 +384,22 @@ class OpenAIClient::Impl {
     curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &response_string);
 
+    char error_buffer[CURL_ERROR_SIZE]{0};
+    curl_easy_setopt(curl_, CURLOPT_ERRORBUFFER, error_buffer);
     CURLcode res = curl_easy_perform(curl_);
     curl_slist_free_all(headers);
 
     if (res != CURLE_OK) {
-      throw std::runtime_error(std::string("CURL error: ") +
-                               curl_easy_strerror(res));
+      LOG(ERROR) << "curl error code: " << res << " ("
+                 << curl_easy_strerror(res) << ")";
+      if (error_buffer[0] != '\0') {
+        LOG(ERROR) << "curl error: " << error_buffer;
+        throw std::runtime_error(error_buffer);
+      } else {
+        throw std::runtime_error(curl_easy_strerror(res));
+      }
     }
+
     LOG(INFO) << response_string;
 
     try {
