@@ -62,6 +62,21 @@ static std::string get_image_mime(std::string const& f) {
   return "";
 }
 
+int curl_debug_callback(CURL*, curl_infotype type, char* data, size_t size,
+                        void*) {
+  std::string_view msg(data, size);
+
+  switch (type) {
+    case CURLINFO_TEXT:
+      LOG(INFO) << "[CURL] " << msg;
+      break;
+    default:
+      break;
+  }
+
+  return 0;
+}
+
 }  // namespace
 
 class OpenAIClient::Impl {
@@ -267,6 +282,8 @@ class OpenAIClient::Impl {
     LOG(INFO) << "URL: " << url;
     LOG(INFO) << "Request: " << request.dump();
 
+    curl_easy_setopt(curl_, CURLOPT_VERBOSE, 1L);
+    curl_easy_setopt(curl_, CURLOPT_DEBUGFUNCTION, curl_debug_callback);
     curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl_, CURLOPT_POST, 1L);
 
@@ -365,6 +382,8 @@ class OpenAIClient::Impl {
   std::vector<std::string> models() {
     std::string url = args_.models_args.api_url;
     std::string response_string;
+    curl_easy_setopt(curl_, CURLOPT_VERBOSE, 1L);
+    curl_easy_setopt(curl_, CURLOPT_DEBUGFUNCTION, curl_debug_callback);
     curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
 
     struct curl_slist* headers = nullptr;
