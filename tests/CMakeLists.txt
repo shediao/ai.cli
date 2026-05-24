@@ -56,7 +56,7 @@ function(add_ai_cli_test test_name test_files)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 
-file(GLOB test_files "*.cc")
+file(GLOB_RECURSE test_files "*.cc")
 
 # Exclude test_stream_response.cc on Windows MSVC (non-clang) builds:
 # tests/stream_response_data.h defines a very long string literal that causes

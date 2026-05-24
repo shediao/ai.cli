@@ -15,6 +15,7 @@
 #include "ai/system_prompt.h"
 #include "ai/terminal.h"
 #include "ai/utils.h"
+#include "base/scope_exit.h"
 
 using json = nlohmann::json;
 
@@ -72,9 +73,9 @@ int chat(AiArgs const& args) {
 
     std::string work_dir = std::filesystem::current_path().string();
 
-    ai::utils::AutoRun scope_exit_runner([&chat_history, &history_db,
-                                          &continued_session, &args, &work_dir,
-                                          &tokens, start_ts]() {
+    ai::base::scope_exit scope_exit_runner([&chat_history, &history_db,
+                                            &continued_session, &args,
+                                            &work_dir, &tokens, start_ts]() {
       auto& [total_tokens, prompt_tokens, completion_tokens,
              prompt_cache_hit_tokens, prompt_cache_miss_tokens] = tokens;
       auto end_ts = std::chrono::duration_cast<std::chrono::seconds>(

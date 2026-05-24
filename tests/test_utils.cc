@@ -11,6 +11,7 @@
 #include <type_traits>
 
 #include "ai/utils.h"
+#include "base/scope_exit.h"
 #include "environment/environment.hpp"
 
 namespace fs = std::filesystem;
@@ -97,59 +98,6 @@ TEST(IsCallableTest, IntIsNotCallable) {
 TEST(IsCallableTest, StringIsNotCallable) {
   static_assert(!utils::is_callable_v<std::string>);
   EXPECT_FALSE(utils::is_callable_v<std::string>);
-}
-
-// =============================================================================
-// AutoRun<T>
-// =============================================================================
-
-TEST(AutoRunTest, CallsFunctionOnDestruction) {
-  int call_count = 0;
-  {
-    auto cleanup = [&call_count]() { ++call_count; };
-    utils::AutoRun autorun(cleanup);
-    EXPECT_EQ(call_count, 0);
-  }
-  EXPECT_EQ(call_count, 1);
-}
-
-TEST(AutoRunTest, CallsFunctionOnce) {
-  int call_count = 0;
-  {
-    utils::AutoRun autorun([&call_count]() { ++call_count; });
-    EXPECT_EQ(call_count, 0);
-  }
-  EXPECT_EQ(call_count, 1);
-}
-
-TEST(AutoRunTest, MoveOfLambdaPreservesBehavior) {
-  int call_count = 0;
-  auto lambda = [&call_count]() { ++call_count; };
-  {
-    utils::AutoRun autorun(std::move(lambda));
-    EXPECT_EQ(call_count, 0);
-  }
-  EXPECT_EQ(call_count, 1);
-}
-
-TEST(AutoRunTest, NoArgCallableAcceptsNoCaptureLambda) {
-  bool called = false;
-  {
-    // No-capture lambda is convertible to function pointer
-    utils::AutoRun autorun([&called]() { called = true; });
-  }
-  EXPECT_TRUE(called);
-}
-
-TEST(AutoRunTest, MultipleAutoRunsCallInReverseOrder) {
-  std::string order;
-  {
-    utils::AutoRun a1([&order]() { order += "1"; });
-    utils::AutoRun a2([&order]() { order += "2"; });
-    utils::AutoRun a3([&order]() { order += "3"; });
-    // Destructors run in reverse order of construction
-  }
-  EXPECT_EQ(order, "321");
 }
 
 // =============================================================================

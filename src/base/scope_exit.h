@@ -2,6 +2,7 @@
 #include <type_traits>
 #include <utility>
 
+namespace ai::base {
 template <typename F>
 class scope_exit {
  public:
@@ -33,3 +34,4 @@ template <typename F>
 auto make_scope_exit(F&& f) {
   return scope_exit<std::decay_t<F>>{std::forward<F>(f)};
 }
+}  // namespace ai::base

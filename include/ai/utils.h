@@ -31,21 +31,6 @@ struct is_callable<F, decltype(std::declval<F>()())> : public std::true_type {};
 template <typename T>
 constexpr bool is_callable_v = is_callable<T>::value;
 
-template <typename T>
-  requires is_callable_v<T>
-class AutoRun {
- public:
-  AutoRun(T exit_func) : exit_(std::move(exit_func)) {}
-  ~AutoRun() { exit_(); }
-  AutoRun(AutoRun const&) = delete;
-  AutoRun(AutoRun&&) = delete;
-  AutoRun& operator=(AutoRun const&) = delete;
-  AutoRun& operator=(AutoRun&&) = delete;
-
- private:
-  T exit_{nullptr};
-};
-
 class TempFile {
  public:
   TempFile();
