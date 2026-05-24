@@ -1,5 +1,6 @@
 #include <chrono>
 #include <environment/environment.hpp>
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>

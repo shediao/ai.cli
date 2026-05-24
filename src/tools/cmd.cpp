@@ -1,4 +1,5 @@
 #include <chrono>
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>

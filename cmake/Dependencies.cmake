@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(base64)
 FetchContent_Declare(
   subprocess
   GIT_REPOSITORY https://github.com/shediao/subprocess.hpp
-  GIT_TAG v0.0.19)
+  GIT_TAG v0.0.21)
 FetchContent_MakeAvailable(subprocess)
 
 # ── environment (environment variable access) ──────────────────────────────
@@ -36,7 +36,7 @@ FetchContent_MakeAvailable(environment)
 FetchContent_Declare(
   utfx
   GIT_REPOSITORY https://github.com/shediao/utfx.hpp
-  GIT_TAG 1325b349d1d044a1b728daa56ecc45568234486d)
+  GIT_TAG v0.0.2)
 FetchContent_MakeAvailable(utfx)
 
 # ── libcurl (HTTP client) ──────────────────────────────────────────────────
