@@ -1,104 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
-#include <cstdio>
 #include <cstdlib>
-#include <filesystem>
-#include <fstream>
-#include <map>
 #include <string>
 #include <thread>
-#include <type_traits>
 
 #include "ai/utils.h"
-#include "base/scope_exit.h"
-#include "environment/environment.hpp"
 
-namespace fs = std::filesystem;
 namespace utils = ai::utils;
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-/// RAII temporary file that cleans up on destruction.
-class UtilsTempTestFile {
- public:
-  explicit UtilsTempTestFile(std::string const& content = "",
-                             std::string const& suffix = ".txt")
-      : path_(fs::temp_directory_path() /
-              ("ai_cli_utils_test_" + std::to_string(counter_++) + suffix)) {
-    std::ofstream out(path_);
-    out.write(content.data(), static_cast<std::streamsize>(content.size()));
-    out.close();
-  }
-
-  ~UtilsTempTestFile() {
-    std::error_code ec;
-    fs::remove(path_, ec);
-  }
-
-  std::string path() const { return path_.string(); }
-
- private:
-  fs::path path_;
-  static inline int counter_ = 0;
-};
-
-/// RAII temporary directory that cleans up on destruction.
-class UtilsTempTestDir {
- public:
-  UtilsTempTestDir()
-      : path_(fs::temp_directory_path() /
-              ("ai_cli_utils_test_dir_" + std::to_string(counter_++))) {
-    fs::create_directories(path_);
-  }
-
-  ~UtilsTempTestDir() {
-    std::error_code ec;
-    fs::remove_all(path_, ec);
-  }
-
-  std::string path() const { return path_.string(); }
-
- private:
-  fs::path path_;
-  static inline int counter_ = 0;
-};
-
-// =============================================================================
-// is_callable / is_callable_v  (compile-time traits)
-// =============================================================================
-
-TEST(IsCallableTest, LambdaIsCallable) {
-  auto lambda = []() {};
-  static_assert(utils::is_callable_v<decltype(lambda)>);
-  EXPECT_TRUE(utils::is_callable_v<decltype(lambda)>);
-}
-
-TEST(IsCallableTest, FunctionPointerIsCallable) {
-  using FnPtr = void (*)();
-  static_assert(utils::is_callable_v<FnPtr>);
-  EXPECT_TRUE(utils::is_callable_v<FnPtr>);
-}
-
-TEST(IsCallableTest, FunctorIsCallable) {
-  struct Functor {
-    void operator()() const {}
-  };
-  static_assert(utils::is_callable_v<Functor>);
-  EXPECT_TRUE(utils::is_callable_v<Functor>);
-}
-
-TEST(IsCallableTest, IntIsNotCallable) {
-  static_assert(!utils::is_callable_v<int>);
-  EXPECT_FALSE(utils::is_callable_v<int>);
-}
-
-TEST(IsCallableTest, StringIsNotCallable) {
-  static_assert(!utils::is_callable_v<std::string>);
-  EXPECT_FALSE(utils::is_callable_v<std::string>);
-}
 
 // =============================================================================
 // format_timestamp

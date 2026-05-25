@@ -11,18 +11,6 @@
 
 namespace ai::utils {
 
-template <typename...>
-using void_t = void;
-
-template <typename T, typename = void_t<>>
-struct is_callable : public std::false_type {};
-
-template <typename F>
-struct is_callable<F, decltype(std::declval<F>()())> : public std::true_type {};
-
-template <typename T>
-constexpr bool is_callable_v = is_callable<T>::value;
-
 std::string app_data_dir(const std::string& app,
                          const std::string& author = "");
 
