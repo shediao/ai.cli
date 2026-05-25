@@ -4,7 +4,7 @@
 #include <string>
 
 #include "ai/function.h"
-#include "ai/glob.h"
+#include "base/glob.h"
 
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
@@ -45,10 +45,10 @@ std::string find_files(nlohmann::json const& args) {
                       {"recursive", recursive ? "true" : "false"}});
 
   bool ignore_case = true;
-  auto matches = ai::glob(pattern, path, recursive, ignore_case);
+  auto matches = ai::base::glob(pattern, path, recursive, ignore_case);
   if (matches.empty() && pattern.find("*") == std::string::npos) {
     pattern = "*" + pattern + "*";
-    matches = ai::glob(pattern, path, recursive, ignore_case);
+    matches = ai::base::glob(pattern, path, recursive, ignore_case);
   }
 
   std::string ret;

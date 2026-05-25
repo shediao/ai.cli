@@ -1,3 +1,5 @@
+#include "base/glob.h"
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -5,8 +7,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-
-#include "ai/glob.h"
 
 namespace fs = std::filesystem;
 
@@ -80,7 +80,7 @@ TEST(GlobTest, ExactFilename) {
   tmp.create_file("world.txt");
   tmp.create_file("other.log");
 
-  auto result = ai::glob("hello.txt", tmp.path());
+  auto result = ai::base::glob("hello.txt", tmp.path());
   ASSERT_EQ(result.size(), 1u);
   EXPECT_EQ(result[0].filename(), "hello.txt");
 }
@@ -91,7 +91,7 @@ TEST(GlobTest, StarWildcard) {
   tmp.create_file("b.txt");
   tmp.create_file("c.log");
 
-  auto result = ai::glob("*.txt", tmp.path());
+  auto result = ai::base::glob("*.txt", tmp.path());
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 2u);
   EXPECT_EQ(names[0], "a.txt");
@@ -104,7 +104,7 @@ TEST(GlobTest, QuestionMarkWildcard) {
   tmp.create_file("b.txt");
   tmp.create_file("ab.txt");
 
-  auto result = ai::glob("?.txt", tmp.path());
+  auto result = ai::base::glob("?.txt", tmp.path());
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 2u);
   EXPECT_EQ(names[0], "a.txt");
@@ -118,7 +118,7 @@ TEST(GlobTest, MixedWildcards) {
   tmp.create_file("test_abc.txt");
   tmp.create_file("prod_001.txt");
 
-  auto result = ai::glob("test_???.txt", tmp.path());
+  auto result = ai::base::glob("test_???.txt", tmp.path());
   auto names = sorted_filenames(result);
   // test_001.txt, test_002.txt, test_abc.txt all have 3 chars between _ and .
   ASSERT_EQ(names.size(), 3u);
@@ -131,14 +131,14 @@ TEST(GlobTest, NoMatch) {
   GlobTempDir tmp;
   tmp.create_file("hello.txt");
 
-  auto result = ai::glob("*.log", tmp.path());
+  auto result = ai::base::glob("*.log", tmp.path());
   EXPECT_TRUE(result.empty());
 }
 
 TEST(GlobTest, EmptyDirectory) {
   GlobTempDir tmp;
 
-  auto result = ai::glob("*", tmp.path());
+  auto result = ai::base::glob("*", tmp.path());
   EXPECT_TRUE(result.empty());
 }
 
@@ -146,7 +146,7 @@ TEST(GlobTest, NonExistentDirectory) {
   fs::path nonexistent =
       fs::temp_directory_path() / "ai_cli_glob_nonexistent_dir_12345";
 
-  auto result = ai::glob("*", nonexistent);
+  auto result = ai::base::glob("*", nonexistent);
   EXPECT_TRUE(result.empty());
 }
 
@@ -157,7 +157,7 @@ TEST(GlobTest, StarMatchesEverything) {
   tmp.create_file("c");
   tmp.create_dir("subdir");
 
-  auto result = ai::glob("*", tmp.path());
+  auto result = ai::base::glob("*", tmp.path());
   ASSERT_EQ(result.size(), 4u);
   auto names = sorted_filenames(result);
   EXPECT_EQ(names[0], "a.txt");
@@ -172,7 +172,7 @@ TEST(GlobTest, PrefixStarPattern) {
   tmp.create_file("my_file.log");
   tmp.create_file("other_file.txt");
 
-  auto result = ai::glob("my_file.*", tmp.path());
+  auto result = ai::base::glob("my_file.*", tmp.path());
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 2u);
   EXPECT_EQ(names[0], "my_file.log");
@@ -192,13 +192,13 @@ TEST(GlobTest, CaseInsensitiveExact) {
   tmp.create_file("Charlie.txt");
 
   // Case-insensitive: "alpha.txt" should match "Alpha.txt"
-  auto result = ai::glob("alpha.txt", tmp.path(), false, true);
+  auto result = ai::base::glob("alpha.txt", tmp.path(), false, true);
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 1u);
   EXPECT_EQ(names[0], "Alpha.txt");
 
   // "ALPHA.TXT" should also match "Alpha.txt" (case-insensitive)
-  result = ai::glob("ALPHA.TXT", tmp.path(), false, true);
+  result = ai::base::glob("ALPHA.TXT", tmp.path(), false, true);
   names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 1u);
   EXPECT_EQ(names[0], "Alpha.txt");
@@ -211,13 +211,13 @@ TEST(GlobTest, CaseSensitiveExact) {
   tmp.create_file("CHARLIE.TXT");
 
   // Case-sensitive: "Alpha.txt" matches only "Alpha.txt"
-  auto result = ai::glob("Alpha.txt", tmp.path(), false, false);
+  auto result = ai::base::glob("Alpha.txt", tmp.path(), false, false);
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 1u);
   EXPECT_EQ(names[0], "Alpha.txt");
 
   // "alpha.txt" does not match "Alpha.txt" (case-sensitive)
-  result = ai::glob("alpha.txt", tmp.path(), false, false);
+  result = ai::base::glob("alpha.txt", tmp.path(), false, false);
   EXPECT_TRUE(result.empty());
 }
 
@@ -227,7 +227,7 @@ TEST(GlobTest, CaseInsensitiveWithWildcard) {
   tmp.create_file("Report.csv");
   tmp.create_file("Notes.log");
 
-  auto result = ai::glob("report.*", tmp.path(), false, true);
+  auto result = ai::base::glob("report.*", tmp.path(), false, true);
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 2u);
   EXPECT_EQ(names[0], "Report.TXT");
@@ -246,7 +246,7 @@ TEST(GlobTest, RecursiveStarTxt) {
   tmp.create_file("sub/d.log");
   tmp.create_file("other/e.txt");
 
-  auto result = ai::glob("*.txt", tmp.path(), true);
+  auto result = ai::base::glob("*.txt", tmp.path(), true);
   auto names = sorted_filenames(result);
   // a.txt, b.txt, c.txt, e.txt
   ASSERT_EQ(names.size(), 4u);
@@ -263,7 +263,7 @@ TEST(GlobTest, RecursiveExactName) {
   tmp.create_file("sub/deep/readme.md");
   tmp.create_file("other/notes.md");
 
-  auto result = ai::glob("readme.md", tmp.path(), true);
+  auto result = ai::base::glob("readme.md", tmp.path(), true);
   ASSERT_EQ(result.size(), 3u);
 }
 
@@ -272,14 +272,14 @@ TEST(GlobTest, RecursiveNoMatch) {
   tmp.create_file("a.txt");
   tmp.create_file("sub/b.txt");
 
-  auto result = ai::glob("*.log", tmp.path(), true);
+  auto result = ai::base::glob("*.log", tmp.path(), true);
   EXPECT_TRUE(result.empty());
 }
 
 TEST(GlobTest, RecursiveEmptyDir) {
   GlobTempDir tmp;
 
-  auto result = ai::glob("*", tmp.path(), true);
+  auto result = ai::base::glob("*", tmp.path(), true);
   EXPECT_TRUE(result.empty());
 }
 
@@ -288,7 +288,7 @@ TEST(GlobTest, NonRecursiveDoesNotEnterSubdirs) {
   tmp.create_file("top.txt");
   tmp.create_file("sub/nested.txt");
 
-  auto result = ai::glob("*.txt", tmp.path(), false);
+  auto result = ai::base::glob("*.txt", tmp.path(), false);
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 1u);
   EXPECT_EQ(names[0], "top.txt");
@@ -304,7 +304,7 @@ TEST(GlobTest, DotFiles) {
   tmp.create_file(".env");
   tmp.create_file("normal.txt");
 
-  auto result = ai::glob(".*", tmp.path());
+  auto result = ai::base::glob(".*", tmp.path());
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 2u);
   EXPECT_EQ(names[0], ".env");
@@ -316,7 +316,7 @@ TEST(GlobTest, DotFilesRecursive) {
   tmp.create_file(".hidden");
   tmp.create_file("sub/.hidden");
 
-  auto result = ai::glob(".*", tmp.path(), true);
+  auto result = ai::base::glob(".*", tmp.path(), true);
   ASSERT_EQ(result.size(), 2u);
 }
 
@@ -328,7 +328,7 @@ TEST(GlobTest, ComplexPattern) {
   tmp.create_file("img_001.png");
   tmp.create_file("vid_001.jpg");
 
-  auto result = ai::glob("img_???.jpg", tmp.path());
+  auto result = ai::base::glob("img_???.jpg", tmp.path());
   auto names = sorted_filenames(result);
   // img_001.jpg, img_002.jpg, img_abc.jpg all have exactly 3 chars
   ASSERT_EQ(names.size(), 3u);
@@ -344,7 +344,7 @@ TEST(GlobTest, PatternMatchingDirectories) {
   tmp.create_dir("bdir");
   tmp.create_dir("cdir_extra");
 
-  auto result = ai::glob("?dir", tmp.path());
+  auto result = ai::base::glob("?dir", tmp.path());
   auto names = sorted_filenames(result);
   ASSERT_EQ(names.size(), 2u);
   EXPECT_EQ(names[0], "adir");
@@ -362,7 +362,7 @@ TEST(GlobTest, PermissionErrorGraceful) {
   tmp.create_file("exists.txt");
 
   // Using a path that definitely doesn't exist should return empty
-  auto result = ai::glob("*", tmp.path() / "nonexistent_subdir");
+  auto result = ai::base::glob("*", tmp.path() / "nonexistent_subdir");
   EXPECT_TRUE(result.empty());
 }
 
@@ -372,7 +372,7 @@ TEST(GlobTest, GlobWithRelativeDir) {
 
   auto original_cwd = fs::current_path();
   fs::current_path(tmp.path().parent_path());
-  auto result = ai::glob("*.txt", tmp.path().filename());
+  auto result = ai::base::glob("*.txt", tmp.path().filename());
   fs::current_path(original_cwd);
 
   auto names = sorted_filenames(result);

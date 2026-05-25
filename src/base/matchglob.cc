@@ -1,10 +1,10 @@
-#include "ai/matchglob.h"
+#include "matchglob.h"
 
 #include <algorithm>
 #include <stack>
 #include <vector>
 
-namespace ai {
+namespace ai::base {
 namespace {
 enum class PatternType { CHAR, ANY /*?*/, ZERO_OR_MORE /***/ };
 
@@ -131,4 +131,4 @@ bool matchglob(std::wstring_view pattern, std::wstring_view string,
                bool ignore_case) {
   return matchglob_impl(pattern, string, ignore_case);
 }
-}  // namespace ai
+}  // namespace ai::base

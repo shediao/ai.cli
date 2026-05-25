@@ -131,11 +131,11 @@ add_library(
   src/models.cpp
   src/openai.cpp
   src/response.cpp
-  src/matchglob.cpp
-  src/glob.cpp
-  src/base/base64.cpp
+  src/base/base64.cc
   src/base/download.cc
   src/base/file.cc
+  src/base/glob.cc
+  src/base/matchglob.cc
   src/base/string.cc
   src/base/temp_dir.cc
   src/base/temp_file.cc

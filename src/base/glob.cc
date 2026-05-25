@@ -1,9 +1,9 @@
-#include "ai/glob.h"
+#include "glob.h"
 
-#include "ai/matchglob.h"
+#include "matchglob.h"
 
 namespace fs = std::filesystem;
-namespace ai {
+namespace ai::base {
 std::vector<std::filesystem::path> glob(std::string_view pattern, fs::path dir,
                                         bool recursive, bool ignore_case) {
   std::vector<fs::path> result;
@@ -11,7 +11,8 @@ std::vector<std::filesystem::path> glob(std::string_view pattern, fs::path dir,
   std::error_code ec;
 
   auto match_entry = [&](const fs::directory_entry& entry) {
-    if (ai::matchglob(pattern, entry.path().filename().string(), ignore_case)) {
+    if (ai::base::matchglob(pattern, entry.path().filename().string(),
+                            ignore_case)) {
       result.push_back(entry.path());
     }
   };
@@ -44,4 +45,4 @@ std::vector<std::filesystem::path> glob(std::string_view pattern, fs::path dir,
   return result;
 }
 
-}  // namespace ai
+}  // namespace ai::base
