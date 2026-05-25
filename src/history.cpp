@@ -17,6 +17,7 @@
 #include "ai/logging.h"
 #include "ai/openai.h"
 #include "ai/utils.h"
+#include "base/string.h"
 #include "nlohmann/json_fwd.hpp"
 
 namespace ai {
@@ -569,7 +570,7 @@ std::string HistoryDB::generate_topic(nlohmann::json const& messages,
     }
     // Truncate each message to keep total reasonable
     if (content.size() > 1024) {
-      content = ai::utils::utf8_truncate(content, 1021) + "...";
+      content = ai::base::utf8_truncate(content, 1021) + "...";
     }
     conversation_text += role + ": " + content + "\n";
     ++message_count;
@@ -586,7 +587,7 @@ std::string HistoryDB::generate_topic(nlohmann::json const& messages,
   // Truncate total text to avoid overly long prompts
   if (conversation_text.size() > 8192) {
     conversation_text =
-        ai::utils::utf8_truncate(conversation_text, 8189) + "...";
+        ai::base::utf8_truncate(conversation_text, 8189) + "...";
   }
 
   try {
@@ -823,15 +824,13 @@ int history(AiArgs const& args) {
     // Parse JSON fields if --json was specified
     std::vector<std::string> json_fields;
     if (use_json) {
-      json_fields =
-          ai::utils::split(args.history_args.json_fields.value(), ',');
+      json_fields = ai::base::split(args.history_args.json_fields.value(), ',');
     }
 
     // Parse line fields if --line was specified, otherwise use defaults
     std::vector<std::string> line_fields;
     if (use_line) {
-      line_fields =
-          ai::utils::split(args.history_args.line_fields.value(), ',');
+      line_fields = ai::base::split(args.history_args.line_fields.value(), ',');
     } else if (!use_json && !use_text) {
       // Default line fields matching current print_session_line behavior
       // plus messages as a single-line JSON dump

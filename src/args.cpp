@@ -18,8 +18,8 @@
 
 #include "ai/config.h"
 #include "ai/function.h"
-#include "ai/utils.h"
 #include "base/file.h"
+#include "base/string.h"
 
 namespace ai {
 
@@ -529,7 +529,7 @@ static void bind_history_args(argparse::ArgParser& parser, AiArgs& args) {
                   history_args.line_fields)
       .value_placeholder("FIELDS")
       .validator([](const std::string& fields_str) {
-        auto fields = ai::utils::split(fields_str, ',');
+        auto fields = ai::base::split(fields_str, ',');
         std::initializer_list<std::string> expected_fields{
             "session_id", "start", "work_dir", "messages", "topic"};
         auto it = std::find_if(

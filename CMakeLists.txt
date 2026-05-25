@@ -137,6 +137,7 @@ add_library(
   src/glob.cpp
   src/base/download.cc
   src/base/file.cc
+  src/base/string.cc
   src/base/temp_dir.cc
   src/base/temp_file.cc
   src/base/terminal.cc

@@ -14,8 +14,8 @@
 #include "ai/openai.h"
 #include "ai/system_prompt.h"
 #include "ai/terminal.h"
-#include "ai/utils.h"
 #include "base/scope_exit.h"
+#include "base/string.h"
 
 using json = nlohmann::json;
 
@@ -116,7 +116,7 @@ int chat(AiArgs const& args) {
 #if defined(_WIN32)
       for (auto& s : user_prompt) {
         if (!utfx::is_utf8(s.data(), s.size())) {
-          auto u8 = ai::utils::toUtf8(s);
+          auto u8 = ai::base::toUtf8(s);
           if (!u8) {
             LOG(ERROR) << "user prompt is not a valid UTF-8 string";
             return 1;
@@ -221,7 +221,7 @@ int chat(AiArgs const& args) {
                       .count();
               if (ret.size() > 160) {
                 std::cout << term::bold_color::yellow
-                          << ai::utils::utf8_truncate(ret, 128) << "......"
+                          << ai::base::utf8_truncate(ret, 128) << "......"
                           << term::reset << "\n";
               } else {
                 std::cout << term::bold_color::yellow << ret << term::reset
