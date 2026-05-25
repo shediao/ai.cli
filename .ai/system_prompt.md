@@ -227,6 +227,7 @@ All custom forks are under `github.com/shediao/*`.
 - Use `ai::base::scope_exit` for scope-guard cleanup instead of manual try/finally patterns.
 - Use the `LOG(LEVEL)` macro from `ai/logging.h` (levels: DEBUG, INFO, WARNING, ERROR, FATAL).
 - Include order: standard library → third-party → project headers.
+- All source code files must use LF (`\n`) line endings. Do not introduce CRLF (`\r\n`) when editing files.
 
 # Ai Coding Guidelines
 
