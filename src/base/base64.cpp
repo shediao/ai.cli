@@ -1,11 +1,11 @@
 
-#include "ai/base64.h"
+#include "base64.h"
 
 #include <base64/base64.hpp>
 
-#include "ai/utils.h"
 #include "base/file.h"
 
+namespace ai::base {
 std::string base64_encode(std::string const& input_file) {
   auto content_opt = ai::base::read_file(input_file);
   if (content_opt.has_value()) {
@@ -14,3 +14,4 @@ std::string base64_encode(std::string const& input_file) {
   }
   return "";
 }
+}  // namespace ai::base

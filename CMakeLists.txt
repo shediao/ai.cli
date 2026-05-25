@@ -135,6 +135,7 @@ add_library(
   src/response.cpp
   src/matchglob.cpp
   src/glob.cpp
+  src/base/base64.cpp
   src/base/download.cc
   src/base/file.cc
   src/base/string.cc
@@ -161,7 +162,6 @@ add_library(
   src/tools/default.cpp
   src/function.cpp
   src/utils.cpp
-  src/base64.cpp
   src/history.cpp
   src/update.cpp)
 

@@ -12,11 +12,11 @@
 #include <stdexcept>
 
 #include "ai/args.h"
-#include "ai/base64.h"
 #include "ai/function.h"
 #include "ai/logging.h"
 #include "ai/response.h"
 #include "ai/utils.h"
+#include "base/base64.h"
 #include "base/download.h"
 #include "base/temp_file.h"
 
@@ -149,7 +149,7 @@ class OpenAIClient::Impl {
         auto download_successful =
             ai::base::download(f, img.path(), mime, args_.proxy.value_or(""));
         if (download_successful && !mime.empty()) {
-          auto base64 = base64_encode(img.path());
+          auto base64 = ai::base::base64_encode(img.path());
           image_urls.push_back("data:" + mime + ";base64," + base64);
         } else {
           std::cerr << "download failed: " << f << '\n';
@@ -157,7 +157,7 @@ class OpenAIClient::Impl {
       } else if (is_image_file(f)) {
         auto mime = get_image_mime(f);
         if (!mime.empty()) {
-          auto base64 = base64_encode(f);
+          auto base64 = ai::base::base64_encode(f);
           image_urls.push_back("data:" + mime + ";base64," + base64);
         }
       }
