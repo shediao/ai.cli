@@ -7,6 +7,7 @@
 
 #include "ai/terminal.h"
 #include "ai/utils.h"
+#include "base/terminal.h"
 
 using json = nlohmann::json;
 
@@ -227,9 +228,9 @@ void Response::add_to_history(json& history) {
 
 StreamResponse::StreamResponse(std::ostream& out) : out_(out) {
   if (&out == &std::cout) {
-    is_terminal_ = utils::stdout_is_atty();
+    is_terminal_ = ai::base::stdout_is_atty();
   } else if (&out == &std::cerr) {
-    is_terminal_ = utils::stderr_is_atty();
+    is_terminal_ = ai::base::stderr_is_atty();
   } else {
     is_terminal_ = false;
   }

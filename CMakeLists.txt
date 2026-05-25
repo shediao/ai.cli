@@ -135,6 +135,10 @@ add_library(
   src/response.cpp
   src/matchglob.cpp
   src/glob.cpp
+  src/base/file.cc
+  src/base/temp_dir.cc
+  src/base/temp_file.cc
+  src/base/terminal.cc
   src/tools/filesystem.cpp
   src/tools/filesystem/read_file.cpp
   src/tools/filesystem/read_multiple_files.cpp

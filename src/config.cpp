@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "ai/utils.h"
+#include "base/file.h"
 #include "nlohmann/json.hpp"
 
 namespace ai {
@@ -64,7 +65,7 @@ void write_default_config_if_not_exists(const std::string& path) {
   j["providers"] = providers;
   j["version"] = default_config().version;
 
-  if (ai::utils::write_file(path, j.dump(2) + '\n')) {
+  if (ai::base::write_file(path, j.dump(2) + '\n')) {
     std::cerr << "Config file created at: " << path
               << "\nPlease edit it to set your API keys.\n";
   }
@@ -79,7 +80,7 @@ AppConfig load_config() {
   AppConfig config;
 
   try {
-    auto content_opt = ai::utils::read_file(path);
+    auto content_opt = ai::base::read_file(path);
     if (!content_opt.has_value()) {
       std::cerr << "Warning: Could not open config file: " << path << "\n";
       return default_config();

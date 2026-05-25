@@ -7,6 +7,7 @@
 
 #include "ai/logging.h"
 #include "ai/utils.h"
+#include "base/terminal.h"
 
 namespace ai {
 
@@ -22,7 +23,7 @@ struct AiArgs {
     std::optional<double> top_p;
     std::optional<bool> thinking{std::nullopt};
     std::optional<std::string> reasoning_effort;
-    bool stream{utils::stdout_is_atty()};
+    bool stream{ai::base::stdout_is_atty()};
     bool stream_include_usage{false};
     std::set<std::string> tools;
     std::optional<std::string> tool_choice;

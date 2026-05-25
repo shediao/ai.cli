@@ -7,6 +7,7 @@
 
 #include "ai/function.h"
 #include "ai/utils.h"
+#include "base/terminal.h"
 #include "cmd_tools_json.h"
 
 std::string cmd(nlohmann::json const& args) {
@@ -46,7 +47,7 @@ std::string cmd(nlohmann::json const& args) {
 
   // Check if user confirmation is required
   if (requires_confirmation) {
-    ai::utils::Terminal tty;
+    ai::base::Terminal tty;
     auto confirmed = tty.confirm("CMD command requires confirmation\n" +
                                  command + "\nExecute?");
     if (!confirmed) {

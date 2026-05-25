@@ -22,6 +22,7 @@
 
 #include "ai/args.h"
 #include "ai/utils.h"
+#include "base/temp_file.h"
 
 namespace ai {
 
@@ -436,9 +437,9 @@ int update(AiArgs const& args) {
 
   // 6. Download the archive to a temporary file
 #if defined(_WIN32) || defined(_WIN64)
-  ai::utils::TempFile tmp_archive("ai-update.", ".zip");
+  ai::base::TempFile tmp_archive("ai-update.", ".zip");
 #else
-  ai::utils::TempFile tmp_archive("ai-update.", ".tar.gz");
+  ai::base::TempFile tmp_archive("ai-update.", ".tar.gz");
 #endif
   std::string mime;
   if (!ai::utils::download_image(download_url, tmp_archive.path(), mime,
@@ -448,7 +449,7 @@ int update(AiArgs const& args) {
   }
 
   // 7. Extract the binary from the archive
-  ai::utils::TempFile tmp_dir("ai-update-dir.", ".d");
+  ai::base::TempFile tmp_dir("ai-update-dir.", ".d");
   // Remove the temp dir path so we can create it as a directory
   std::filesystem::remove(tmp_dir.path());
   std::filesystem::create_directories(tmp_dir.path());

@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "ai/terminal.h"
+#include "base/terminal.h"
 
 #ifndef _WIN32
 #include <sys/stat.h>
@@ -18,6 +19,7 @@
 #include "ai/config.h"
 #include "ai/function.h"
 #include "ai/utils.h"
+#include "base/file.h"
 
 namespace ai {
 
@@ -357,7 +359,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       if (!sp.empty() && sp[0] == '@') {
         auto file_path = std::filesystem::path(sp.substr(1));
         if (exists(file_path) && !is_directory(file_path)) {
-          auto content = ai::utils::read_file(file_path.string());
+          auto content = ai::base::read_file(file_path.string());
           if (content.has_value()) {
             sp = content.value();
           }
@@ -437,9 +439,9 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                         std::istreambuf_iterator<char>{});
     };
 
-    if (chat_args.prompts.empty() && utils::stdin_is_atty()) {
+    if (chat_args.prompts.empty() && ai::base::stdin_is_atty()) {
       try {
-        if (auto prompt = ai::utils::Terminal::edit(); !prompt.empty()) {
+        if (auto prompt = ai::base::Terminal::edit(); !prompt.empty()) {
           std::cout << prompt;
           chat_args.prompts.push_back(prompt);
         }

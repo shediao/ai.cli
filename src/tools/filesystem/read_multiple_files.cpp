@@ -5,6 +5,7 @@
 
 #include "ai/function.h"
 #include "ai/utils.h"
+#include "base/file.h"
 
 extern std::string expand_tilde(std::string const& path);
 
@@ -40,7 +41,7 @@ std::string read_multiple_files(nlohmann::json const& args) {
     if (!contents.empty()) {
       contents += "\n------\n";
     }
-    auto file_content_opt = ai::utils::read_file(expanded_path);
+    auto file_content_opt = ai::base::read_file(expanded_path);
     if (file_content_opt.has_value()) {
       std::string file_content = std::move(file_content_opt.value());
       contents += expanded_path;

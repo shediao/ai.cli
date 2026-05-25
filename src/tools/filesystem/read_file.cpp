@@ -7,6 +7,7 @@
 
 #include "ai/function.h"
 #include "ai/utils.h"
+#include "base/file.h"
 
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
@@ -39,7 +40,7 @@ std::string read_file(nlohmann::json const& args) {
   }
   print_toolcall_log("read_file", params);
 
-  auto content_opt = ai::utils::read_file(path);
+  auto content_opt = ai::base::read_file(path);
   if (!content_opt.has_value()) {
     return path + " is not exists.";
   }

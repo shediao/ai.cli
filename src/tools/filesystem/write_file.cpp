@@ -5,6 +5,7 @@
 
 #include "ai/function.h"
 #include "ai/utils.h"
+#include "base/file.h"
 
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
@@ -41,7 +42,7 @@ std::string write_file(nlohmann::json const& args) {
       "write_file",
       {{"path", path}, {"content", append_prefix_per_line(content, "> ")}});
 
-  if (!ai::utils::write_file(path, content)) {
+  if (!ai::base::write_file(path, content)) {
     return "Failed to write to " + path;
   }
   return "Successfully wrote to " + path;

@@ -9,6 +9,8 @@
 
 #include "ai/function.h"
 #include "ai/utils.h"
+#include "base/file.h"
+#include "base/temp_file.h"
 
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
@@ -43,7 +45,7 @@ std::string edit_file(nlohmann::json const& args) {
   print_toolcall_log("edit_file", {{"path", path}, {"diff", diff}});
 
   // --- read original file ---
-  auto file_content_opt = ai::utils::read_file(path);
+  auto file_content_opt = ai::base::read_file(path);
   if (!file_content_opt.has_value()) {
     return "Failed to open file: " + path;
   }
@@ -130,9 +132,9 @@ std::string edit_file(nlohmann::json const& args) {
 
   // --- show diff between original file and modified content ---
   {
-    ai::utils::TempFile temp("",
-                             std::filesystem::path(path).filename().string());
-    ai::utils::write_file(temp.path(), file_content);
+    ai::base::TempFile temp("",
+                            std::filesystem::path(path).filename().string());
+    ai::base::write_file(temp.path(), file_content);
     using namespace subprocess::named_arguments;
     using subprocess::run;
     if (0 == run(std::string("which"), "delta", std_out > devnull,
@@ -144,7 +146,7 @@ std::string edit_file(nlohmann::json const& args) {
   }
 
   // --- persist modified content back to the original file ---
-  if (!ai::utils::write_file(path, file_content)) {
+  if (!ai::base::write_file(path, file_content)) {
     return "Failed to write to file: " + path;
   }
 

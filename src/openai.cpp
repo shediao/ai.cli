@@ -17,6 +17,7 @@
 #include "ai/logging.h"
 #include "ai/response.h"
 #include "ai/utils.h"
+#include "base/temp_file.h"
 
 using json = nlohmann::json;
 
@@ -143,7 +144,7 @@ class OpenAIClient::Impl {
     for (auto const& f : files) {
       if (is_image_url(f)) {
         std::string mime;
-        ai::utils::TempFile img;
+        ai::base::TempFile img;
         auto download_successful = ai::utils::download_image(
             f, img.path(), mime, args_.proxy.value_or(""));
         if (download_successful && !mime.empty()) {
