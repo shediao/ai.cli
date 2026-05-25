@@ -127,7 +127,6 @@ add_library(
   src/system_prompt.cpp
   src/args.cpp
   src/config.cpp
-  src/logging.cpp
   src/models.cpp
   src/openai.cpp
   src/response.cpp
@@ -136,6 +135,7 @@ add_library(
   src/base/file.cc
   src/base/glob.cc
   src/base/matchglob.cc
+  src/base/logging.cc
   src/base/string.cc
   src/base/temp_dir.cc
   src/base/temp_file.cc

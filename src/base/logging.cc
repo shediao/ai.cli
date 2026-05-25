@@ -1,5 +1,5 @@
 
-#include "ai/logging.h"
+#include "logging.h"
 
 #if defined(_WIN32)
 #include <Windows.h>
@@ -10,8 +10,7 @@
 #endif
 #include <iomanip>
 
-namespace ai {
-namespace logging {
+namespace ai::base {
 const char* const log_severity_names[] = {"DEBUG", "INFO", "WARNING", "ERROR",
                                           "FATAL"};
 static_assert(LOGGING_NUM_SEVERITIES == std::size(log_severity_names),
@@ -211,5 +210,4 @@ void SetLogFilePath(const std::string& path) {
 }
 
 void SetLogLevel(LogSeverity severity) { g_logging_level = severity; }
-}  // namespace logging
-}  // namespace ai
+}  // namespace ai::base

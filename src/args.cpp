@@ -698,9 +698,9 @@ static void bind_ai_args(argparse::ArgParser& parser, AiArgs& args) {
 
   parser.usage_footer("\nConfig file:\n  " + config_file_path() + "\n");
   parser.callback([&args]() -> void {
-    ::ai::logging::SetLogLevel(args.log_level);
+    ::ai::base::SetLogLevel(args.log_level);
     if (args.log_file.has_value()) {
-      ::ai::logging::SetLogFilePath(args.log_file.value());
+      ::ai::base::SetLogFilePath(args.log_file.value());
     }
   });
 }

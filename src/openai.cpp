@@ -13,11 +13,11 @@
 
 #include "ai/args.h"
 #include "ai/function.h"
-#include "ai/logging.h"
 #include "ai/response.h"
 #include "ai/utils.h"
 #include "base/base64.h"
 #include "base/download.h"
+#include "base/logging.h"
 #include "base/temp_file.h"
 
 using json = nlohmann::json;

@@ -14,9 +14,9 @@
 #include <thread>
 
 #include "ai/args.h"
-#include "ai/logging.h"
 #include "ai/openai.h"
 #include "ai/utils.h"
+#include "base/logging.h"
 #include "base/string.h"
 #include "nlohmann/json_fwd.hpp"
 

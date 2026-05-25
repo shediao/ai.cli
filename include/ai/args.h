@@ -5,8 +5,7 @@
 #include <set>
 #include <string>
 
-#include "ai/logging.h"
-#include "ai/utils.h"
+#include "base/logging.h"
 #include "base/terminal.h"
 
 namespace ai {
@@ -68,9 +67,9 @@ struct AiArgs {
   bool help{false};
   bool version{false};
 #if defined(NDEBUG)
-  int log_level = ::ai::logging::LOGGING_FATAL;
+  int log_level = ::ai::base::LOGGING_FATAL;
 #else
-  int log_level = ::ai::logging::LOGGING_ERROR;
+  int log_level = ::ai::base::LOGGING_ERROR;
 #endif
   std::optional<std::string> log_file;
   std::optional<std::string> proxy;

@@ -21,8 +21,8 @@
 #include <subprocess/subprocess.hpp>
 
 #include "ai/args.h"
-#include "ai/logging.h"
 #include "base/download.h"
+#include "base/logging.h"
 #include "base/temp_file.h"
 
 namespace ai {

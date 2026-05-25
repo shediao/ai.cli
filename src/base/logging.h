@@ -8,8 +8,7 @@
 #include <sys/time.h>
 #endif
 
-namespace ai {
-namespace logging {
+namespace ai::base {
 
 using LogSeverity = int;
 
@@ -31,17 +30,17 @@ enum : unsigned int {
 };
 
 #define LOG_STREAM(severity) \
-  ::ai::logging::LogMessage(__FILE__, __LINE__, severity).stream()
+  ::ai::base::LogMessage(__FILE__, __LINE__, severity).stream()
 #define LAZY_STREAM(stream, condition) \
-  !(condition) ? (void)0 : ::ai::logging::LogMessageVoidify() & (stream)
-#define LOG_IS_ON(severity) (::ai::logging::ShouldCreateLogMessage(severity))
+  !(condition) ? (void)0 : ::ai::base::LogMessageVoidify() & (stream)
+#define LOG_IS_ON(severity) (::ai::base::ShouldCreateLogMessage(severity))
 
-#define LOG(severity)                                        \
-  LAZY_STREAM(LOG_STREAM(::ai::logging::LOGGING_##severity), \
-              LOG_IS_ON(::ai::logging::LOGGING_##severity))
-#define LOG_IF(severity, condition)                          \
-  LAZY_STREAM(LOG_STREAM(::ai::logging::LOGGING_##severity), \
-              LOG_IS_ON(::ai::logging::LOGGING_##severity) && (condition))
+#define LOG(severity)                                     \
+  LAZY_STREAM(LOG_STREAM(::ai::base::LOGGING_##severity), \
+              LOG_IS_ON(::ai::base::LOGGING_##severity))
+#define LOG_IF(severity, condition)                       \
+  LAZY_STREAM(LOG_STREAM(::ai::base::LOGGING_##severity), \
+              LOG_IS_ON(::ai::base::LOGGING_##severity) && (condition))
 
 class LogMessageVoidify {
  public:
@@ -79,5 +78,4 @@ const char* GetSeverityName(int severity);
 void SetLogFilePath(const std::string& path);
 void SetLogLevel(LogSeverity severity);
 
-}  // namespace logging
-}  // namespace ai
+}  // namespace ai::base
