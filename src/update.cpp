@@ -21,7 +21,8 @@
 #include <subprocess/subprocess.hpp>
 
 #include "ai/args.h"
-#include "ai/utils.h"
+#include "ai/logging.h"
+#include "base/download.h"
 #include "base/temp_file.h"
 
 namespace ai {
@@ -153,7 +154,7 @@ std::optional<std::string> https_get(const std::string& url,
                                      std::string const& proxy) {
   CURL* curl = curl_easy_init();
   if (!curl) {
-    std::cerr << "update: curl_easy_init() failed\n";
+    LOG(ERROR) << "update: curl_easy_init() failed\n";
     return std::nullopt;
   }
 
@@ -180,13 +181,13 @@ std::optional<std::string> https_get(const std::string& url,
   curl_easy_cleanup(curl);
 
   if (res != CURLE_OK) {
-    std::cerr << "update: request failed: " << curl_easy_strerror(res) << "\n";
+    LOG(ERROR) << "update: request failed: " << curl_easy_strerror(res) << "\n";
     return std::nullopt;
   }
   // Accept any 2xx response (redirects from GitHub API / CDN may produce
   // 200, 201, 204 etc. after following 301/302 redirects)
   if (http_code < 200 || http_code >= 300) {
-    std::cerr << "update: HTTP " << http_code << " from GitHub API\n";
+    LOG(ERROR) << "update: HTTP " << http_code << " from GitHub API\n";
     return std::nullopt;
   }
   return body;
@@ -211,7 +212,8 @@ void replace_and_restart(const std::filesystem::path& current_exe,
   std::filesystem::copy_file(
       new_exe, staged, std::filesystem::copy_options::overwrite_existing, ec);
   if (ec) {
-    std::cerr << "update: failed to stage new binary: " << ec.message() << "\n";
+    LOG(ERROR) << "update: failed to stage new binary: " << ec.message()
+               << "\n";
     return;
   }
 
@@ -220,7 +222,7 @@ void replace_and_restart(const std::filesystem::path& current_exe,
   {
     std::ofstream bat(bat_path);
     if (!bat) {
-      std::cerr << "update: failed to create update batch file\n";
+      LOG(ERROR) << "update: failed to create update batch file\n";
       return;
     }
     bat << "@echo off\r\n"
@@ -253,10 +255,10 @@ void replace_and_restart(const std::filesystem::path& current_exe,
     // The batch script will take over – exit cleanly.
     std::exit(0);
   } else {
-    std::cerr << "update: failed to launch update script (error "
-              << GetLastError() << ")\n"
-              << "The new binary has been staged at: " << staged << "\n"
-              << "Please manually replace: " << current_exe << "\n";
+    LOG(ERROR) << "update: failed to launch update script (error "
+               << GetLastError() << ")\n"
+               << "The new binary has been staged at: " << staged << "\n"
+               << "Please manually replace: " << current_exe << "\n";
   }
 #else
   std::filesystem::path backup = current_exe.string() + ".old";
@@ -294,7 +296,7 @@ void replace_and_restart(const std::filesystem::path& current_exe,
 int update(AiArgs const& args) {
   const std::string platform = detect_platform_target();
   if (platform.empty()) {
-    std::cerr
+    LOG(ERROR)
         << "update: unsupported platform – cannot determine the right binary\n";
     return 1;
   }
@@ -307,7 +309,7 @@ int update(AiArgs const& args) {
     std::error_code ec;
     current_exe = std::filesystem::read_symlink("/proc/self/exe", ec);
     if (ec || current_exe.empty()) {
-      std::cerr << "update: cannot read /proc/self/exe\n";
+      LOG(ERROR) << "update: cannot read /proc/self/exe\n";
       return 1;
     }
   }
@@ -316,7 +318,7 @@ int update(AiArgs const& args) {
     char buf[PATH_MAX];
     uint32_t size = sizeof(buf);
     if (_NSGetExecutablePath(buf, &size) != 0) {
-      std::cerr << "update: cannot determine executable path\n";
+      LOG(ERROR) << "update: cannot determine executable path\n";
       return 1;
     }
     current_exe = buf;
@@ -327,7 +329,7 @@ int update(AiArgs const& args) {
     char buf[PATH_MAX];
     size_t size = sizeof(buf);
     if (sysctl(mib, 4, buf, &size, nullptr, 0) != 0) {
-      std::cerr << "update: cannot determine executable path via sysctl\n";
+      LOG(ERROR) << "update: cannot determine executable path via sysctl\n";
       return 1;
     }
     current_exe = buf;
@@ -337,13 +339,13 @@ int update(AiArgs const& args) {
     wchar_t buf[MAX_PATH];
     DWORD len = GetModuleFileNameW(nullptr, buf, MAX_PATH);
     if (len == 0 || len >= MAX_PATH) {
-      std::cerr << "update: cannot determine executable path\n";
+      LOG(ERROR) << "update: cannot determine executable path\n";
       return 1;
     }
     current_exe = buf;
   }
 #else
-  std::cerr << "update: unsupported platform for self-update\n";
+  LOG(ERROR) << "update: unsupported platform for self-update\n";
   return 1;
 #endif
 
@@ -362,15 +364,15 @@ int update(AiArgs const& args) {
   try {
     release = nlohmann::json::parse(response.value());
   } catch (const std::exception& e) {
-    std::cerr << "update: failed to parse GitHub API response: " << e.what()
-              << "\n";
+    LOG(ERROR) << "update: failed to parse GitHub API response: " << e.what()
+               << "\n";
     return 1;
   }
 
   // 3. Extract latest version tag
   std::string latest_tag = release.value("tag_name", "");
   if (latest_tag.empty()) {
-    std::cerr << "update: no tag_name in release JSON\n";
+    LOG(ERROR) << "update: no tag_name in release JSON\n";
     return 1;
   }
 
@@ -383,8 +385,8 @@ int update(AiArgs const& args) {
 
   SemVer latest_ver;
   if (!parse_semver(latest_ver_str, latest_ver)) {
-    std::cerr << "update: cannot parse latest version '" << latest_ver_str
-              << "'\n";
+    LOG(ERROR) << "update: cannot parse latest version '" << latest_ver_str
+               << "'\n";
     return 1;
   }
 
@@ -428,8 +430,8 @@ int update(AiArgs const& args) {
   }
 
   if (download_url.empty()) {
-    std::cerr << "update: no asset found for platform '" << platform
-              << "' (expected: " << expected_name << ")\n";
+    LOG(ERROR) << "update: no asset found for platform '" << platform
+               << "' (expected: " << expected_name << ")\n";
     return 1;
   }
 
@@ -442,9 +444,9 @@ int update(AiArgs const& args) {
   ai::base::TempFile tmp_archive("ai-update.", ".tar.gz");
 #endif
   std::string mime;
-  if (!ai::utils::download_image(download_url, tmp_archive.path(), mime,
-                                 args.proxy.value_or(""))) {
-    std::cerr << "update: download failed\n";
+  if (!ai::base::download(download_url, tmp_archive.path(), mime,
+                          args.proxy.value_or(""))) {
+    LOG(ERROR) << "update: download failed\n";
     return 1;
   }
 
@@ -465,8 +467,9 @@ int update(AiArgs const& args) {
 #endif
 
   if (ret != 0) {
-    std::cerr << "update: failed to extract archive (exit code " << ret << ")\n"
-              << stderr_.to_string() << "\n";
+    LOG(ERROR) << "update: failed to extract archive (exit code " << ret
+               << ")\n"
+               << stderr_.to_string() << "\n";
     return 1;
   }
 
@@ -479,7 +482,7 @@ int update(AiArgs const& args) {
 #endif
 
   if (!std::filesystem::exists(new_exe)) {
-    std::cerr << "update: extracted archive does not contain the binary\n";
+    LOG(ERROR) << "update: extracted archive does not contain the binary\n";
     return 1;
   }
 
@@ -488,9 +491,9 @@ int update(AiArgs const& args) {
   replace_and_restart(current_exe, new_exe);
 
   // If we reach here, exec failed
-  std::cerr << "update: failed to restart after update.\n"
-            << "The new binary has been placed at: " << new_exe << "\n"
-            << "Please manually replace: " << current_exe << "\n";
+  LOG(ERROR) << "update: failed to restart after update.\n"
+             << "The new binary has been placed at: " << new_exe << "\n"
+             << "Please manually replace: " << current_exe << "\n";
   return 1;
 }
 

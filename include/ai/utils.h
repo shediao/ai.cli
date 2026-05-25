@@ -23,10 +23,6 @@ struct is_callable<F, decltype(std::declval<F>()())> : public std::true_type {};
 template <typename T>
 constexpr bool is_callable_v = is_callable<T>::value;
 
-bool download_image(std::string const& image_url, std::string const& image_path,
-                    std::string& mime_type, std::string const& proxy);
-std::string getMIME(std::string const& url, std::string const& proxy);
-
 std::string app_data_dir(const std::string& app,
                          const std::string& author = "");
 

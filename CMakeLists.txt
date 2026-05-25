@@ -135,6 +135,7 @@ add_library(
   src/response.cpp
   src/matchglob.cpp
   src/glob.cpp
+  src/base/download.cc
   src/base/file.cc
   src/base/temp_dir.cc
   src/base/temp_file.cc
