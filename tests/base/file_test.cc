@@ -17,7 +17,7 @@ class UtilsTempTestFile {
                              std::string const& suffix = ".txt")
       : path_(fs::temp_directory_path() /
               ("ai_cli_utils_test_" + std::to_string(counter_++) + suffix)) {
-    std::ofstream out(path_);
+    std::ofstream out(path_, std::ios::binary);
     out.write(content.data(), static_cast<std::streamsize>(content.size()));
     out.close();
   }

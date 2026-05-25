@@ -35,7 +35,7 @@ class GlobTempDir {
                    const std::string& content = "") {
     fs::path full = path_ / relative_path;
     fs::create_directories(full.parent_path());
-    std::ofstream out(full);
+    std::ofstream out(full, std::ios::binary);
     out << content;
   }
 

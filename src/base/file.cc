@@ -13,7 +13,7 @@ std::optional<std::string> read_file(std::string const& path) {
   if (fs::is_directory(path, ec)) {
     return std::nullopt;
   }
-  std::ifstream file(path);
+  std::ifstream file(path, std::ios::binary);
   if (!file.is_open()) {
     return std::nullopt;
   }
@@ -22,7 +22,7 @@ std::optional<std::string> read_file(std::string const& path) {
 }
 
 bool write_file(std::string const& path, std::string const& content) {
-  std::ofstream file(path);
+  std::ofstream file(path, std::ios::binary);
   if (!file.is_open()) {
     return false;
   }

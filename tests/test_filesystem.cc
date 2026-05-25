@@ -20,7 +20,7 @@ class TempTestFile {
                         std::string const& suffix = ".txt")
       : path_(std::filesystem::temp_directory_path() /
               ("ai_cli_test_" + std::to_string(counter_++) + suffix)) {
-    std::ofstream out(path_);
+    std::ofstream out(path_, std::ios::binary);
     out.write(content.data(), static_cast<std::streamsize>(content.size()));
     out.close();
   }
@@ -219,7 +219,7 @@ TEST(WriteFileTest, WritesFileSuccessfully) {
   std::string result = call_tool("write_file", args);
   EXPECT_TRUE(result.find("Successfully wrote") != std::string::npos);
 
-  std::ifstream in(f.path());
+  std::ifstream in(f.path(), std::ios::binary);
   std::string content{std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>()};
   EXPECT_EQ(content, "new content");
@@ -269,7 +269,7 @@ TEST(EditFileTest, SingleSearchReplace) {
   std::string result = call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
 
-  std::ifstream in(f.path());
+  std::ifstream in(f.path(), std::ios::binary);
   std::string content{std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>()};
   EXPECT_EQ(content, "goodbye world\n");
@@ -284,7 +284,7 @@ TEST(EditFileTest, MultipleSearchReplaceBlocks) {
   std::string result = call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
 
-  std::ifstream in(f.path());
+  std::ifstream in(f.path(), std::ios::binary);
   std::string content{std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>()};
   EXPECT_EQ(content, "replaced A\nline B\nreplaced C\n");
@@ -402,7 +402,7 @@ TEST(EditFileTest, EmptyReplaceBlock) {
   std::string result = call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
 
-  std::ifstream in(f.path());
+  std::ifstream in(f.path(), std::ios::binary);
   std::string content{std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>()};
   // "foo bar\n" should have been deleted
@@ -420,7 +420,7 @@ TEST(EditFileTest, MixedEmptyAndNonEmptyBlocks) {
   std::string result = call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
 
-  std::ifstream in(f.path());
+  std::ifstream in(f.path(), std::ios::binary);
   std::string content{std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>()};
   EXPECT_EQ(content, "keep this\nnew content\nlast line\n");
@@ -497,7 +497,8 @@ TEST(CreateDirectoryTest, PathNotString) {
 
 TEST(ListDirectoryTest, ListsFilesAndDirs) {
   TempTestDir dir;
-  std::ofstream((std::filesystem::path(dir.path()) / "test_file.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "test_file.txt").string(),
+                std::ios::binary)
       << "data";
   std::filesystem::create_directory(std::filesystem::path(dir.path()) /
                                     "test_subdir");
@@ -547,12 +548,14 @@ TEST(ListDirectoryTest, PathNotString) {
 
 TEST(DirectoryTreeTest, ReturnsJsonTree) {
   TempTestDir dir;
-  std::ofstream((std::filesystem::path(dir.path()) / "file.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "file.txt").string(),
+                std::ios::binary)
       << "data";
   std::filesystem::create_directory(std::filesystem::path(dir.path()) /
                                     "subdir");
   std::ofstream(
-      (std::filesystem::path(dir.path()) / "subdir" / "nested.txt").string())
+      (std::filesystem::path(dir.path()) / "subdir" / "nested.txt").string(),
+      std::ios::binary)
       << "nested";
 
   json args = {{"path", dir.path()}};
@@ -621,7 +624,7 @@ TEST(MoveFileTest, MovesFile) {
   EXPECT_FALSE(std::filesystem::exists(f.path()));
   EXPECT_TRUE(std::filesystem::exists(dest));
 
-  std::ifstream in(dest);
+  std::ifstream in(dest, std::ios::binary);
   std::string content{std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>()};
   EXPECT_EQ(content, "move me");
@@ -672,16 +675,20 @@ TEST(MoveFileTest, DistinationNotString) {
 
 TEST(FindFilesTest, FindsFilesByPattern) {
   TempTestDir dir;
-  std::ofstream((std::filesystem::path(dir.path()) / "apple.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "apple.txt").string(),
+                std::ios::binary)
       << "";
-  std::ofstream((std::filesystem::path(dir.path()) / "banana.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "banana.txt").string(),
+                std::ios::binary)
       << "";
-  std::ofstream((std::filesystem::path(dir.path()) / "apple.csv").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "apple.csv").string(),
+                std::ios::binary)
       << "";
   std::filesystem::create_directory(std::filesystem::path(dir.path()) /
                                     "subdir");
   std::ofstream(
-      (std::filesystem::path(dir.path()) / "subdir" / "apple_sub.txt").string())
+      (std::filesystem::path(dir.path()) / "subdir" / "apple_sub.txt").string(),
+      std::ios::binary)
       << "";
 
   json args = {{"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", true}};
@@ -693,11 +700,13 @@ TEST(FindFilesTest, FindsFilesByPattern) {
 
 TEST(FindFilesTest, NonRecursive) {
   TempTestDir dir;
-  std::ofstream((std::filesystem::path(dir.path()) / "root.txt").string())
+  std::ofstream((std::filesystem::path(dir.path()) / "root.txt").string(),
+                std::ios::binary)
       << "";
   std::filesystem::create_directory(std::filesystem::path(dir.path()) / "sub");
   std::ofstream(
-      (std::filesystem::path(dir.path()) / "sub" / "nested.txt").string())
+      (std::filesystem::path(dir.path()) / "sub" / "nested.txt").string(),
+      std::ios::binary)
       << "";
 
   json args = {
@@ -718,7 +727,8 @@ TEST(FindFilesTest, NoMatch) {
 TEST(FindFilesTest, PartialPatternFallback) {
   TempTestDir dir;
   std::ofstream(
-      (std::filesystem::path(dir.path()) / "hello_world.txt").string())
+      (std::filesystem::path(dir.path()) / "hello_world.txt").string(),
+      std::ios::binary)
       << "";
 
   json args = {{"path", dir.path()}, {"pattern", "world"}};
@@ -832,7 +842,7 @@ TEST(ReplaceLinesTest, ReplacesSingleLine) {
   std::string result = call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("Successfully replaced") != std::string::npos);
 
-  std::ifstream in(f.path());
+  std::ifstream in(f.path(), std::ios::binary);
   std::string content{std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>()};
   EXPECT_EQ(content, "line1\nREPLACED\nline3\n");
@@ -847,7 +857,7 @@ TEST(ReplaceLinesTest, ReplacesLineRange) {
   std::string result = call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("Successfully replaced") != std::string::npos);
 
-  std::ifstream in(f.path());
+  std::ifstream in(f.path(), std::ios::binary);
   std::string content{std::istreambuf_iterator<char>(in),
                       std::istreambuf_iterator<char>()};
   EXPECT_EQ(content, "line1\nA\nB\nline4\n");
@@ -937,7 +947,7 @@ TEST(ExecuteFileTest, ExecutesScript) {
   std::string script_path =
       (std::filesystem::path(dir.path()) / "test_script.sh").string();
   {
-    std::ofstream script(script_path);
+    std::ofstream script(script_path, std::ios::binary);
     script << "#!/bin/sh\necho hello\necho error >&2\nexit 42\n";
   }
   std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
@@ -966,7 +976,7 @@ TEST(ExecuteFileTest, WithArgs) {
   std::string script_path =
       (std::filesystem::path(dir.path()) / "echo_args.sh").string();
   {
-    std::ofstream script(script_path);
+    std::ofstream script(script_path, std::ios::binary);
     script << "#!/bin/sh\necho \"$1\"\n";
   }
   std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
@@ -1003,7 +1013,7 @@ TEST(ExecuteFileTest, WorkingDirectory) {
   std::string script_path =
       (std::filesystem::path(dir.path()) / "test_cwd_script.sh").string();
   {
-    std::ofstream script(script_path);
+    std::ofstream script(script_path, std::ios::binary);
     script << "#!/bin/sh\npwd\n";
   }
   std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,
@@ -1033,7 +1043,7 @@ TEST(ExecuteFileTest, WorkingDirectoryNonexistent) {
   std::string script_path =
       (std::filesystem::path(dir.path()) / "test_cwd_nonexistent.sh").string();
   {
-    std::ofstream script(script_path);
+    std::ofstream script(script_path, std::ios::binary);
     script << "#!/bin/sh\necho hello\n";
   }
   std::filesystem::permissions(script_path, std::filesystem::perms::owner_exec,

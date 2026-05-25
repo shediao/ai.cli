@@ -220,7 +220,7 @@ void replace_and_restart(const std::filesystem::path& current_exe,
   // Create a batch file that replaces the current exe after we exit.
   std::filesystem::path bat_path = current_exe.string() + ".update.bat";
   {
-    std::ofstream bat(bat_path);
+    std::ofstream bat(bat_path, std::ios::binary);
     if (!bat) {
       LOG(ERROR) << "update: failed to create update batch file\n";
       return;
