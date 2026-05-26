@@ -7,9 +7,12 @@
 
 #include "ai/function.h"
 
+namespace ai {
+
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
+namespace {
 std::string disk_space_info(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function disk_space_info arguments is invalid: expected a JSON "
@@ -69,3 +72,37 @@ std::string disk_space_info(nlohmann::json const& args) {
 
   return info.dump();
 }
+}  // namespace
+
+class DiskSpaceInfoFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return disk_space_info(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "disk_space_info",
+  "description": "Get disk space information for the filesystem containing the specified path. Returns total capacity, free space, available space, used space, and usage percentage. Use this tool to check disk space availability before writing large files or when troubleshooting storage issues.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "Any path on the filesystem to query. The disk space for the filesystem containing this path will be returned."
+      }
+    },
+    "required": ["path"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(DiskSpaceInfoFunction);
+
+}  // namespace ai

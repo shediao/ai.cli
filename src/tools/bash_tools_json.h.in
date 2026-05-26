@@ -1,3 +1,0 @@
-constexpr char bash_tools_json_str[] = R"===(
-@BASH_TOOLS_JSON_DATA@
-)===";

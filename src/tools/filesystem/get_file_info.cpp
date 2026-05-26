@@ -6,9 +6,12 @@
 
 #include "ai/function.h"
 
+namespace ai {
+
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
+namespace {
 std::string get_file_info(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function get_file_info arguments is invalid: expected a JSON "
@@ -101,3 +104,36 @@ std::string get_file_info(nlohmann::json const& args) {
 
   return info.dump();
 }
+}  // namespace
+
+class GetFileInfoFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return get_file_info(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "get_file_info",
+  "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": ["path"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(GetFileInfoFunction);
+
+}  // namespace ai

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <functional>
+#include <memory>
 #include <set>
 #include <string>
 #include <string_view>
@@ -8,26 +8,36 @@
 
 #include "nlohmann/json.hpp"
 
+#define AUTO_REGISTER(T)                  \
+  namespace {                             \
+  ai::AutoRegister<T> _auto_register_##T; \
+  }
+
+namespace ai {
+class Function {
+ public:
+  virtual ~Function() {}
+  virtual std::string call(nlohmann::json const& args) = 0;
+
+  virtual bool enabled() const { return true; }
+  virtual std::string const& category() const = 0;
+  std::string name() const;
+  std::string description() const;
+  virtual nlohmann::json const& schema() const = 0;
+};
+
+template <typename T>
+class AutoRegister {
+ public:
+  AutoRegister() { regist_function(std::make_unique<T>()); }
+};
+
+void regist_function(std::unique_ptr<Function> func);
+std::set<std::string> get_categories();
+nlohmann::json get_tools(std::set<std::string> categories);
 std::string call_tool(std::string const& name, nlohmann::json const& args);
 
-bool regist_tool_calls(std::string const& name,
-                       std::function<std::string(nlohmann::json const& args)>);
-
-// ── Tool category registry (automated tool discovery) ────────────────
-using ToolSchemaGetter = std::string_view (*)();
-using ToolRegisterFunc = void (*)();
-
-/// Register a tool category (called at static init by each tool module).
-bool regist_tool_category(std::string const& name,
-                          ToolSchemaGetter schema_getter,
-                          ToolRegisterFunc register_func);
-
-/// Return the set of all known tool-category names.
-std::set<std::string> get_tool_categories();
-
-/// Return the JSON-schema string for a given tool category.
-std::string_view get_tool_schema(std::string const& category);
-
+}  // namespace ai
 void print_toolcall_log(
     std::string_view func_name,
     std::vector<std::pair<std::string, std::string>> const& args);

@@ -14,7 +14,6 @@
 #include "ai/args.h"
 #include "ai/function.h"
 #include "ai/response.h"
-#include "ai/utils.h"
 #include "base/base64.h"
 #include "base/download.h"
 #include "base/logging.h"
@@ -251,20 +250,11 @@ class OpenAIClient::Impl {
       }
     }
     if (!args_.chat_args.tools.empty()) {
-      auto tools = nlohmann::json::array();
-      for (auto const& tool_name : args_.chat_args.tools) {
-        auto schema_str = get_tool_schema(tool_name);
-        if (schema_str.empty()) {
-          LOG(WARNING) << "Unknown tool category: " << tool_name;
-          continue;
-        }
-        auto category_tools = nlohmann::json::parse(schema_str);
-        for (auto& tool : category_tools) {
-          tools.push_back(tool);
-        }
-      }
+      auto tools = ai::get_tools(args_.chat_args.tools);
 
       if (!tools.empty()) {
+        // https://api-docs.deepseek.com/zh-cn/api/create-chat-completion
+        // https://api-docs.deepseek.com/zh-cn/guides/tool_calls
         auto tools_for_deepseek = nlohmann::json::array();
         for (auto tool : tools) {
           auto t = nlohmann::json::object();

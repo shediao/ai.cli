@@ -4,14 +4,16 @@
 #include <string_view>
 
 #include "ai/function.h"
-#include "ai/utils.h"
 #include "base/file.h"
+
+namespace ai {
 
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 extern std::string append_prefix_per_line(std::string_view str,
                                           std::string_view prefix);
 
+namespace {
 std::string write_file(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function write_file arguments is invalid: expected a JSON "
@@ -47,3 +49,39 @@ std::string write_file(nlohmann::json const& args) {
   }
   return "Successfully wrote to " + path;
 }
+}  // namespace
+
+class WriteFileFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return write_file(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "write_file",
+  "description": "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "content": {
+        "type": "string"
+      }
+    },
+    "required": ["path", "content"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(WriteFileFunction);
+
+}  // namespace ai

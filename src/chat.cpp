@@ -217,7 +217,7 @@ int chat(AiArgs const& args) {
               auto arguments = json::parse(tool_call.function.arguments);
               LOG(INFO) << function + "(" + arguments.dump() + ")";
               auto start = std::chrono::steady_clock::now();
-              auto ret = call_tool(function, arguments);
+              auto ret = ai::call_tool(function, arguments);
               auto elapsed = std::chrono::steady_clock::now() - start;
               auto elapsed_ms =
                   std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)

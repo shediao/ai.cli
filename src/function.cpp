@@ -1,62 +1,11 @@
 #include "ai/function.h"
 
 #include <iostream>
+#include <memory>
+#include <vector>
 
 #include "ai/terminal.h"
 #include "ai/utils.h"
-
-// ── individual tool (function-level) registry ────────────────────────
-static auto& get_all_tools() {
-  static std::map<std::string,
-                  std::function<std::string(nlohmann::json const& args)>>
-      tools;
-  return tools;
-}
-static auto& get_tool_schemas() {
-  static std::map<std::string, ToolSchemaGetter> schema;
-  return schema;
-}
-
-std::string call_tool(std::string const& name, nlohmann::json const& args) {
-  auto it = get_all_tools().find(name);
-  if (it != get_all_tools().end()) {
-    return it->second(args);
-  }
-  return "tool_calls function (" + name + ") not found";
-}
-
-bool regist_tool_calls(
-    std::string const& name,
-    std::function<std::string(nlohmann::json const& args)> func) {
-  auto ret = get_all_tools().insert_or_assign(name, std::move(func));
-  return ret.second;
-}
-
-// ── tool category registry (automated discovery) ─────────────────────
-std::set<std::string> get_tool_categories() {
-  std::set<std::string> categories;
-
-  for (auto const& [category, _] : get_tool_schemas()) {
-    categories.insert(category);
-  }
-
-  return categories;
-}
-bool regist_tool_category(std::string const& name,
-                          ToolSchemaGetter schema_getter,
-                          ToolRegisterFunc register_func) {
-  get_tool_schemas()[name] = schema_getter;
-  register_func();
-  return true;
-}
-
-std::string_view get_tool_schema(std::string const& category) {
-  if (auto it = get_tool_schemas().find(category);
-      it != get_tool_schemas().end()) {
-    return it->second();
-  }
-  return {};
-}
 
 void print_toolcall_log(
     std::string_view func_name,
@@ -74,3 +23,60 @@ void print_toolcall_log(
   }
   std::cout << ai::term::reset;
 }
+
+namespace ai {
+
+std::string Function::name() const {
+  auto const& schema = this->schema();
+  if (schema.contains("name")) {
+    return schema["name"].get<std::string>();
+  }
+  return "";
+}
+std::string Function::description() const {
+  auto const& schema = this->schema();
+  if (schema.contains("description")) {
+    return schema["description"].get<std::string>();
+  }
+  return "";
+}
+
+std::vector<std::unique_ptr<Function>>& functions() {
+  static std::vector<std::unique_ptr<Function>> functions;
+  return functions;
+}
+void regist_function(std::unique_ptr<Function> func) {
+  if (func && func->enabled()) {
+    functions().push_back(std::move(func));
+  }
+}
+
+std::set<std::string> get_categories() {
+  std::set<std::string> result;
+  for (auto const& f : functions()) {
+    result.insert(f->category());
+  }
+  return result;
+}
+
+nlohmann::json get_tools(std::set<std::string> categories) {
+  auto tools = nlohmann::json::array();
+  for (auto const& f : functions()) {
+    if (categories.find(f->category()) == categories.end()) {
+      continue;
+    }
+    tools.push_back(f->schema());
+  }
+  return tools;
+}
+
+std::string call_tool(std::string const& name, nlohmann::json const& args) {
+  for (auto const& f : functions()) {
+    if (f->name() == name) {
+      return f->call(args);
+    }
+  }
+  return "tool_calls function (" + name + ") not found";
+}
+
+}  // namespace ai

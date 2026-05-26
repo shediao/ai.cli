@@ -5,8 +5,10 @@
 #include <string_view>
 
 #include "ai/function.h"
-#include "default_tools_json.h"
 
+namespace ai {
+
+namespace {
 // ── get_working_directory ─────────────────────────────────────────────
 std::string get_working_directory(nlohmann::json const& args) {
   if (!args.is_object()) {
@@ -178,19 +180,149 @@ std::string get_operating_system(nlohmann::json const& args) {
 
   return info.dump();
 }
+}  // namespace
 
 // ── Category wiring ───────────────────────────────────────────────────
 
-std::string_view get_default_tools() { return default_tools_json_str; }
+class GetWorkingDirectoryFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return get_working_directory(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
 
-void regist_default_tools() {
-  regist_tool_calls("get_working_directory", get_working_directory);
-  regist_tool_calls("get_environment_variable", get_environment_variable);
-  regist_tool_calls("set_environment_variable", set_environment_variable);
-  regist_tool_calls("get_shell", get_shell);
-  regist_tool_calls("get_operating_system", get_operating_system);
+ private:
+  std::string category_ = "default";
+  nlohmann::json schema_ = R"(
+{
+  "type": "function",
+  "name": "get_working_directory",
+  "description": "Get the current session working directory path. Returns the absolute path of the current working directory for the CLI session. Use this when you need to know where the user is currently working.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
 }
+)"_json;
+};
 
-// Self-register the category at static-init time
-static bool _default_tool_category_registered =
-    regist_tool_category("default", get_default_tools, regist_default_tools);
+class GetEnvironmentVariableFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return get_environment_variable(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "default";
+  nlohmann::json schema_ = R"(
+{
+  "type": "function",
+  "name": "get_environment_variable",
+  "description": "Get the value of an environment variable from the current session. Returns the value of the specified environment variable, or an empty string if not set.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "The name of the environment variable to retrieve (e.g., 'HOME', 'PATH', 'USER')."
+      }
+    },
+    "required": ["name"]
+  }
+}
+)"_json;
+};
+
+class SetEnvironmentVariableFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return set_environment_variable(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "default";
+  nlohmann::json schema_ = R"(
+{
+  "type": "function",
+  "name": "set_environment_variable",
+  "description": "Set or update an environment variable for the current session. This only affects the current CLI process and any child processes spawned from it. The change is not permanent and will be lost when the session ends.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "The name of the environment variable to set."
+      },
+      "value": {
+        "type": "string",
+        "description": "The value to assign to the environment variable."
+      }
+    },
+    "required": ["name", "value"]
+  }
+}
+)"_json;
+};
+
+class GetShellFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return get_shell(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "default";
+  nlohmann::json schema_ = R"(
+{
+  "type": "function",
+  "name": "get_shell",
+  "description": "Get the default shell for the current session. Returns the path to the default shell executable (e.g., '/bin/bash', '/bin/zsh'). Use this to know which shell syntax to use when executing commands.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}
+)"_json;
+};
+
+class GetOperatingSystemFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return get_operating_system(args);
+  }
+
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "default";
+  nlohmann::json schema_ = R"(
+{
+  "type": "function",
+  "name": "get_operating_system",
+  "description": "Get information about the operating system of the current session. Returns the OS name, version, and architecture. Use this to make OS-specific decisions when helping the user.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}
+)"_json;
+};
+
+AUTO_REGISTER(GetWorkingDirectoryFunction);
+AUTO_REGISTER(GetEnvironmentVariableFunction);
+AUTO_REGISTER(SetEnvironmentVariableFunction);
+AUTO_REGISTER(GetShellFunction);
+AUTO_REGISTER(GetOperatingSystemFunction);
+
+}  // namespace ai

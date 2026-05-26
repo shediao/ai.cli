@@ -4,11 +4,13 @@
 #include <vector>
 
 #include "ai/function.h"
-#include "ai/utils.h"
 #include "base/file.h"
+
+namespace ai {
 
 extern std::string expand_tilde(std::string const& path);
 
+namespace {
 std::string read_multiple_files(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function read_multiple_files arguments is invalid: expected a "
@@ -57,3 +59,39 @@ std::string read_multiple_files(nlohmann::json const& args) {
   }
   return contents;
 }
+}  // namespace
+
+class ReadMultipleFilesFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return read_multiple_files(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "read_multiple_files",
+  "description": "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "paths": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": ["paths"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(ReadMultipleFilesFunction);
+
+}  // namespace ai

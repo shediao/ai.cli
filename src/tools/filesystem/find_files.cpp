@@ -6,9 +6,12 @@
 #include "ai/function.h"
 #include "base/glob.h"
 
+namespace ai {
+
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
+namespace {
 std::string find_files(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function find_files arguments is invalid: expected a JSON "
@@ -66,3 +69,45 @@ std::string find_files(nlohmann::json const& args) {
   }
   return ret;
 }
+}  // namespace
+
+class FindFilesFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return find_files(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "find_files",
+  "description": "Recursively search for files and directories matching a pattern. Searches through all subdirectories from the starting path when recursive is true. The search is case-insensitive by default. If no results are found and the pattern does not contain a wildcard (*), the search automatically retries by wrapping the pattern with wildcards (e.g., \"file\" becomes \"*file*\") for broader matching. Results are returned with [FILE] or [DIR] prefixes and full paths. Great for finding files when you don't know their exact location or name.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "The directory path to search within. Can be an absolute or relative path. Tilde (~) expansion is supported for home directory paths."
+      },
+      "pattern": {
+        "type": "string",
+        "description": "The glob pattern to match against file and directory names. Supports standard wildcards (* matches any characters, ? matches a single character). If no wildcard is provided and no results are found, the search automatically falls back to a substring match (wrapping the pattern with * on both sides). Matching is case-insensitive."
+      },
+      "recursive": {
+        "type": "boolean",
+        "description": "Whether to search recursively into subdirectories. Defaults to false (only search the immediate directory). Set to true to search through all nested subdirectories."
+      }
+    },
+    "required": ["path", "pattern"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(FindFilesFunction);
+
+}  // namespace ai

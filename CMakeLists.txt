@@ -99,25 +99,6 @@ message(STATUS "Git version: ${GIT_VERSION}")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Dependencies)
 
-# ── Generate embedded JSON schema headers ──────────────────────────────────
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/filesystem.json
-     FILESYSTEM_TOOLS_JSON_DATA)
-configure_file(src/tools/filesystem_tools_json.h.in filesystem_tools_json.h)
-
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/bash.json BASH_TOOLS_JSON_DATA)
-configure_file(src/tools/bash_tools_json.h.in bash_tools_json.h)
-
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/cmd.json CMD_TOOLS_JSON_DATA)
-configure_file(src/tools/cmd_tools_json.h.in cmd_tools_json.h)
-
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/powershell.json
-     POWERSHELL_TOOLS_JSON_DATA)
-configure_file(src/tools/powershell_tools_json.h.in powershell_tools_json.h)
-
-file(READ ${CMAKE_CURRENT_SOURCE_DIR}/src/tools/default.json
-     DEFAULT_TOOLS_JSON_DATA)
-configure_file(src/tools/default_tools_json.h.in default_tools_json.h)
-
 # ── Object library (all sources except main) ───────────────────────────────
 # Use OBJECT library instead of STATIC to ensure all static initializers (e.g.
 # regist_tool_category) are linked into the final executable.

@@ -5,9 +5,12 @@
 
 #include "ai/function.h"
 
+namespace ai {
+
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
+namespace {
 static nlohmann::json buildTree(std::filesystem::path const& path) {
   std::error_code err;
   if (!std::filesystem::exists(path, err) ||
@@ -61,3 +64,36 @@ std::string directory_tree(nlohmann::json const& args) {
   }
   return buildTree(path).dump(2);
 }
+}  // namespace
+
+class DirectoryTreeFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return directory_tree(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "directory_tree",
+  "description": "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": ["path"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(DirectoryTreeFunction);
+
+}  // namespace ai

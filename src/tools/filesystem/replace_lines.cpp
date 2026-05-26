@@ -7,15 +7,17 @@
 #include <subprocess/subprocess.hpp>
 
 #include "ai/function.h"
-#include "ai/utils.h"
 #include "base/file.h"
 #include "base/temp_file.h"
+
+namespace ai {
 
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 extern std::string append_prefix_per_line(std::string_view str,
                                           std::string_view prefix);
 
+namespace {
 std::string replace_lines(nlohmann::json const& args) {
   // ── argument validation ──
   if (!args.is_object()) {
@@ -158,3 +160,49 @@ std::string replace_lines(nlohmann::json const& args) {
   return "Successfully replaced lines " + std::to_string(start_line) + "-" +
          std::to_string(end_line) + " in " + path;
 }
+}  // namespace
+
+class ReplaceLinesFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return replace_lines(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "replace_lines",
+  "description": "Replace a range of lines in a file with new content. Uses 1-indexed line numbers. The range [start_line, end_line] is inclusive on both ends. The specified lines are removed and replaced with the provided content string. Use this tool for precise line-range based edits without needing to match exact text.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "The path of the file to modify."
+      },
+      "start_line": {
+        "type": "integer",
+        "description": "The 1-indexed line number to start replacing from (inclusive). Must be >= 1."
+      },
+      "end_line": {
+        "type": "integer",
+        "description": "The 1-indexed line number to stop replacing at (inclusive). Must be >= start_line."
+      },
+      "content": {
+        "type": "string",
+        "description": "The new content to insert in place of the specified line range. Can be an empty string to delete lines, a single line, or multiple lines."
+      }
+    },
+    "required": ["path", "start_line", "end_line", "content"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(ReplaceLinesFunction);
+
+}  // namespace ai

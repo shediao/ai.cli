@@ -7,10 +7,11 @@
 #include <subprocess/subprocess.hpp>
 
 #include "ai/function.h"
-#include "ai/utils.h"
 #include "base/terminal.h"
-#include "bash_tools_json.h"
 
+namespace ai {
+
+namespace {
 std::string bash(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function bash arguments is invalid: expected a JSON object.";
@@ -121,11 +122,66 @@ std::string bash(nlohmann::json const& args) {
   }
   return result;
 }
+}  // namespace
 
-std::string_view get_bash_tools() { return bash_tools_json_str; }
+class BashFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override { return bash(args); }
+  bool enabled() const override {
+#if !defined(_WIN32)
+    return true;
+#else
+    // On Windows, only enable if bash is available (via SHELL env or PATH).
+    if (auto shell = env::get("SHELL"); shell.has_value()) {
+      auto const& s = shell.value();
+      if (s.ends_with("bash") || s.ends_with("bash.exe")) {
+        return true;
+      }
+    }
+    for (auto const& path : env::path()) {
+      if (std::filesystem::exists(std::filesystem::path(path) / "bash.exe")) {
+        return true;
+      }
+    }
+    return false;
+#endif
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
 
-void regist_bash_tools() { regist_tool_calls("bash", bash); }
+ private:
+  std::string category_ = "bash";
+  nlohmann::json schema_ = R"(
+{
+  "type": "function",
+  "name": "bash",
+  "description": "Execute a bash command and return the output. This tool allows running arbitrary shell commands. The command is executed via 'bash -c', so all bash features like pipes, redirects, variables, and command substitution are available. Use this tool for file operations, system queries, building projects, running scripts, and any other shell-level tasks. Returns both stdout and stderr output.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "command": {
+        "type": "string",
+        "description": "The bash command to execute. This will be passed to 'bash -c'. Can include pipes, redirects, variable expansions, and any valid bash syntax. To reduce log noise, prefer piping through 'tail -n N' to limit output lines or 'grep xxx' to filter for relevant content, especially when running commands that produce verbose output (e.g., builds, logs, large listings)."
+      },
+      "requires_confirmation": {
+        "type": "boolean",
+        "description": "Set to true if the command is potentially dangerous or destructive and should require user confirmation before execution. Commands that modify files (rm, mv, dd), change system settings, install packages, use sudo, make network requests that could expose data, or any other sensitive operations should have this set to true. Set to false for safe read-only operations like cat, ls, find, grep, etc. Also set to false when the user has explicitly and directly requested the command to be executed - direct user instructions do not require additional confirmation."
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Optional timeout in seconds. If the command does not complete within this time, it will be terminated. If not provided, no timeout is applied."
+      },
+      "working_directory": {
+        "type": "string",
+        "description": "Optional working directory for the command. If provided, the command will be executed in this directory. Can be an absolute path or a relative path (resolved against the current working directory)."
+      }
+    },
+    "required": ["command"]
+  }
+}
+)"_json;
+};
 
-// Self-register the category at static-init time
-static bool _bash_tool_category_registered =
-    regist_tool_category("bash", get_bash_tools, regist_bash_tools);
+AUTO_REGISTER(BashFunction);
+
+}  // namespace ai

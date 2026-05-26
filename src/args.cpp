@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <limits>
 
+#include "ai/function.h"
 #include "ai/terminal.h"
 #include "base/io.h"
 #include "base/terminal.h"
@@ -298,14 +299,32 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                 chat_args.no_tools);
   chat.add_flag("list-tools",
                 "List all available tool categories and their functions",
-                chat_args.list_tools);
+                chat_args.list_tools)
+      .callback([](bool) {
+        for (auto const& category : ai::get_categories()) {
+          auto tools = ai::get_tools({category});
+          std::cout << term::bold << "[" << category << "]" << term::reset
+                    << "\n";
+          for (auto const& tool : tools) {
+            std::cout << "  " << term::bold_color::cyan
+                      << tool.value("name", "???") << term::reset << ": "
+                      << tool.value("description", "") << "\n";
+          }
+          std::cout << "\n";
+        }
+        std::exit(EXIT_SUCCESS);
+      });
   chat.add_option(
           "tools",
           "Tool categories to enable for the AI (e.g., bash, filesystem)",
           chat_args.tools)
       .value_placeholder("TOOL")
+      .default_value([]() {
+        auto tools = ai::get_categories();
+        return std::vector<std::string>(tools.begin(), tools.end());
+      }())
       .choices([&]() {
-        auto cats = get_tool_categories();
+        auto cats = ai::get_categories();
         std::map<std::string, std::string> choices;
         for (const auto& cat : cats) {
           choices[cat] = cat;
@@ -348,6 +367,11 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       }
     }
 
+    if (chat_args.no_tools) {
+      chat_args.tools.clear();
+      chat_args.tool_choice = "none";
+    }
+
     if (chat_args.model.empty()) {
       auto model = getDefaultModelForUrl(chat_args.api_url);
       if (model.has_value()) {
@@ -358,54 +382,6 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
     if (chat_args.model.empty()) {
       std::cerr << "Error: Must provide an ai model." << std::endl;
       exit(EXIT_FAILURE);
-    }
-
-    if (chat_args.no_tools) {
-      chat_args.tools.clear();
-      chat_args.tool_choice = "none";
-    } else {
-      if (chat_args.tools.empty()) {
-        chat_args.tools.insert("default");
-        chat_args.tools.insert("filesystem");
-#if defined(_WIN32)
-        if (auto shell = env::get("SHELL");
-            shell.has_value() && (shell.value().ends_with("bash") ||
-                                  shell.value().ends_with("bash.exe"))) {
-          chat_args.tools.insert("bash");
-        } else if (auto paths = env::path();
-                   std::any_of(paths.begin(), paths.end(), [](auto const& p) {
-                     return exists(std::filesystem::path(p) / "bash.exe");
-                   })) {
-          chat_args.tools.insert("bash");
-        }
-        chat_args.tools.insert("cmd");
-        chat_args.tools.insert("powershell");
-#else
-        chat_args.tools.insert("bash");
-#endif
-      }
-    }
-
-    if (chat_args.list_tools) {
-      for (auto const& category : get_tool_categories()) {
-        auto schema_str = get_tool_schema(category);
-        if (schema_str.empty()) continue;
-        try {
-          auto schema = nlohmann::json::parse(schema_str);
-          std::cout << term::bold << "[" << category << "]" << term::reset
-                    << "\n";
-          for (auto const& tool : schema) {
-            std::cout << "  " << term::bold_color::cyan
-                      << tool.value("name", "???") << term::reset << ": "
-                      << tool.value("description", "") << "\n";
-          }
-          std::cout << "\n";
-        } catch (...) {
-          std::cout << term::bold << "[" << category << "]" << term::reset
-                    << " (parse error)\n\n";
-        }
-      }
-      std::exit(0);
     }
 
     // read from stdin replace '-'

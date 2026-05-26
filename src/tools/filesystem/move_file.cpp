@@ -4,8 +4,11 @@
 
 #include "ai/function.h"
 
+namespace ai {
+
 extern std::string expand_tilde(std::string const& path);
 
+namespace {
 std::string move_file(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function move_file arguments is invalid: expected a JSON object.";
@@ -41,3 +44,39 @@ std::string move_file(nlohmann::json const& args) {
     return "Successfully moved " + source + " to " + distination;
   }
 }
+}  // namespace
+
+class MoveFileFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return move_file(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "move_file",
+  "description": "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "source": {
+        "type": "string"
+      },
+      "distination": {
+        "type": "string"
+      }
+    },
+    "required": ["source", "distination"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(MoveFileFunction);
+
+}  // namespace ai

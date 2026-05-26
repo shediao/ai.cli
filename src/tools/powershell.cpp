@@ -6,10 +6,11 @@
 #include <subprocess/subprocess.hpp>
 
 #include "ai/function.h"
-#include "ai/utils.h"
 #include "base/terminal.h"
-#include "powershell_tools_json.h"
 
+namespace ai {
+
+namespace {
 std::string powershell(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function powershell arguments is invalid: expected a JSON object.";
@@ -93,11 +94,56 @@ std::string powershell(nlohmann::json const& args) {
   }
   return result;
 }
+}  // namespace
 
-std::string_view get_powershell_tools() { return powershell_tools_json_str; }
+class PowershellFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return powershell(args);
+  }
+  bool enabled() const override {
+#if defined(_WIN32)
+    return true;
+#else
+    return false;
+#endif
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
 
-void regist_powershell_tools() { regist_tool_calls("powershell", powershell); }
+ private:
+  std::string category_ = "powershell";
+  nlohmann::json schema_ = R"(
+{
+  "type": "function",
+  "name": "powershell",
+  "description": "Execute a PowerShell command and return the output. This tool allows running arbitrary PowerShell commands. The command is executed via 'powershell -NoProfile -Command', so all PowerShell features like cmdlets, pipelines, object manipulation, scripting constructs, and modules are available. Use this tool for advanced Windows system administration, scripting, JSON/XML processing, and any PowerShell tasks. Returns both stdout and stderr output.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "command": {
+        "type": "string",
+        "description": "The PowerShell command to execute. This will be passed to 'powershell -NoProfile -Command'. Can include pipelines, cmdlets, variables with $var, and any valid PowerShell syntax. Examples: 'Get-Process | Where-Object {$_.CPU -gt 10}', 'Get-ChildItem -Recurse | Measure-Object', 'Test-Path C:\\Windows'."
+      },
+      "requires_confirmation": {
+        "type": "boolean",
+        "description": "Set to true if the command is potentially dangerous or destructive and should require user confirmation before execution. Commands that modify files (Remove-Item, Move-Item), change system settings (Set-ExecutionPolicy, Set-Service), install packages, make network requests, or any other sensitive operations should have this set to true. Set to false for safe read-only operations like Get-ChildItem, Get-Process, Test-Path, etc. Also set to false when the user has explicitly and directly requested the command to be executed - direct user instructions do not require additional confirmation."
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Optional timeout in seconds. If the command does not complete within this time, it will be terminated. If not provided, no timeout is applied."
+      },
+      "working_directory": {
+        "type": "string",
+        "description": "Optional working directory for the command. If provided, the command will be executed in this directory. Can be an absolute path or a relative path (resolved against the current working directory)."
+      }
+    },
+    "required": ["command"]
+  }
+}
+)"_json;
+};
 
-// Self-register the category at static-init time
-static bool _powershell_tool_category_registered = regist_tool_category(
-    "powershell", get_powershell_tools, regist_powershell_tools);
+AUTO_REGISTER(PowershellFunction);
+
+}  // namespace ai

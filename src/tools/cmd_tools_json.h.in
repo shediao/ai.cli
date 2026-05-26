@@ -1,3 +1,0 @@
-constexpr char cmd_tools_json_str[] = R"===(
-@CMD_TOOLS_JSON_DATA@
-)===";

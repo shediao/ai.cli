@@ -5,8 +5,8 @@
 #include <set>
 #include <string>
 
+#include "base/io.h"
 #include "base/logging.h"
-#include "base/terminal.h"
 
 namespace ai {
 

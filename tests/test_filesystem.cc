@@ -67,51 +67,51 @@ class TempTestDir {
 TEST(ReadFileTest, ReadsEntireFile) {
   TempTestFile f("hello\nworld\n");
   json args = {{"path", f.path()}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_EQ(result, "hello\nworld\n");
 }
 
 TEST(ReadFileTest, ReadsEntireFileUsingFileParam) {
   TempTestFile f("content here");
   json args = {{"file", f.path()}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_EQ(result, "content here");
 }
 
 TEST(ReadFileTest, FileNotExists) {
   json args = {{"path", "/nonexistent/path/file.txt"}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_TRUE(result.find("is not exists") != std::string::npos);
 }
 
 TEST(ReadFileTest, EmptyFile) {
   TempTestFile f("");
   json args = {{"path", f.path()}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_TRUE(result.find("is empty") != std::string::npos);
 }
 
 TEST(ReadFileTest, MissingPathAndFile) {
   json args = json::object();
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(ReadFileTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(ReadFileTest, PathNotString) {
   json args = {{"path", 123}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos);
 }
 
 TEST(ReadFileTest, FileNotString) {
   json args = {{"file", true}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos)
       << result;
 }
@@ -119,49 +119,49 @@ TEST(ReadFileTest, FileNotString) {
 TEST(ReadFileTest, OffsetAndLimit) {
   TempTestFile f("line1\nline2\nline3\nline4\nline5\n");
   json args = {{"path", f.path()}, {"offset", 2}, {"limit", 2}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_EQ(result, "line2\nline3\n");
 }
 
 TEST(ReadFileTest, OffsetOnly) {
   TempTestFile f("line1\nline2\nline3\n");
   json args = {{"path", f.path()}, {"offset", 2}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_EQ(result, "line2\nline3\n");
 }
 
 TEST(ReadFileTest, OffsetOutOfRange) {
   TempTestFile f("line1\nline2\n");
   json args = {{"path", f.path()}, {"offset", 10}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_TRUE(result.find("is out of range") != std::string::npos);
 }
 
 TEST(ReadFileTest, LimitZero) {
   TempTestFile f("line1\nline2\n");
   json args = {{"path", f.path()}, {"limit", 0}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_EQ(result, "");
 }
 
 TEST(ReadFileTest, LimitExceedsFile) {
   TempTestFile f("line1\nline2\n");
   json args = {{"path", f.path()}, {"limit", 100}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_EQ(result, "line1\nline2\n");
 }
 
 TEST(ReadFileTest, LimitWithoutOffset) {
   TempTestFile f("line1\nline2\nline3\n");
   json args = {{"path", f.path()}, {"limit", 1}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_EQ(result, "line1\n");
 }
 
 TEST(ReadFileTest, OffsetClampedToAtLeast1) {
   TempTestFile f("line1\nline2\n");
   json args = {{"path", f.path()}, {"offset", 0}, {"limit", 1}};
-  std::string result = call_tool("read_file", args);
+  std::string result = ai::call_tool("read_file", args);
   EXPECT_EQ(result, "line1\n");
 }
 
@@ -173,7 +173,7 @@ TEST(ReadMultipleFilesTest, ReadsMultipleFiles) {
   TempTestFile f1("content1");
   TempTestFile f2("content2");
   json args = {{"paths", json::array({f1.path(), f2.path()})}};
-  std::string result = call_tool("read_multiple_files", args);
+  std::string result = ai::call_tool("read_multiple_files", args);
   EXPECT_TRUE(result.find("content1") != std::string::npos);
   EXPECT_TRUE(result.find("content2") != std::string::npos);
   EXPECT_TRUE(result.find("------") != std::string::npos);
@@ -181,31 +181,31 @@ TEST(ReadMultipleFilesTest, ReadsMultipleFiles) {
 
 TEST(ReadMultipleFilesTest, FileNotFound) {
   json args = {{"paths", json::array({"/nonexistent/file.txt"})}};
-  std::string result = call_tool("read_multiple_files", args);
+  std::string result = ai::call_tool("read_multiple_files", args);
   EXPECT_TRUE(result.find("failed to read") != std::string::npos);
 }
 
 TEST(ReadMultipleFilesTest, EmptyPaths) {
   json args = {{"paths", json::array()}};
-  std::string result = call_tool("read_multiple_files", args);
+  std::string result = ai::call_tool("read_multiple_files", args);
   EXPECT_EQ(result, "");
 }
 
 TEST(ReadMultipleFilesTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("read_multiple_files", args);
+  std::string result = ai::call_tool("read_multiple_files", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(ReadMultipleFilesTest, MissingPaths) {
   json args = json::object();
-  std::string result = call_tool("read_multiple_files", args);
+  std::string result = ai::call_tool("read_multiple_files", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(ReadMultipleFilesTest, PathsNotArray) {
   json args = {{"paths", "not_an_array"}};
-  std::string result = call_tool("read_multiple_files", args);
+  std::string result = ai::call_tool("read_multiple_files", args);
   EXPECT_TRUE(result.find("must be an array") != std::string::npos);
 }
 
@@ -216,7 +216,7 @@ TEST(ReadMultipleFilesTest, PathsNotArray) {
 TEST(WriteFileTest, WritesFileSuccessfully) {
   TempTestFile f("");
   json args = {{"path", f.path()}, {"content", "new content"}};
-  std::string result = call_tool("write_file", args);
+  std::string result = ai::call_tool("write_file", args);
   EXPECT_TRUE(result.find("Successfully wrote") != std::string::npos);
 
   std::ifstream in(f.path(), std::ios::binary);
@@ -227,33 +227,33 @@ TEST(WriteFileTest, WritesFileSuccessfully) {
 
 TEST(WriteFileTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("write_file", args);
+  std::string result = ai::call_tool("write_file", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(WriteFileTest, MissingPath) {
   json args = {{"content", "hello"}};
-  std::string result = call_tool("write_file", args);
+  std::string result = ai::call_tool("write_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(WriteFileTest, MissingContent) {
   TempTestFile f("");
   json args = {{"path", f.path()}};
-  std::string result = call_tool("write_file", args);
+  std::string result = ai::call_tool("write_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(WriteFileTest, PathNotString) {
   json args = {{"path", 42}, {"content", "hello"}};
-  std::string result = call_tool("write_file", args);
+  std::string result = ai::call_tool("write_file", args);
   EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos);
 }
 
 TEST(WriteFileTest, ContentNotString) {
   TempTestFile f("");
   json args = {{"path", f.path()}, {"content", 123}};
-  std::string result = call_tool("write_file", args);
+  std::string result = ai::call_tool("write_file", args);
   EXPECT_TRUE(result.find("\"content\" must be a string") != std::string::npos);
 }
 
@@ -266,7 +266,7 @@ TEST(EditFileTest, SingleSearchReplace) {
   std::string diff =
       "<<<<<<< SEARCH\nhello world\n=======\ngoodbye world\n>>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
 
   std::ifstream in(f.path(), std::ios::binary);
@@ -281,7 +281,7 @@ TEST(EditFileTest, MultipleSearchReplaceBlocks) {
       "<<<<<<< SEARCH\nline A\n=======\nreplaced A\n>>>>>>> REPLACE\n"
       "<<<<<<< SEARCH\nline C\n=======\nreplaced C\n>>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
 
   std::ifstream in(f.path(), std::ios::binary);
@@ -296,46 +296,46 @@ TEST(EditFileTest, SearchNotFound) {
       "<<<<<<< SEARCH\nnonexistent text\n=======\nreplacement\n>>>>>>> "
       "REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
 }
 
 TEST(EditFileTest, FileNotExists) {
   std::string diff = "<<<<<<< SEARCH\ntext\n=======\nnew\n>>>>>>> REPLACE\n";
   json args = {{"path", "/nonexistent/edit_file_test.txt"}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Failed to open file") != std::string::npos);
 }
 
 TEST(EditFileTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(EditFileTest, MissingPath) {
   json args = {{"diff", "some diff"}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(EditFileTest, MissingDiff) {
   TempTestFile f("content");
   json args = {{"path", f.path()}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(EditFileTest, PathNotString) {
   json args = {{"path", 1}, {"diff", "diff"}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos);
 }
 
 TEST(EditFileTest, DiffNotString) {
   TempTestFile f("content");
   json args = {{"path", f.path()}, {"diff", false}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("\"diff\" must be a string") != std::string::npos);
 }
 
@@ -343,7 +343,7 @@ TEST(EditFileTest, MissingSplitLabel) {
   TempTestFile f("content");
   std::string diff = "<<<<<<< SEARCH\ncontent\n>>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
 }
 
@@ -352,7 +352,7 @@ TEST(EditFileTest, DiffNotStartWithSearchLabel) {
   // diff is just random text, does not start with "<<<<<<< SEARCH\n"
   std::string diff = "not a valid diff";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
 }
 
@@ -360,7 +360,7 @@ TEST(EditFileTest, DiffEmpty) {
   TempTestFile f("content");
   std::string diff = "";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
 }
 
@@ -369,7 +369,7 @@ TEST(EditFileTest, DiffSearchLabelNotFollowedByNewline) {
   // starts with "<<<<<<< SEARCH" but not followed by newline
   std::string diff = "<<<<<<< SEARCH old content";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
 }
 
@@ -380,7 +380,7 @@ TEST(EditFileTest, MismatchedLabelCounts) {
       "<<<<<<< SEARCH\nline A\n=======\nreplaced A\n>>>>>>> REPLACE\n"
       "<<<<<<< SEARCH\nline B\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("mismatched number of SEARCH/SEPARATOR/REPLACE "
                           "labels") != std::string::npos);
 }
@@ -390,7 +390,7 @@ TEST(EditFileTest, LabelsOutOfOrder) {
   // REPLACE label appears before SEPARATOR label in the block
   std::string diff = "<<<<<<< SEARCH\nfoo\n>>>>>>> REPLACE\n=======\nbar\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("labels are out of order") != std::string::npos);
 }
 
@@ -399,7 +399,7 @@ TEST(EditFileTest, EmptyReplaceBlock) {
   // adjacent "=======" and ">>>>>>> REPLACE" means delete the SEARCH content
   std::string diff = "<<<<<<< SEARCH\nfoo bar\n=======\n>>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
 
   std::ifstream in(f.path(), std::ios::binary);
@@ -417,7 +417,7 @@ TEST(EditFileTest, MixedEmptyAndNonEmptyBlocks) {
       "<<<<<<< SEARCH\nremove me\n=======\n>>>>>>> REPLACE\n"
       "<<<<<<< SEARCH\nreplace this\n=======\nnew content\n>>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
 
   std::ifstream in(f.path(), std::ios::binary);
@@ -433,7 +433,7 @@ TEST(EditFileTest, MismatchedLabelCountsExtraReplace) {
       "<<<<<<< SEARCH\ncontent A\n=======\nnew A\n>>>>>>> REPLACE\n"
       ">>>>>>> REPLACE\n";
   json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = call_tool("edit_file", args);
+  std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("mismatched number of SEARCH/SEPARATOR/REPLACE "
                           "labels") != std::string::npos);
 }
@@ -447,7 +447,7 @@ TEST(CreateDirectoryTest, CreatesDirectory) {
   std::string new_dir =
       (std::filesystem::path(parent.path()) / "subdir").string();
   json args = {{"path", new_dir}};
-  std::string result = call_tool("create_directory", args);
+  std::string result = ai::call_tool("create_directory", args);
   EXPECT_TRUE(result.find("Successfully created directory") !=
               std::string::npos);
   EXPECT_TRUE(std::filesystem::exists(new_dir));
@@ -459,7 +459,7 @@ TEST(CreateDirectoryTest, CreatesNestedDirectories) {
   std::string nested =
       (std::filesystem::path(parent.path()) / "a" / "b" / "c").string();
   json args = {{"path", nested}};
-  std::string result = call_tool("create_directory", args);
+  std::string result = ai::call_tool("create_directory", args);
   EXPECT_TRUE(result.find("Successfully created directory") !=
               std::string::npos);
   EXPECT_TRUE(std::filesystem::exists(nested));
@@ -468,26 +468,26 @@ TEST(CreateDirectoryTest, CreatesNestedDirectories) {
 TEST(CreateDirectoryTest, AlreadyExists) {
   TempTestDir dir;
   json args = {{"path", dir.path()}};
-  std::string result = call_tool("create_directory", args);
+  std::string result = ai::call_tool("create_directory", args);
   EXPECT_TRUE(result.find("Successfully created directory") !=
               std::string::npos);
 }
 
 TEST(CreateDirectoryTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("create_directory", args);
+  std::string result = ai::call_tool("create_directory", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(CreateDirectoryTest, MissingPath) {
   json args = json::object();
-  std::string result = call_tool("create_directory", args);
+  std::string result = ai::call_tool("create_directory", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(CreateDirectoryTest, PathNotString) {
   json args = {{"path", 12345}};
-  std::string result = call_tool("create_directory", args);
+  std::string result = ai::call_tool("create_directory", args);
   EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos);
 }
 
@@ -504,7 +504,7 @@ TEST(ListDirectoryTest, ListsFilesAndDirs) {
                                     "test_subdir");
 
   json args = {{"path", dir.path()}};
-  std::string result = call_tool("list_directory", args);
+  std::string result = ai::call_tool("list_directory", args);
   EXPECT_TRUE(result.find("[FILE]") != std::string::npos);
   EXPECT_TRUE(result.find("[DIR]") != std::string::npos);
   EXPECT_TRUE(result.find("test_file.txt") != std::string::npos);
@@ -514,31 +514,31 @@ TEST(ListDirectoryTest, ListsFilesAndDirs) {
 TEST(ListDirectoryTest, NotADirectory) {
   TempTestFile f("content");
   json args = {{"path", f.path()}};
-  std::string result = call_tool("list_directory", args);
+  std::string result = ai::call_tool("list_directory", args);
   EXPECT_TRUE(result.find("Error") != std::string::npos);
 }
 
 TEST(ListDirectoryTest, NotExists) {
   json args = {{"path", "/nonexistent/directory"}};
-  std::string result = call_tool("list_directory", args);
+  std::string result = ai::call_tool("list_directory", args);
   EXPECT_TRUE(result.find("Error") != std::string::npos);
 }
 
 TEST(ListDirectoryTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("list_directory", args);
+  std::string result = ai::call_tool("list_directory", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(ListDirectoryTest, MissingPath) {
   json args = json::object();
-  std::string result = call_tool("list_directory", args);
+  std::string result = ai::call_tool("list_directory", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(ListDirectoryTest, PathNotString) {
   json args = {{"path", true}};
-  std::string result = call_tool("list_directory", args);
+  std::string result = ai::call_tool("list_directory", args);
   EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos);
 }
 
@@ -559,7 +559,7 @@ TEST(DirectoryTreeTest, ReturnsJsonTree) {
       << "nested";
 
   json args = {{"path", dir.path()}};
-  std::string result = call_tool("directory_tree", args);
+  std::string result = ai::call_tool("directory_tree", args);
 
   auto tree = json::parse(result);
   EXPECT_TRUE(tree.is_array());
@@ -585,27 +585,27 @@ TEST(DirectoryTreeTest, ReturnsJsonTree) {
 TEST(DirectoryTreeTest, NotADirectory) {
   TempTestFile f("content");
   json args = {{"path", f.path()}};
-  std::string result = call_tool("directory_tree", args);
+  std::string result = ai::call_tool("directory_tree", args);
   EXPECT_TRUE(result.find("not a directory or not exists") !=
               std::string::npos);
 }
 
 TEST(DirectoryTreeTest, NotExists) {
   json args = {{"path", "/nonexistent/dir"}};
-  std::string result = call_tool("directory_tree", args);
+  std::string result = ai::call_tool("directory_tree", args);
   EXPECT_TRUE(result.find("not a directory or not exists") !=
               std::string::npos);
 }
 
 TEST(DirectoryTreeTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("directory_tree", args);
+  std::string result = ai::call_tool("directory_tree", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(DirectoryTreeTest, MissingPath) {
   json args = json::object();
-  std::string result = call_tool("directory_tree", args);
+  std::string result = ai::call_tool("directory_tree", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
@@ -619,7 +619,7 @@ TEST(MoveFileTest, MovesFile) {
   std::string dest = (std::filesystem::path(dir.path()) / "moved.txt").string();
 
   json args = {{"source", f.path()}, {"distination", dest}};
-  std::string result = call_tool("move_file", args);
+  std::string result = ai::call_tool("move_file", args);
   EXPECT_TRUE(result.find("Successfully moved") != std::string::npos);
   EXPECT_FALSE(std::filesystem::exists(f.path()));
   EXPECT_TRUE(std::filesystem::exists(dest));
@@ -634,37 +634,37 @@ TEST(MoveFileTest, SourceNotExists) {
   TempTestDir dir;
   std::string dest = (std::filesystem::path(dir.path()) / "dest.txt").string();
   json args = {{"source", "/nonexistent/source.txt"}, {"distination", dest}};
-  std::string result = call_tool("move_file", args);
+  std::string result = ai::call_tool("move_file", args);
   EXPECT_TRUE(result.find("Error") != std::string::npos);
 }
 
 TEST(MoveFileTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("move_file", args);
+  std::string result = ai::call_tool("move_file", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(MoveFileTest, MissingSource) {
   json args = {{"distination", "/tmp/dest.txt"}};
-  std::string result = call_tool("move_file", args);
+  std::string result = ai::call_tool("move_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(MoveFileTest, MissingDistination) {
   json args = {{"source", "/tmp/source.txt"}};
-  std::string result = call_tool("move_file", args);
+  std::string result = ai::call_tool("move_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(MoveFileTest, SourceNotString) {
   json args = {{"source", 1}, {"distination", "/tmp/dest.txt"}};
-  std::string result = call_tool("move_file", args);
+  std::string result = ai::call_tool("move_file", args);
   EXPECT_TRUE(result.find("\"source\" must be a string") != std::string::npos);
 }
 
 TEST(MoveFileTest, DistinationNotString) {
   json args = {{"source", "/tmp/source.txt"}, {"distination", 2}};
-  std::string result = call_tool("move_file", args);
+  std::string result = ai::call_tool("move_file", args);
   EXPECT_TRUE(result.find("\"distination\" must be a string") !=
               std::string::npos);
 }
@@ -692,7 +692,7 @@ TEST(FindFilesTest, FindsFilesByPattern) {
       << "";
 
   json args = {{"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", true}};
-  std::string result = call_tool("find_files", args);
+  std::string result = ai::call_tool("find_files", args);
   EXPECT_TRUE(result.find("apple.txt") != std::string::npos);
   EXPECT_TRUE(result.find("banana.txt") != std::string::npos);
   EXPECT_TRUE(result.find("apple.csv") == std::string::npos);
@@ -711,7 +711,7 @@ TEST(FindFilesTest, NonRecursive) {
 
   json args = {
       {"path", dir.path()}, {"pattern", "*.txt"}, {"recursive", false}};
-  std::string result = call_tool("find_files", args);
+  std::string result = ai::call_tool("find_files", args);
   EXPECT_TRUE(result.find("root.txt") != std::string::npos);
   EXPECT_TRUE(result.find("nested.txt") == std::string::npos);
 }
@@ -719,7 +719,7 @@ TEST(FindFilesTest, NonRecursive) {
 TEST(FindFilesTest, NoMatch) {
   TempTestDir dir;
   json args = {{"path", dir.path()}, {"pattern", "xyz_does_not_exist_*"}};
-  std::string result = call_tool("find_files", args);
+  std::string result = ai::call_tool("find_files", args);
   EXPECT_TRUE(result.find("No files or directories matching") !=
               std::string::npos);
 }
@@ -732,25 +732,25 @@ TEST(FindFilesTest, PartialPatternFallback) {
       << "";
 
   json args = {{"path", dir.path()}, {"pattern", "world"}};
-  std::string result = call_tool("find_files", args);
+  std::string result = ai::call_tool("find_files", args);
   EXPECT_TRUE(result.find("hello_world.txt") != std::string::npos);
 }
 
 TEST(FindFilesTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("find_files", args);
+  std::string result = ai::call_tool("find_files", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(FindFilesTest, MissingPath) {
   json args = {{"pattern", "*.txt"}};
-  std::string result = call_tool("find_files", args);
+  std::string result = ai::call_tool("find_files", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
 TEST(FindFilesTest, MissingPattern) {
   json args = {{"path", "/tmp"}};
-  std::string result = call_tool("find_files", args);
+  std::string result = ai::call_tool("find_files", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
@@ -761,7 +761,7 @@ TEST(FindFilesTest, MissingPattern) {
 TEST(GetFileInfoTest, FileInfo) {
   TempTestFile f("hello world");
   json args = {{"path", f.path()}};
-  std::string result = call_tool("get_file_info", args);
+  std::string result = ai::call_tool("get_file_info", args);
   auto info = json::parse(result);
   EXPECT_EQ(info["path"], f.path());
   EXPECT_EQ(info["type"], "file");
@@ -773,26 +773,26 @@ TEST(GetFileInfoTest, FileInfo) {
 TEST(GetFileInfoTest, DirectoryInfo) {
   TempTestDir dir;
   json args = {{"path", dir.path()}};
-  std::string result = call_tool("get_file_info", args);
+  std::string result = ai::call_tool("get_file_info", args);
   auto info = json::parse(result);
   EXPECT_EQ(info["type"], "directory");
 }
 
 TEST(GetFileInfoTest, NotExists) {
   json args = {{"path", "/nonexistent/file.txt"}};
-  std::string result = call_tool("get_file_info", args);
+  std::string result = ai::call_tool("get_file_info", args);
   EXPECT_TRUE(result.find("does not exist") != std::string::npos);
 }
 
 TEST(GetFileInfoTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("get_file_info", args);
+  std::string result = ai::call_tool("get_file_info", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(GetFileInfoTest, MissingPath) {
   json args = json::object();
-  std::string result = call_tool("get_file_info", args);
+  std::string result = ai::call_tool("get_file_info", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
@@ -803,7 +803,7 @@ TEST(GetFileInfoTest, MissingPath) {
 TEST(DiskSpaceInfoTest, ReturnsSpaceInfo) {
   TempTestDir dir;
   json args = {{"path", dir.path()}};
-  std::string result = call_tool("disk_space_info", args);
+  std::string result = ai::call_tool("disk_space_info", args);
   auto info = json::parse(result);
   EXPECT_EQ(info["path"], dir.path());
   EXPECT_TRUE(info.contains("capacity"));
@@ -819,13 +819,13 @@ TEST(DiskSpaceInfoTest, ReturnsSpaceInfo) {
 
 TEST(DiskSpaceInfoTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("disk_space_info", args);
+  std::string result = ai::call_tool("disk_space_info", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(DiskSpaceInfoTest, MissingPath) {
   json args = json::object();
-  std::string result = call_tool("disk_space_info", args);
+  std::string result = ai::call_tool("disk_space_info", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
@@ -839,7 +839,7 @@ TEST(ReplaceLinesTest, ReplacesSingleLine) {
                {"start_line", 2},
                {"end_line", 2},
                {"content", "REPLACED\n"}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("Successfully replaced") != std::string::npos);
 
   std::ifstream in(f.path(), std::ios::binary);
@@ -854,7 +854,7 @@ TEST(ReplaceLinesTest, ReplacesLineRange) {
                {"start_line", 2},
                {"end_line", 3},
                {"content", "A\nB\n"}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("Successfully replaced") != std::string::npos);
 
   std::ifstream in(f.path(), std::ios::binary);
@@ -869,7 +869,7 @@ TEST(ReplaceLinesTest, StartLineOutOfRange) {
                {"start_line", 10},
                {"end_line", 10},
                {"content", "x"}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("is out of range") != std::string::npos);
 }
 
@@ -879,7 +879,7 @@ TEST(ReplaceLinesTest, EndLineOutOfRange) {
                {"start_line", 1},
                {"end_line", 10},
                {"content", "x"}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("is out of range") != std::string::npos);
 }
 
@@ -887,7 +887,7 @@ TEST(ReplaceLinesTest, StartLineLessThan1) {
   TempTestFile f("content");
   json args = {
       {"path", f.path()}, {"start_line", 0}, {"end_line", 1}, {"content", "x"}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("\"start_line\" must be >= 1") != std::string::npos);
 }
 
@@ -895,7 +895,7 @@ TEST(ReplaceLinesTest, EndLineLessThanStartLine) {
   TempTestFile f("content");
   json args = {
       {"path", f.path()}, {"start_line", 3}, {"end_line", 1}, {"content", "x"}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("must be >= \"start_line\"") != std::string::npos);
 }
 
@@ -904,19 +904,19 @@ TEST(ReplaceLinesTest, FileNotExists) {
                {"start_line", 1},
                {"end_line", 1},
                {"content", "x"}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("Failed to open file") != std::string::npos);
 }
 
 TEST(ReplaceLinesTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(ReplaceLinesTest, MissingPath) {
   json args = {{"start_line", 1}, {"end_line", 1}, {"content", "x"}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
@@ -924,7 +924,7 @@ TEST(ReplaceLinesTest, ContentNotString) {
   TempTestFile f("content");
   json args = {
       {"path", f.path()}, {"start_line", 1}, {"end_line", 1}, {"content", 42}};
-  std::string result = call_tool("replace_lines", args);
+  std::string result = ai::call_tool("replace_lines", args);
   EXPECT_TRUE(result.find("\"content\" must be a string") != std::string::npos);
 }
 
@@ -955,7 +955,7 @@ TEST(ExecuteFileTest, ExecutesScript) {
 #endif
 
   json args = {{"path", script_path}};
-  std::string result = call_tool("execute_file", args);
+  std::string result = ai::call_tool("execute_file", args);
   EXPECT_TRUE(result.find("Exit code: 42") != std::string::npos);
   EXPECT_TRUE(result.find("hello") != std::string::npos);
   EXPECT_TRUE(result.find("error") != std::string::npos);
@@ -984,19 +984,19 @@ TEST(ExecuteFileTest, WithArgs) {
 #endif
 
   json args = {{"path", script_path}, {"args", json::array({"hello_arg"})}};
-  std::string result = call_tool("execute_file", args);
+  std::string result = ai::call_tool("execute_file", args);
   EXPECT_TRUE(result.find("hello_arg") != std::string::npos);
 }
 
 TEST(ExecuteFileTest, NotAnObject) {
   json args = json::array();
-  std::string result = call_tool("execute_file", args);
+  std::string result = ai::call_tool("execute_file", args);
   EXPECT_TRUE(result.find("expected a JSON object") != std::string::npos);
 }
 
 TEST(ExecuteFileTest, MissingPath) {
   json args = json::object();
-  std::string result = call_tool("execute_file", args);
+  std::string result = ai::call_tool("execute_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
 
@@ -1024,7 +1024,7 @@ TEST(ExecuteFileTest, WorkingDirectory) {
   TempTestDir workdir;
 
   json args = {{"path", script_path}, {"working_directory", workdir.path()}};
-  std::string result = call_tool("execute_file", args);
+  std::string result = ai::call_tool("execute_file", args);
   // The script outputs the current working directory, which should match
   // workdir
   EXPECT_TRUE(result.find(workdir.path()) != std::string::npos) << result;
@@ -1052,7 +1052,7 @@ TEST(ExecuteFileTest, WorkingDirectoryNonexistent) {
 
   json args = {{"path", script_path},
                {"working_directory", "/nonexistent/path/xyz_123_not_exists"}};
-  std::string result = call_tool("execute_file", args);
+  std::string result = ai::call_tool("execute_file", args);
   // Should get an error about the directory not existing
   EXPECT_FALSE(result.empty()) << result;
   EXPECT_TRUE(result.find("hello") == std::string::npos) << result;

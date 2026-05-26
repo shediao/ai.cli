@@ -5,9 +5,12 @@
 
 #include "ai/function.h"
 
+namespace ai {
+
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
+namespace {
 std::string list_directory(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function list_directory arguments is invalid: expected a JSON "
@@ -40,3 +43,36 @@ std::string list_directory(nlohmann::json const& args) {
   }
   return ret;
 }
+}  // namespace
+
+class ListDirectoryFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return list_directory(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "list_directory",
+  "description": "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": ["path"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(ListDirectoryFunction);
+
+}  // namespace ai

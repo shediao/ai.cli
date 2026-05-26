@@ -6,12 +6,14 @@
 #include <vector>
 
 #include "ai/function.h"
-#include "ai/utils.h"
 #include "base/file.h"
+
+namespace ai {
 
 extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
+namespace {
 std::string read_file(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function read_file arguments is invalid: expected a JSON object.";
@@ -93,3 +95,44 @@ std::string read_file(nlohmann::json const& args) {
 
   return content;
 }
+}  // namespace
+
+class ReadFileFunction : public ai::Function {
+ public:
+  std::string call(nlohmann::json const& args) override {
+    return read_file(args);
+  }
+  std::string const& category() const override { return category_; }
+  nlohmann::json const& schema() const override { return schema_; }
+
+ private:
+  std::string category_ = "filesystem";
+  nlohmann::json schema_ = R"===(
+{
+  "type": "function",
+  "name": "read_file",
+  "description": "Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use 'offset' and 'limit' parameters together to read long files in chunks, especially handy for long files, but it's recommended to read the whole file by not providing these parameters.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string"
+      },
+      "offset": {
+        "type": "integer",
+        "description": "The line number to start reading from. Only provide if the file is too large to read at once. Line numbers are 1-indexed (the first line is line 1)."
+      },
+      "limit": {
+        "type": "integer",
+        "description": "The number of lines to read. Only provide if the file is too large to read at once."
+      }
+    },
+    "required": ["path"]
+  }
+}
+)==="_json;
+};
+
+AUTO_REGISTER(ReadFileFunction);
+
+}  // namespace ai

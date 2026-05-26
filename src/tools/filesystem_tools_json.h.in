@@ -1,4 +1,0 @@
-
-constexpr char filesystem_tools_json_str[] = R"===(
-@FILESYSTEM_TOOLS_JSON_DATA@
-)===";
