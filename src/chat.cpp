@@ -152,7 +152,7 @@ int chat(AiArgs const& args) {
         }
       }
       if (!chat_args.tools.empty() && !system_prompt.empty()) {
-        system_prompt += "\n\nWorking Directory: ";
+        system_prompt += "\n\nCurrent Working Directory: ";
         system_prompt += work_dir;
       }
       LOG(INFO) << "system prompt: "
