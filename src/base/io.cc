@@ -1,5 +1,13 @@
 #include "io.h"
 
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <unistd.h>
+
+#include <limits>
+#endif
+
 namespace ai::base {
 
 // return value: -1 on error, >=0 on success
