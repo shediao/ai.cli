@@ -21,7 +21,7 @@ cmake -B build -S . -DAICLI_USE_SYSTEM_CURL=ON    # use system libcurl
 cmake -B build -S . -DAICLI_ENABLE_ASAN=OFF       # disable sanitizers
 
 # Format code (Google style, 2-space indent, C++20)
-clang-format -i src/*.cpp include/ai/*.h tests/*.cc tests/*.cpp
+clang-format -i src/*.cpp src/base/*.cc include/ai/*.h tests/*.cc tests/*.cpp
 cmake-format -i CMakeLists.txt tests/CMakeLists.txt
 ```
 
@@ -132,12 +132,13 @@ This is a C++20 CLI chatbot that communicates with OpenAI-compatible APIs (DeepS
 
 The `chat()` function runs the conversation loop:
 
-1. Builds a system prompt — auto-context with CWD, OS, architecture, shell, git branch from `build_default_system_prompt()` in `src/system_prompt.cpp`. If no user-supplied system prompt and the history is empty, the auto-context is used. If tools are enabled, appends `"Working Directory: <cwd>"`.
-2. If `--continue-from <id>` or `-C` is given, loads previous messages from `HistoryDB::get_messages()`.
-3. Calls `OpenAIClient::chat()` which sends the request and receives a `Response`.
-4. If the response contains `tool_calls`, executes each tool via `call_tool()`, times and displays the result, appends results to `chat_history` as role=`"tool"` messages, and loops.
-5. Breaks when `finish_reason` is `"stop"` (or on terminal error reasons: `"content_filter"`, `"length"`, `"insufficient_system_resources"`). Unknown finish reasons log a warning but continue.
-6. On scope exit (via `base::scope_exit`), persists the conversation to SQLite (`HistoryDB::create_session()` with token statistics), generates a one-line topic via AI (`HistoryDB::generate_topic()`), and prints token usage summary.
+1. Builds a system prompt — auto-context with CWD, OS, architecture, shell, git branch from `build_default_system_prompt()` in `src/system_prompt.cpp`. If no user-supplied system prompt and the history is empty, the auto-context is used. System prompts starting with `@` (e.g., `@./prompt.txt`) load content from the specified file. If tools are enabled, appends `"Working Directory: <cwd>"`.
+2. If `-C` (`--continue-with-last-history`) is given, loads the most recent session's messages. If `--continue-from <id>` is given, loads messages from the specific session via `HistoryDB::get_messages()`.
+3. If `--list-tools` is given, prints all registered tool categories and their functions, then exits immediately.
+4. Calls `OpenAIClient::chat()` which sends the request and receives a `Response`.
+5. If the response contains `tool_calls`, executes each tool via `call_tool()`, times and displays the result, appends results to `chat_history` as role=`"tool"` messages, and loops.
+6. Breaks when `finish_reason` is `"stop"` or `"tool_calls"` (or on terminal error reasons: `"content_filter"`, `"length"`, `"insufficient_system_resources"`). Unknown finish reasons log a warning but continue.
+7. On scope exit (via `base::scope_exit`), persists the conversation to SQLite (`HistoryDB::create_session()` with token statistics), generates a one-line topic via AI (`HistoryDB::generate_topic()`), and prints token usage summary.
 
 Reasoning/thinking content (`reasoning_content` in response): in streaming mode, wrapped in ANSI-dim `<thinking>…</thinking>` blocks in the terminal; in non-streaming mode, prepended to content before printing.
 
@@ -163,7 +164,7 @@ Each tool category has:
 Tool categories:
 
 - **`default`** — session/environment queries: `get_working_directory`, `get_environment_variable`, `set_environment_variable`, `get_shell`, `get_operating_system`.
-- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `execute_file`, `replace_lines`. Utilities shared across filesystem tools live in `src/tools/filesystem.cpp` (e.g., `expand_tilde`, `resolve_path`).
+- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `execute_file`, `replace_lines`. Utilities shared across filesystem tools live in `src/tools/filesystem.cpp` (e.g., `expand_tilde`, `resolve_path`).
 - **`bash`** — Unix/Linux/macOS shell; auto-detected on non-Windows or when `bash.exe` is in PATH.
 - **`cmd`** — Windows Command Prompt (platform-conditional).
 - **`powershell`** — Windows PowerShell (platform-conditional).
@@ -172,7 +173,7 @@ Tool categories:
 
 - Config file at OS-standard path (`ai::utils::app_data_dir("ai.cli") + "/config.json"`).
 - `AppConfig` holds a `vector<ProviderConfig>`, each with `alias`, `base_url`, optional `api_key` and `default_model`.
-- If the config file doesn't exist, `write_default_config_if_not_exists()` creates it with 6 pre-configured providers: deepseek, openai, gemini, qwen, moonshot, ollama.
+- If the config file doesn't exist, `write_default_config_if_not_exists()` creates it with 6 pre-configured providers: deepseek (`deepseek-v4-pro`), openai (`gpt-4o`), gemini (`gemini-flash-latest`), qwen (`qwen-max-latest`), moonshot (`kimi-k2.6`), ollama (no default model).
 - API keys resolved via: env var `{ALIAS}_API_KEY` → config file → empty.
 - Model resolved via: CLI `--model` → env var `{ALIAS}_API_MODEL` → config file `default_model`.
 
@@ -181,7 +182,7 @@ Tool categories:
 - SQLite-backed via `HistoryDB` using WAL journal mode and busy timeout (5s) for multi-process safety.
 - Table `conversations_v1` with Unix-timestamp time fields; legacy `conversations` table kept for backward compatibility.
 - Each conversation is a session with a unique session_id (format: `YYYYMMDD-HHMMSS-<16-hex>`), storing the full message JSON array, metadata (URL, model, working directory, parent session for continuations), token usage stats, and an AI-generated topic.
-- `history` subcommand supports JSON array output (`--json`), line output (`--line`), human-readable text (`--text`), and single-session lookup (`--session`). Defaults to line format with newest-first ordering.
+- `history` subcommand supports JSON array output (`--json`), line output (`--line`), human-readable text (`--text`), and single-session lookup (`--session`). Defaults to line format with newest-first ordering, showing fields `start|work_dir|topic`.
 
 ### Update (`src/update.cpp`, `include/ai/update.h`)
 
@@ -193,15 +194,20 @@ Self-update subcommand. Fetches the latest GitHub release from `api.github.com/r
 
 ### Base Utilities (`src/base/`)
 
-| File                | Purpose                                 |
-| ------------------- | --------------------------------------- |
-| `file.h`/`.cc`      | Cross-platform file read/write          |
-| `string.h`/`.cc`    | String utilities (split, UTF-8 helpers) |
-| `terminal.h`/`.cc`  | TTY detection, interactive confirmation |
-| `temp_file.h`/`.cc` | RAII temporary file (auto-deleted)      |
-| `temp_dir.h`/`.cc`  | RAII temporary directory (auto-deleted) |
-| `download.h`/`.cc`  | HTTP file download via CURL             |
-| `scope_exit.h`      | Scope-guard cleanup (header-only)       |
+| File                  | Purpose                                                          |
+| --------------------- | ---------------------------------------------------------------- |
+| `file.h`/`.cc`        | Cross-platform file read/write                                   |
+| `string.h`/`.cc`      | String utilities (split, UTF-8 helpers, `utf8_truncate`)         |
+| `terminal.h`/`.cc`    | TTY detection, interactive confirmation (`Terminal` class)       |
+| `temp_file.h`/`.cc`   | RAII temporary file (auto-deleted)                               |
+| `temp_dir.h`/`.cc`    | RAII temporary directory (auto-deleted)                          |
+| `download.h`/`.cc`    | HTTP file download via CURL                                      |
+| `scope_exit.h`        | Scope-guard cleanup (header-only, `ai::base::scope_exit`)        |
+| `logging.h`/`.cc`     | Logging system (macros `LOG(LEVEL)`, `LOG_IF`)                   |
+| `io.h`/`.cc`          | Cross-platform IO handles (stdin-is-atty, foreground detection)  |
+| `glob.h`/`.cc`        | Glob pattern matching                                            |
+| `matchglob.h`/`.cc`   | Match glob utilities                                             |
+| `base64.h`/`.cc`      | Base64 encoding for image input                                  |
 
 ### Key Dependencies (all via FetchContent)
 
@@ -223,9 +229,10 @@ All custom forks are under `github.com/shediao/*`.
 
 - Google style, 2-space indent, C++20.
 - `.clang-tidy` disables: `llvm-header-guard`, `modernize-use-trailing-return-type`, `readability-identifier-naming`, `cppcoreguidelines-pro-type-cstyle-cast`, and several modernize checks.
-- Use `ai::term::` namespace for ANSI terminal colors/styles instead of raw escape codes.
+- Use `ai::term::` namespace (from `include/ai/terminal.h`) for ANSI terminal colors/styles instead of raw escape codes.
 - Use `ai::base::scope_exit` for scope-guard cleanup instead of manual try/finally patterns.
-- Use the `LOG(LEVEL)` macro from `ai/logging.h` (levels: DEBUG, INFO, WARNING, ERROR, FATAL).
+- Use the `LOG(LEVEL)` macro from `base/logging.h` (levels: VERBOSE=-1, DEBUG=0, INFO=1, WARNING=2, ERROR=3, FATAL=4).
+- There are two `terminal.h` headers: `include/ai/terminal.h` provides ANSI color constants in `ai::term::`; `src/base/terminal.h` provides the `ai::base::Terminal` class for TTY detection, interactive prompts, and external editor invocation.
 - Include order: standard library → third-party → project headers.
 - All source code files must use LF (`\n`) line endings. Do not introduce CRLF (`\r\n`) when editing files.
 
