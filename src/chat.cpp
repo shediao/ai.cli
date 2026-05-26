@@ -5,7 +5,6 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
-#include <utfx/utfx.hpp>
 
 #include "ai/args.h"
 #include "ai/function.h"
@@ -107,7 +106,7 @@ int chat(AiArgs const& args) {
     try {
       auto user_prompt = chat_args.prompts;
       for (auto const& sp : chat_args.system_prompt) {
-        if (!utfx::is_utf8(sp.data(), sp.size())) {
+        if (!ai::base::is_utf8(sp.data(), sp.size())) {
           LOG(ERROR) << "system prompt is not a valid UTF-8 string";
           return 1;
         }
@@ -115,19 +114,23 @@ int chat(AiArgs const& args) {
 
 #if defined(_WIN32)
       for (auto& s : user_prompt) {
-        if (!utfx::is_utf8(s.data(), s.size())) {
-          auto u8 = ai::base::toUtf8(s);
-          if (!u8) {
+        if (s.empty()) {
+          continue;
+        }
+        if (!ai::base::is_utf8(s.data(), s.size())) {
+          auto u8 = ai::base::acp_to_utf8(s);
+          if (u8.empty()) {
             LOG(ERROR) << "user prompt is not a valid UTF-8 string";
             return 1;
           }
-          s = u8.value();
+          s = std::move(u8);
         }
       }
 #else
       if (auto it = std::find_if_not(user_prompt.begin(), user_prompt.end(),
                                      [](std::string const& s) {
-                                       return utfx::is_utf8(s.data(), s.size());
+                                       return ai::base::is_utf8(s.data(),
+                                                                s.size());
                                      });
           it != user_prompt.end()) {
         LOG(ERROR) << "user prompt is not a valid UTF-8 string";

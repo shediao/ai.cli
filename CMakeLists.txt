@@ -134,6 +134,7 @@ add_library(
   src/base/download.cc
   src/base/file.cc
   src/base/glob.cc
+  src/base/io.cc
   src/base/matchglob.cc
   src/base/logging.cc
   src/base/string.cc

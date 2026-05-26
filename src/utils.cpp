@@ -25,7 +25,6 @@
 #include <subprocess/subprocess.hpp>
 
 #include "ai/utils.h"
-#include "utfx/utfx.hpp"
 
 namespace fs = std::filesystem;
 

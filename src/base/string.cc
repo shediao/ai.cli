@@ -104,50 +104,74 @@ std::string utf8_truncate(std::string const& s, size_t max_length) {
 }
 
 #if defined(_WIN32)
-// Helper function to convert a UTF-8 std::string to a UTF-16 std::wstring
-inline std::wstring to_wstring(const std::string& utf8str,
-                               const UINT from_codepage = CP_UTF8) {
-  if (utf8str.empty()) {
-    return {};
-  }
-  int size_needed = MultiByteToWideChar(from_codepage, 0, utf8str.data(),
-                                        (int)utf8str.size(), NULL, 0);
-  if (size_needed <= 0) {
-    // Consider throwing an exception for conversion errors
-    return {};
-  }
-  std::wstring utf16str(size_needed, 0);
-  MultiByteToWideChar(from_codepage, 0, utf8str.data(), (int)utf8str.size(),
-                      utf16str.data(), size_needed);
-  return utf16str;
-}
-// Helper function to convert a UTF-16 std::wstring to a UTF-8 std::string
-inline std::string to_string(const std::wstring& utf16str,
-                             const UINT to_codepage = CP_UTF8) {
-  if (utf16str.empty()) {
+std::string utf16_to_utf8(std::wstring_view wstr_view) {
+  const UINT to_codepage = CP_UTF8;
+  if (wstr_view.empty()) {
     return {};
   }
   int size_needed =
-      WideCharToMultiByte(to_codepage, 0, utf16str.data(), (int)utf16str.size(),
-                          NULL, 0, NULL, NULL);
+      WideCharToMultiByte(to_codepage, 0, wstr_view.data(),
+                          (int)wstr_view.size(), NULL, 0, NULL, NULL);
   if (size_needed <= 0) {
     // Consider throwing an exception for conversion errors
     return {};
   }
   std::string utf8str(size_needed, 0);
-  WideCharToMultiByte(to_codepage, 0, utf16str.data(), (int)utf16str.size(),
-                      utf8str.data(), size_needed, NULL, NULL);
+  auto len = WideCharToMultiByte(to_codepage, 0, wstr_view.data(),
+                                 (int)wstr_view.size(), utf8str.data(),
+                                 size_needed, NULL, NULL);
+  utf8str.resize(len);
   return utf8str;
 }
-
-std::optional<std::string> toUtf8(const std::string& s) {
-  auto u8 = to_string(to_wstring(s, GetACP()), CP_UTF8);
-  if (!u8.empty()) {
-    return u8;
+std::wstring utf8_to_utf16(std::string_view str_view) {
+  const UINT from_codepage = CP_UTF8;
+  if (str_view.empty()) {
+    return {};
   }
-  return std::nullopt;
+  int size_needed = MultiByteToWideChar(from_codepage, 0, str_view.data(),
+                                        (int)str_view.size(), NULL, 0);
+  if (size_needed <= 0) {
+    // Consider throwing an exception for conversion errors
+    return {};
+  }
+  std::wstring utf16str(size_needed, 0);
+  auto len =
+      MultiByteToWideChar(from_codepage, 0, str_view.data(),
+                          (int)str_view.size(), utf16str.data(), size_needed);
+  utf16str.resize(len);
+  return utf16str;
 }
 
+std::string acp_to_utf8(std::string_view str_view) {
+  const UINT from_codepage = CP_ACP;
+  if (str_view.empty()) {
+    return {};
+  }
+  int size_needed = MultiByteToWideChar(from_codepage, 0, str_view.data(),
+                                        (int)str_view.size(), NULL, 0);
+  if (size_needed <= 0) {
+    // Consider throwing an exception for conversion errors
+    return {};
+  }
+  std::wstring utf16str(size_needed, 0);
+  auto len =
+      MultiByteToWideChar(from_codepage, 0, str_view.data(),
+                          (int)str_view.size(), utf16str.data(), size_needed);
+  utf16str.resize(len);
+  return utf16_to_utf8(utf16str);
+}
+#else
+std::string utf16_to_utf8(std::u16string_view u16str_view) {
+  return utfx::utf16_to_utf8(u16str_view);
+}
+std::u16string utf8_to_utf16(std::string_view str_view) {
+  return utfx::utf8_to_utf16(str_view);
+}
 #endif
+
+bool is_utf8(const void* data, size_t len) { return utfx::is_utf8(data, len); }
+bool is_utf16(const void* data, size_t len) {
+  return utfx::is_utf16(data, len);
+}
 
 }  // namespace ai::base

@@ -7,14 +7,9 @@
 #include <windows.h>
 #endif
 
+#include "io.h"
+
 namespace ai::base {
-#if defined(_WIN32)
-using NativeHandle = HANDLE;
-const NativeHandle INVALID_NATIVE_HANDLE_VALUE = INVALID_HANDLE_VALUE;
-#else   // _WIN32
-using NativeHandle = int;
-constexpr NativeHandle INVALID_NATIVE_HANDLE_VALUE = -1;
-#endif  // !_WIN32
 class Terminal {
  public:
   Terminal();
@@ -41,9 +36,5 @@ class Terminal {
   NativeHandle in_{INVALID_NATIVE_HANDLE_VALUE};
   NativeHandle out_{INVALID_NATIVE_HANDLE_VALUE};
 };
-
-bool stdin_is_atty();
-bool stdout_is_atty();
-bool stderr_is_atty();
 
 }  // namespace ai::base

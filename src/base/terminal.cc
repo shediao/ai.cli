@@ -286,36 +286,4 @@ std::string Terminal::edit(std::string_view initial_content) {
   return "";
 }
 
-static bool is_atty(NativeHandle f) {
-#if defined(_WIN32)
-  return GetFileType(f) == FILE_TYPE_CHAR;
-#else
-  return isatty(f);
-#endif
-}
-
-bool stdin_is_atty() {
-#if defined(_WIN32)
-  return is_atty(GetStdHandle(STD_INPUT_HANDLE));
-#else
-  return is_atty(STDIN_FILENO);
-#endif
-}
-
-bool stdout_is_atty() {
-#if defined(_WIN32)
-  return is_atty(GetStdHandle(STD_OUTPUT_HANDLE));
-#else
-  return is_atty(STDOUT_FILENO);
-#endif
-}
-
-bool stderr_is_atty() {
-#if defined(_WIN32)
-  return is_atty(GetStdHandle(STD_ERROR_HANDLE));
-#else
-  return is_atty(STDERR_FILENO);
-#endif
-}
-
 }  // namespace ai::base

@@ -1,12 +1,15 @@
 #include <argparse/argparse.hpp>
 #include <cstdlib>
+#include <iterator>
 #include <nlohmann/json.hpp>
+#include <vector>
 
 #include "ai/args.h"
 #include "ai/chat.h"
 #include "ai/history.h"
 #include "ai/models.h"
 #include "ai/update.h"
+#include "base/string.h"
 #include "curl/curl.h"
 
 using namespace ai;
@@ -33,9 +36,23 @@ int main(int argc, char* argv[])
   CurlGlobalInitGuard guard;
   AiArgs args;
   auto parser = get_parser(args);
+#if defined(_WIN32)
+  std::vector<std::string> utf8_args;
+  std::transform(argv, argv + argc, std::back_inserter(utf8_args),
+                 [](wchar_t const* w) { return ai::base::utf16_to_utf8(w); });
+  std::vector<char const*> utf8_argv;
+  std::transform(utf8_args.begin(), utf8_args.end(),
+                 std::back_inserter(utf8_argv),
+                 [](std::string const& s) { return s.c_str(); });
+  utf8_argv.push_back(nullptr);
+#endif
 
   try {
+#if defined(_WIN32)
+    auto& cmd = parser.parse(argc, utf8_argv.data());
+#else
     auto& cmd = parser.parse(argc, argv);
+#endif
 
     if (cmd.command() == "chat") {
       return chat(args);
