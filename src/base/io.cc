@@ -78,7 +78,8 @@ bool read_exact(unique_fd const& fd, void* data, std::size_t size) {
 
 static bool is_atty(NativeHandle f) {
 #if defined(_WIN32)
-  return GetFileType(f) == FILE_TYPE_CHAR;
+  DWORD mode{0};
+  return GetConsoleMode(f, &mode);
 #else
   return isatty(f);
 #endif
