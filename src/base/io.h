@@ -160,5 +160,6 @@ bool read_exact(unique_fd const& fd, void* data, std::size_t size);
 bool stdin_is_atty();
 bool stdout_is_atty();
 bool stderr_is_atty();
+bool stdin_is_foreground();
 
 }  // namespace ai::base

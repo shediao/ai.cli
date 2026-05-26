@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "ai/terminal.h"
+#include "base/io.h"
 #include "base/terminal.h"
 
 #ifndef _WIN32
@@ -177,30 +178,6 @@ static void bind_model_args(argparse::ArgParser& parser, AiArgs& args) {
       }
     }
   });
-}
-
-inline static bool stdin_is_pipe() {
-#ifdef _WIN32
-  return FILE_TYPE_PIPE == GetFileType(GetStdHandle(STD_INPUT_HANDLE));
-#else
-  struct stat sb{};
-  if (0 == fstat(STDIN_FILENO, &sb)) {
-    return (S_ISFIFO(sb.st_mode));
-  }
-  return false;
-#endif
-}
-
-inline static bool stdin_is_file() {
-#ifdef _WIN32
-  return FILE_TYPE_DISK == GetFileType(GetStdHandle(STD_INPUT_HANDLE));
-#else
-  struct stat sb{};
-  if (0 == fstat(STDIN_FILENO, &sb)) {
-    return S_ISREG(sb.st_mode);
-  }
-  return false;
-#endif
 }
 
 static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
@@ -431,7 +408,7 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       std::exit(0);
     }
 
-    // read from stdin
+    // read from stdin replace '-'
     if (auto it =
             std::find(begin(chat_args.prompts), end(chat_args.prompts), "-");
         it != end(chat_args.prompts)) {
@@ -439,7 +416,15 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
                         std::istreambuf_iterator<char>{});
     };
 
-    if (chat_args.prompts.empty() && ai::base::stdin_is_atty()) {
+    if (!ai::base::stdin_is_atty()) {
+      std::string read_content{std::istreambuf_iterator<char>(std::cin),
+                               std::istreambuf_iterator<char>{}};
+      if (!read_content.empty()) {
+        chat_args.prompts.push_back(std::move(read_content));
+      }
+    }
+    if (chat_args.prompts.empty() && ai::base::stdin_is_atty() &&
+        ai::base::stdin_is_foreground()) {
       try {
         if (auto prompt = ai::base::Terminal::edit(); !prompt.empty()) {
           std::cout << prompt;
@@ -448,16 +433,8 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
       } catch (...) {
       }
     }
-    if (stdin_is_pipe() || stdin_is_file()) {
-      std::string read_content{std::istreambuf_iterator<char>(std::cin),
-                               std::istreambuf_iterator<char>{}};
-      if (!read_content.empty()) {
-        std::cout << read_content;
-        chat_args.prompts.push_back(std::move(read_content));
-      }
-    }
     if (chat_args.prompts.empty()) {
-      std::cerr << "Error: Must provide a prompt." << std::endl;
+      std::cerr << "Error: No prompt provided." << std::endl;
       exit(EXIT_FAILURE);
     }
 

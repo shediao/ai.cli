@@ -118,4 +118,12 @@ bool stderr_is_atty() {
 #endif
 }
 
+bool stdin_is_foreground() {
+#ifdef _WIN32
+  return true;
+#else
+  return tcgetpgrp(STDIN_FILENO) == getpgrp();
+#endif
+}
+
 }  // namespace ai::base
