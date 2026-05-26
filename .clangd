@@ -11,6 +11,10 @@ CompileFlags:
     - -mconsole
     - -fvisibility=hidden
     - -fvisibility-inlines-hidden
+    - -fsanitize=address,undefined
+    - -fno-omit-frame-pointer
+    - -fno-optimize-sibling-calls
+    - /fsanitize=address
 
 Diagnostics:
   # Unused includes are noisy in large projects; comment out to enable
