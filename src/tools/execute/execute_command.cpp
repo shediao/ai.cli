@@ -1,4 +1,5 @@
 #include <chrono>
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <ranges>
@@ -94,9 +95,17 @@ std::string execute_command(nlohmann::json const& args) {
     }
   }
 
+  subprocess::buffer out_buf{[](const unsigned char* data, size_t size) {
+    std::cout.write(reinterpret_cast<const char*>(data), size);
+  }};
+  subprocess::buffer err_buf{[](const unsigned char* data, size_t size) {
+    std::cerr.write(reinterpret_cast<const char*>(data), size);
+  }};
+
   auto start = std::chrono::steady_clock::now();
-  auto [exit_code, out_buf, err_buf] = subprocess::capture_run(
-      cmd_args, timeout = timeout_val, cwd = working_directory);
+  auto exit_code =
+      subprocess::run(cmd_args, $stdout > out_buf, $stderr > err_buf,
+                      $timeout = timeout_val, $cwd = working_directory);
   auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string result;
