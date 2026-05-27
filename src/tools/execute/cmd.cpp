@@ -11,16 +11,16 @@
 namespace ai {
 
 namespace {
-std::string powershell(nlohmann::json const& args) {
+std::string cmd(nlohmann::json const& args) {
   if (!args.is_object()) {
-    return "function powershell arguments is invalid: expected a JSON object.";
+    return "function cmd arguments is invalid: expected a JSON object.";
   }
   if (!args.contains("command")) {
-    return "function powershell arguments is invalid: missing required "
-           "parameter \"command\".";
+    return "function cmd arguments is invalid: missing required parameter "
+           "\"command\".";
   }
   if (!args["command"].is_string()) {
-    return "function powershell arguments is invalid: \"command\" must be a "
+    return "function cmd arguments is invalid: \"command\" must be a "
            "string.";
   }
   std::string command = args["command"].get<std::string>();
@@ -38,19 +38,18 @@ std::string powershell(nlohmann::json const& args) {
           ? args["working_directory"].get<std::string>()
           : "";
 
-  print_toolcall_log(
-      "powershell",
-      {{"command", command},
-       {"working_directory", working_directory},
-       {"timeout", timeout_val == $timeout_infinite
-                       ? "infinite"
-                       : std::to_string(timeout_val)},
-       {"requires_confirmation", requires_confirmation ? "true" : "false"}});
+  print_toolcall_log("cmd", {{"command", command},
+                             {"working_directory", working_directory},
+                             {"timeout", timeout_val == $timeout_infinite
+                                             ? "infinite"
+                                             : std::to_string(timeout_val)},
+                             {"requires_confirmation",
+                              requires_confirmation ? "true" : "false"}});
 
   // Check if user confirmation is required
   if (requires_confirmation) {
     ai::base::Terminal tty;
-    auto confirmed = tty.confirm("PowerShell command requires confirmation\n" +
+    auto confirmed = tty.confirm("CMD command requires confirmation\n" +
                                  command + "\nExecute?");
     if (!confirmed) {
       return "Command cancelled by user: " + command;
@@ -65,9 +64,9 @@ std::string powershell(nlohmann::json const& args) {
   }};
 
   auto start = std::chrono::steady_clock::now();
-  auto ret = subprocess::run("powershell", "-NoProfile", "-Command", command,
-                             $stdout > out_buf, $stderr > err_buf,
-                             $timeout = timeout_val, $cwd = working_directory);
+  auto ret = subprocess::run("cmd", "/c", command, $stdout > out_buf,
+                             $stderr > err_buf, $timeout = timeout_val,
+                             $cwd = working_directory);
   auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string result;
@@ -96,11 +95,9 @@ std::string powershell(nlohmann::json const& args) {
 }
 }  // namespace
 
-class PowershellFunction : public ai::Function {
+class CmdFunction : public ai::Function {
  public:
-  std::string call(nlohmann::json const& args) override {
-    return powershell(args);
-  }
+  std::string call(nlohmann::json const& args) override { return cmd(args); }
   bool enabled() const override {
 #if defined(_WIN32)
     return true;
@@ -112,22 +109,22 @@ class PowershellFunction : public ai::Function {
   nlohmann::json const& schema() const override { return schema_; }
 
  private:
-  std::string category_ = "powershell";
+  std::string category_ = "execute";
   nlohmann::json schema_ = R"(
 {
   "type": "function",
-  "name": "powershell",
-  "description": "Execute a PowerShell command and return the output. This tool allows running arbitrary PowerShell commands. The command is executed via 'powershell -NoProfile -Command', so all PowerShell features like cmdlets, pipelines, object manipulation, scripting constructs, and modules are available. Use this tool for advanced Windows system administration, scripting, JSON/XML processing, and any PowerShell tasks. Returns both stdout and stderr output.",
+  "name": "cmd",
+  "description": "Execute a Windows CMD command and return the output. This tool allows running arbitrary Windows Command Prompt commands. The command is executed via 'cmd /c', so all cmd features like pipelines, redirects, variable expansions, and built-in commands (dir, type, echo, set, etc.) are available. Use this tool for Windows system administration, file operations, process management, and any Command Prompt tasks. Returns both stdout and stderr output.",
   "parameters": {
     "type": "object",
     "properties": {
       "command": {
         "type": "string",
-        "description": "The PowerShell command to execute. This will be passed to 'powershell -NoProfile -Command'. Can include pipelines, cmdlets, variables with $var, and any valid PowerShell syntax. Examples: 'Get-Process | Where-Object {$_.CPU -gt 10}', 'Get-ChildItem -Recurse | Measure-Object', 'Test-Path C:\\Windows'."
+        "description": "The CMD command to execute. This will be passed to 'cmd /c'. Can include pipelines, redirects, variable expansions with %VAR%, and any valid CMD syntax. Examples: 'dir /b', 'type file.txt', 'echo %PATH%', 'tasklist | findstr chrome'."
       },
       "requires_confirmation": {
         "type": "boolean",
-        "description": "Set to true if the command is potentially dangerous or destructive and should require user confirmation before execution. Commands that modify files (Remove-Item, Move-Item), change system settings (Set-ExecutionPolicy, Set-Service), install packages, make network requests, or any other sensitive operations should have this set to true. Set to false for safe read-only operations like Get-ChildItem, Get-Process, Test-Path, etc. Also set to false when the user has explicitly and directly requested the command to be executed - direct user instructions do not require additional confirmation."
+        "description": "Set to true if the command is potentially dangerous or destructive and should require user confirmation before execution. Commands that modify files (del, move, ren), change system settings (reg, netsh), install packages, make network requests, or any other sensitive operations should have this set to true. Set to false for safe read-only operations like dir, type, echo, etc. Also set to false when the user has explicitly and directly requested the command to be executed - direct user instructions do not require additional confirmation."
       },
       "timeout": {
         "type": "integer",
@@ -144,6 +141,6 @@ class PowershellFunction : public ai::Function {
 )"_json;
 };
 
-AUTO_REGISTER(PowershellFunction);
+AUTO_REGISTER(CmdFunction);
 
 }  // namespace ai

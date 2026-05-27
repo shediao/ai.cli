@@ -114,7 +114,7 @@ class ExecuteFileFunction : public ai::Function {
   nlohmann::json const& schema() const override { return schema_; }
 
  private:
-  std::string category_ = "filesystem";
+  std::string category_ = "execute";
   nlohmann::json schema_ = R"===(
 {
   "type": "function",

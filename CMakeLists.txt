@@ -134,11 +134,11 @@ add_library(
   src/tools/filesystem/find_files.cpp
   src/tools/filesystem/get_file_info.cpp
   src/tools/filesystem/disk_space_info.cpp
-  src/tools/filesystem/execute_file.cpp
+  src/tools/execute/bash.cpp
+  src/tools/execute/cmd.cpp
+  src/tools/execute/powershell.cpp
+  src/tools/execute/execute_file.cpp
   src/tools/filesystem/replace_lines.cpp
-  src/tools/bash.cpp
-  src/tools/cmd.cpp
-  src/tools/powershell.cpp
   src/tools/default.cpp
   src/tools/interactive/ask_user.cpp
   src/function.cpp
