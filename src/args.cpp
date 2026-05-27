@@ -9,8 +9,8 @@
 #include <limits>
 
 #include "ai/function.h"
-#include "ai/terminal.h"
 #include "base/io.h"
+#include "base/string.h"
 #include "base/terminal.h"
 
 #ifndef _WIN32

@@ -11,7 +11,6 @@
 #include "ai/history.h"
 #include "ai/openai.h"
 #include "ai/system_prompt.h"
-#include "ai/terminal.h"
 #include "base/logging.h"
 #include "base/scope_exit.h"
 #include "base/string.h"

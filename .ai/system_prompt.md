@@ -204,20 +204,20 @@ Self-update subcommand. Fetches the latest GitHub release from `api.github.com/r
 
 ### Base Utilities (`src/base/`)
 
-| File                  | Purpose                                                          |
-| --------------------- | ---------------------------------------------------------------- |
-| `file.h`/`.cc`        | Cross-platform file read/write                                   |
-| `string.h`/`.cc`      | String utilities (split, UTF-8 helpers, `utf8_truncate`)         |
-| `terminal.h`/`.cc`    | TTY detection, interactive confirmation (`Terminal` class)       |
-| `temp_file.h`/`.cc`   | RAII temporary file (auto-deleted)                               |
-| `temp_dir.h`/`.cc`    | RAII temporary directory (auto-deleted)                          |
-| `download.h`/`.cc`    | HTTP file download via CURL                                      |
-| `scope_exit.h`        | Scope-guard cleanup (header-only, `ai::base::scope_exit`)        |
-| `logging.h`/`.cc`     | Logging system (macros `LOG(LEVEL)`, `LOG_IF`)                   |
-| `io.h`/`.cc`          | Cross-platform IO handles (stdin-is-atty, foreground detection)  |
-| `glob.h`/`.cc`        | Glob pattern matching                                            |
-| `matchglob.h`/`.cc`   | Match glob utilities                                             |
-| `base64.h`/`.cc`      | Base64 encoding for image input                                  |
+| File                | Purpose                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------ |
+| `file.h`/`.cc`      | Cross-platform file read/write                                                                         |
+| `string.h`/`.cc`    | String utilities (split, UTF-8 helpers, `utf8_truncate`), ANSI terminal color constants (`ai::term::`) |
+| `terminal.h`/`.cc`  | TTY detection, interactive confirmation (`Terminal` class)                                             |
+| `temp_file.h`/`.cc` | RAII temporary file (auto-deleted)                                                                     |
+| `temp_dir.h`/`.cc`  | RAII temporary directory (auto-deleted)                                                                |
+| `download.h`/`.cc`  | HTTP file download via CURL                                                                            |
+| `scope_exit.h`      | Scope-guard cleanup (header-only, `ai::base::scope_exit`)                                              |
+| `logging.h`/`.cc`   | Logging system (macros `LOG(LEVEL)`, `LOG_IF`)                                                         |
+| `io.h`/`.cc`        | Cross-platform IO handles (stdin-is-atty, foreground detection)                                        |
+| `glob.h`/`.cc`      | Glob pattern matching                                                                                  |
+| `matchglob.h`/`.cc` | Match glob utilities                                                                                   |
+| `base64.h`/`.cc`    | Base64 encoding for image input                                                                        |
 
 ### Key Dependencies (all via FetchContent)
 
@@ -239,10 +239,10 @@ All custom forks are under `github.com/shediao/*`.
 
 - Google style, 2-space indent, C++20.
 - `.clang-tidy` disables: `llvm-header-guard`, `modernize-use-trailing-return-type`, `readability-identifier-naming`, `cppcoreguidelines-pro-type-cstyle-cast`, and several modernize checks.
-- Use `ai::term::` namespace (from `include/ai/terminal.h`) for ANSI terminal colors/styles instead of raw escape codes.
+- Use `ai::term::` namespace (from `src/base/string.h`) for ANSI terminal colors/styles instead of raw escape codes.
 - Use `ai::base::scope_exit` for scope-guard cleanup instead of manual try/finally patterns.
 - Use the `LOG(LEVEL)` macro from `base/logging.h` (levels: VERBOSE=-1, DEBUG=0, INFO=1, WARNING=2, ERROR=3, FATAL=4).
-- There are two `terminal.h` headers: `include/ai/terminal.h` provides ANSI color constants in `ai::term::`; `src/base/terminal.h` provides the `ai::base::Terminal` class for TTY detection, interactive prompts, and external editor invocation.
+- ANSI terminal color constants live in `src/base/string.h` under `ai::term::`; the `src/base/terminal.h` header provides the `ai::base::Terminal` class for TTY detection, interactive prompts, and external editor invocation.
 - Include order: standard library → third-party → project headers.
 - All source code files must use LF (`\n`) line endings. Do not introduce CRLF (`\r\n`) when editing files.
 

@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include "ai/terminal.h"
 #include "ai/utils.h"
+#include "base/string.h"
 
 void print_toolcall_log(
     std::string_view func_name,
