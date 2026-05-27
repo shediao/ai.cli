@@ -426,6 +426,8 @@ class OpenAIClient::Impl {
       }
       std::cout << response_string << '\n';
     } catch (const nlohmann::json::exception& e) {
+      LOG(ERROR) << "JSON parse error: " << e.what();
+      LOG(ERROR) << "Response: " << response_string;
       throw std::runtime_error(response_string + "\n" + e.what());
     }
     return {};

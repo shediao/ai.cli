@@ -211,40 +211,44 @@ int chat(AiArgs const& args) {
         if (!response.value().choices().back().message.tool_calls.empty()) {
           for (auto const& tool_call :
                response.value().choices().back().message.tool_calls) {
+            std::string tool_call_result;
+            auto function = tool_call.function.name;
+            auto start = std::chrono::steady_clock::now();
             try {
-              auto function = tool_call.function.name;
               auto arguments = json::parse(tool_call.function.arguments);
               LOG(INFO) << function + "(" + arguments.dump() + ")";
-              auto start = std::chrono::steady_clock::now();
-              auto ret = ai::call_tool(function, arguments);
-              auto elapsed = std::chrono::steady_clock::now() - start;
-              auto elapsed_ms =
-                  std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
-                      .count();
-              if (ret.size() > 160) {
-                std::cout << term::bold_color::yellow
-                          << ai::base::utf8_truncate(ret, 128) << "......"
-                          << term::reset << "\n";
-              } else {
-                std::cout << term::bold_color::yellow << ret << term::reset
-                          << "\n";
-              }
-              std::cout << "[Done] " << function << " took: " << elapsed_ms
-                        << "ms, result length: " << ret.size() << "\n";
-              chat_history.push_back(
-                  nlohmann::json::object({{"role", "tool"},
-                                          {"tool_call_id", tool_call.id},
-                                          {"name", function},
-                                          {"content", ret}}));
-
+              tool_call_result = ai::call_tool(function, arguments);
             } catch (json::parse_error const& e) {
               LOG(ERROR) << tool_call.function.name << "("
-                         << tool_call.function.arguments << ")" << e.what();
+                         << tool_call.function.arguments << ")\n"
+                         << e.what();
+              tool_call_result = "function arguments is invalid json string: ";
+              tool_call_result += e.what();
             } catch (std::exception const& e) {
-              LOG(ERROR) << tool_call.function.name << "("
-                         << tool_call.function.arguments << ")" << e.what();
-              LOG(ERROR) << e.what();
+              LOG(ERROR) << function << " error: " << e.what();
+              tool_call_result =
+                  std::string("Tool execution error: ") + e.what();
             }
+            auto elapsed = std::chrono::steady_clock::now() - start;
+            auto elapsed_ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
+                    .count();
+            if (tool_call_result.size() > 160) {
+              std::cout << term::bold_color::yellow
+                        << ai::base::utf8_truncate(tool_call_result, 128)
+                        << "......" << term::reset << "\n";
+            } else {
+              std::cout << term::bold_color::yellow << tool_call_result
+                        << term::reset << "\n";
+            }
+            std::cout << "[Done] " << function << " took: " << elapsed_ms
+                      << "ms, result length: " << tool_call_result.size()
+                      << "\n";
+            chat_history.push_back(
+                nlohmann::json::object({{"role", "tool"},
+                                        {"tool_call_id", tool_call.id},
+                                        {"name", function},
+                                        {"content", tool_call_result}}));
           }
         }
         if (finish_reason != "stop" && finish_reason != "tool_calls") {

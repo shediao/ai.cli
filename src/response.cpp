@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 
+#include "base/logging.h"
 #include "base/string.h"
 #include "base/terminal.h"
 
@@ -90,6 +91,8 @@ Response Response::from_string(std::string const& response_data) {
     auto j = json::parse(response_data);
     return from_json(j);
   } catch (json::parse_error const& e) {
+    LOG(ERROR) << "JSON parse error: " << e.what();
+    LOG(ERROR) << "Response: " << response_data;
     throw std::runtime_error(std::string("JSON parsing error: ") + e.what());
   }
 }
