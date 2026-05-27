@@ -126,7 +126,7 @@ This is a C++20 CLI chatbot that communicates with OpenAI-compatible APIs (DeepS
 ### Entry & Dispatch
 
 - `src/main.cpp` — `CurlGlobalInitGuard` RAII wrapper initializes/cleans CURL globally. On Windows, uses `wmain` + `SetConsoleOutputCP(CP_UTF8)`. Parses CLI args via `argparse::ArgParser` (defined in `src/args.cpp`, struct in `include/ai/args.h`), dispatches to `chat()`, `models()`, `history()`, or `update()`.
-- `src/args.cpp` — defines all CLI subcommands, options, and flags. Provider aliases from `config.json` (e.g., `--deepseek`, `--openai`) set the `--base-url`. Automatically resolves API keys (`{ALIAS}_API_KEY` env var → config file), models (`{ALIAS}_API_MODEL` env var → config `default_model`), and proxy (`{ALIAS}_API_PROXY`). Default tools (`default`, `filesystem`, plus platform-specific shells) are auto-selected unless `--no-tools` or `--tools` is specified.
+- `src/args.cpp` — defines all CLI subcommands, options, and flags. Provider aliases from `config.json` (e.g., `--deepseek`, `--openai`) set the `--base-url`. Automatically resolves API keys (`{ALIAS}_API_KEY` env var → config file), models (`{ALIAS}_API_MODEL` env var → config `default_model`), and proxy (`{ALIAS}_API_PROXY`). Default tools (`default`, `filesystem`, `execute`, `interactive`) are auto-selected unless `--no-tools` or `--tools` is specified.
 
 ### Core Loop (`src/chat.cpp`)
 
@@ -136,7 +136,7 @@ The `chat()` function runs the conversation loop:
 2. If `-C` (`--continue-with-last-history`) is given, loads the most recent session's messages. If `--continue-from <id>` is given, loads messages from the specific session via `HistoryDB::get_messages()`.
 3. If `--list-tools` is given, prints all registered tool categories and their functions, then exits immediately.
 4. Calls `OpenAIClient::chat()` which sends the request and receives a `Response`.
-5. If the response contains `tool_calls`, executes each tool via `call_tool()`, times and displays the result, appends results to `chat_history` as role=`"tool"` messages, and loops.
+5. If the response contains `tool_calls`, executes each tool via `call_tool()`. Tool call timing and result display are placed outside the try-catch block so that failed tool calls still show results and get recorded in history. Results are appended to `chat_history` as role=`"tool"` messages, and the loop continues. Execute tools print a log line showing the command, timeout, working directory (or "(None)"), and active filters.
 6. Breaks when `finish_reason` is `"stop"` or `"tool_calls"` (or on terminal error reasons: `"content_filter"`, `"length"`, `"insufficient_system_resources"`). Unknown finish reasons log a warning but continue.
 7. On scope exit (via `base::scope_exit`), persists the conversation to SQLite (`HistoryDB::create_session()` with token statistics), generates a one-line topic via AI (`HistoryDB::generate_topic()`), and prints token usage summary.
 
@@ -174,10 +174,9 @@ Key API functions (all in `namespace ai`):
 Tool categories:
 
 - **`default`** — session/environment queries: `get_working_directory`, `get_environment_variable`, `set_environment_variable`, `get_shell`, `get_operating_system`. Defined in `src/tools/default.cpp`, one class per function.
-- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `execute_file`, `replace_lines`. Each tool is its own `.cpp` file in `src/tools/filesystem/`. Shared utilities (`expand_tilde`, `resolve_path`, `append_prefix_per_line`) are declared as `extern` in each tool file and defined in `src/tools/filesystem.cpp`.
-- **`bash`** — Unix/Linux/macOS shell; defined in `src/tools/bash.cpp`. On Windows, `enabled()` checks for `bash.exe` in PATH; on other platforms always enabled.
-- **`cmd`** — Windows Command Prompt; defined in `src/tools/cmd.cpp`. `enabled()` returns true only on Windows.
-- **`powershell`** — Windows PowerShell; defined in `src/tools/powershell.cpp`. `enabled()` returns true only on Windows.
+- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `replace_lines`. Each tool is its own `.cpp` file in `src/tools/filesystem/`. Shared utilities (`expand_tilde`, `resolve_path`, `append_prefix_per_line`) are declared as `extern` in each tool file and defined in `src/tools/filesystem.cpp`. `edit_file` uses a structured JSON array of `{search, replace}` objects for the `diff` parameter (legacy string-based SEARCH/REPLACE markers are gone).
+- **`execute`** — shell and command execution: `bash`, `cmd`, `powershell`, `execute_command`. All defined in `src/tools/execute/` with shared utilities (`filter_lines()`, `add_filter_parameter()`, subprocess execution helpers) in `src/tools/execute.cpp`/`.h`. `execute_command` is PATH-aware: if the path contains `/` or `\` it's treated as a file path (with tilde expansion); otherwise resolved from PATH. All execute tools support an optional ordered array of output filters (`head`, `tail`, `include`/regex, `exclude`/regex) applied via C++20 `std::views::split`. `bash` is enabled on non-Windows or if `bash.exe` in PATH; `cmd`/`powershell` only on Windows.
+- **`interactive`** — user interaction: `ask_user`. Defined in `src/tools/interactive/ask_user.cpp`. Prompts the user with a question and numbered menu via TTY; disabled (`enabled()=false`) when no TTY is available.
 
 ### Config (`src/config.cpp`, `include/ai/config.h`)
 
