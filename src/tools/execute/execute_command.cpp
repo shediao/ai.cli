@@ -1,6 +1,8 @@
 #include <chrono>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <subprocess/subprocess.hpp>
 #include <vector>
@@ -13,6 +15,73 @@ extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
 namespace {
+
+// Apply line-based filters (head, tail, regex_include, regex_exclude) to text.
+// Filters are applied in order: regex_exclude, regex_include, then head/tail.
+std::string filter_lines(std::string const& text,
+                         nlohmann::json const& filter) {
+  if (text.empty()) {
+    return text;
+  }
+  if (!filter.is_object()) {
+    return text;
+  }
+
+  std::vector<std::string> lines;
+  std::istringstream iss(text);
+  std::string line;
+  while (std::getline(iss, line)) {
+    lines.push_back(line);
+  }
+
+  // regex_exclude
+  if (filter.contains("regex_exclude") && filter["regex_exclude"].is_string()) {
+    std::regex re(filter["regex_exclude"].get<std::string>(),
+                  std::regex::ECMAScript);
+    lines.erase(std::remove_if(lines.begin(), lines.end(),
+                               [&](std::string const& l) {
+                                 return std::regex_search(l, re);
+                               }),
+                lines.end());
+  }
+
+  // regex_include
+  if (filter.contains("regex_include") && filter["regex_include"].is_string()) {
+    std::regex re(filter["regex_include"].get<std::string>(),
+                  std::regex::ECMAScript);
+    lines.erase(std::remove_if(lines.begin(), lines.end(),
+                               [&](std::string const& l) {
+                                 return !std::regex_search(l, re);
+                               }),
+                lines.end());
+  }
+
+  // head
+  if (filter.contains("head") && filter["head"].is_number_integer()) {
+    int n = filter["head"].get<int>();
+    if (n >= 0 && static_cast<size_t>(n) < lines.size()) {
+      lines.resize(static_cast<size_t>(n));
+    }
+  }
+
+  // tail
+  if (filter.contains("tail") && filter["tail"].is_number_integer()) {
+    int n = filter["tail"].get<int>();
+    if (n > 0 && static_cast<size_t>(n) < lines.size()) {
+      lines.erase(lines.begin(), lines.end() - static_cast<size_t>(n));
+    }
+  }
+
+  std::string result;
+  for (size_t i = 0; i < lines.size(); ++i) {
+    if (i > 0) {
+      result += "\n";
+    }
+    result += lines[i];
+  }
+  return result;
+}
+
 std::string execute_command(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function execute_command arguments is invalid: expected a JSON "
@@ -86,6 +155,12 @@ std::string execute_command(nlohmann::json const& args) {
   std::string out_str = out_buf.to_string();
   std::string err_str = err_buf.to_string();
 
+  // Apply output filters if specified
+  if (args.contains("filter") && args["filter"].is_object()) {
+    out_str = filter_lines(out_str, args["filter"]);
+    err_str = filter_lines(err_str, args["filter"]);
+  }
+
   if (!out_str.empty()) {
     result += "stdout:\n" + out_str;
     if (!err_str.empty()) {
@@ -147,6 +222,28 @@ class ExecuteCommandFunction : public ai::Function {
       "working_directory": {
         "type": "string",
         "description": "Optional working directory for the command. If provided, the command will be run in this directory. Can be an absolute path or a relative path (resolved against the current working directory)."
+      },
+      "filter": {
+        "type": "object",
+        "description": "Optional filters to apply to the command output lines. When a command is expected to produce long output (e.g., builds, logs, large directory listings), ALWAYS use filters — especially tail — to limit the output to a manageable size. Avoid returning excessive output that would overflow the context window. Filters are applied in order: regex_exclude, regex_include, then head or tail. Regex patterns use ECMAScript syntax.",
+        "properties": {
+          "head": {
+            "type": "integer",
+            "description": "Keep only the first N lines of output."
+          },
+          "tail": {
+            "type": "integer",
+            "description": "Keep only the last N lines of output."
+          },
+          "regex_include": {
+            "type": "string",
+            "description": "Only keep lines matching this ECMAScript regex pattern."
+          },
+          "regex_exclude": {
+            "type": "string",
+            "description": "Remove lines matching this ECMAScript regex pattern."
+          }
+        }
       }
     },
     "required": ["path"]
