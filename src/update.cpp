@@ -241,7 +241,7 @@ void replace_and_restart(const std::filesystem::path& current_exe,
   }
 
   // Launch the batch file detached with no visible window
-  STARTUPINFOW si;
+  STARTUPINFOW si{};
   PROCESS_INFORMATION pi{};
   si.cb = sizeof(STARTUPINFOW);
   si.dwFlags = STARTF_USESHOWWINDOW;
