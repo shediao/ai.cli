@@ -8,6 +8,7 @@
 
 #include "ai/function.h"
 #include "base/terminal.h"
+#include "tools/execute.h"
 
 namespace ai {
 
@@ -39,13 +40,16 @@ std::string bash(nlohmann::json const& args) {
           ? args["working_directory"].get<std::string>()
           : "";
 
-  print_toolcall_log("bash", {{"command", command},
-                              {"working_directory", working_directory},
-                              {"timeout", timeout_val == $timeout_infinite
-                                              ? "infinite"
-                                              : std::to_string(timeout_val)},
-                              {"requires_confirmation",
-                               requires_confirmation ? "true" : "false"}});
+  print_toolcall_log(
+      "bash",
+      {{"command", command},
+       {"working_directory",
+        working_directory.empty() ? "None" : working_directory},
+       {"timeout", timeout_val == $timeout_infinite
+                       ? "infinite"
+                       : std::to_string(timeout_val)},
+       {"requires_confirmation", requires_confirmation ? "true" : "false"},
+       {"filter", args.contains("filter") ? args["filter"].dump() : "None"}});
 
   // Check if user confirmation is required
   if (requires_confirmation) {
@@ -98,15 +102,23 @@ std::string bash(nlohmann::json const& args) {
                              $cwd = working_directory);
   auto elapsed = std::chrono::steady_clock::now() - start;
 
-  std::string result;
-  if (!out_buf.empty()) {
-    result += out_buf.to_string();
+  std::string out_str = out_buf.to_string();
+  std::string err_str = err_buf.to_string();
+
+  // Apply output filters if specified
+  if (args.contains("filter") && args["filter"].is_array()) {
+    out_str = filter_lines(out_str, args["filter"]);
+    err_str = filter_lines(err_str, args["filter"]);
   }
-  if (!err_buf.empty()) {
+  std::string result;
+  if (!out_str.empty()) {
+    result += out_str;
+  }
+  if (!err_str.empty()) {
     if (!result.empty() && result.back() != '\n') {
       result += '\n';
     }
-    result += err_buf.to_string();
+    result += err_str;
   }
 
   if (ret != 0 && timeout_val != $timeout_infinite &&
@@ -126,6 +138,7 @@ std::string bash(nlohmann::json const& args) {
 
 class BashFunction : public ai::Function {
  public:
+  BashFunction() { add_filter_parameter(schema_); }
   std::string call(nlohmann::json const& args) override { return bash(args); }
   bool enabled() const override {
 #if !defined(_WIN32)

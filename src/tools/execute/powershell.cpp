@@ -42,11 +42,13 @@ std::string powershell(nlohmann::json const& args) {
   print_toolcall_log(
       "powershell",
       {{"command", command},
-       {"working_directory", working_directory},
+       {"working_directory",
+        working_directory.empty() ? "None" : working_directory},
        {"timeout", timeout_val == $timeout_infinite
                        ? "infinite"
                        : std::to_string(timeout_val)},
-       {"requires_confirmation", requires_confirmation ? "true" : "false"}});
+       {"requires_confirmation", requires_confirmation ? "true" : "false"},
+       {"filter", args.contains("filter") ? args["filter"].dump() : "None"}});
 
   // Check if user confirmation is required
   if (requires_confirmation) {

@@ -39,13 +39,16 @@ std::string cmd(nlohmann::json const& args) {
           ? args["working_directory"].get<std::string>()
           : "";
 
-  print_toolcall_log("cmd", {{"command", command},
-                             {"working_directory", working_directory},
-                             {"timeout", timeout_val == $timeout_infinite
-                                             ? "infinite"
-                                             : std::to_string(timeout_val)},
-                             {"requires_confirmation",
-                              requires_confirmation ? "true" : "false"}});
+  print_toolcall_log(
+      "cmd",
+      {{"command", command},
+       {"working_directory",
+        working_directory.empty() ? "None" : working_directory},
+       {"timeout", timeout_val == $timeout_infinite
+                       ? "infinite"
+                       : std::to_string(timeout_val)},
+       {"requires_confirmation", requires_confirmation ? "true" : "false"},
+       {"filter", args.contains("filter") ? args["filter"].dump() : "None"}});
 
   // Check if user confirmation is required
   if (requires_confirmation) {
