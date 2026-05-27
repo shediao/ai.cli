@@ -155,19 +155,29 @@ Reasoning/thinking content (`reasoning_content` in response): in streaming mode,
 
 Tools are registered via **static initialization** (which is why the build uses an OBJECT library — to prevent the linker from stripping static initializers).
 
-Each tool category has:
+The tool system is built around an abstract base class `ai::Function` with the following virtual interface:
 
-1. A **JSON schema file** in `src/tools/` (e.g., `filesystem.json`, `bash.json`, `default.json`, `cmd.json`, `powershell.json`) defining the OpenAI function-calling schema.
-2. A **`.h.in` template** (e.g., `filesystem_tools_json.h.in`) that `CMakeLists.txt` runs through `configure_file()` to embed the JSON as a `const std::string_view`.
-3. A **registration function** (e.g., `regist_filesystem_tools()`) in the corresponding `.cpp` that calls `regist_tool_category()` (to register the schema) and `regist_tool_calls()` for each individual function.
+- `call(args)` — execute the tool with JSON arguments, returns result string
+- `category()` — return the tool's category name (e.g., `"filesystem"`, `"default"`)
+- `schema()` — return the OpenAI function-calling JSON schema (embedded inline as a raw string literal)
+- `enabled()` — (optional, default `true`) whether the tool is available on this platform
+
+Each tool is a concrete class inheriting from `ai::Function`, with the schema embedded directly in the class body as a `nlohmann::json` member. At the bottom of each tool file, the `AUTO_REGISTER(ClassName)` macro triggers `regist_function()` at static-init time via the `AutoRegister<T>` template.
+
+Key API functions (all in `namespace ai`):
+
+- `regist_function(unique_ptr<Function>)` — register a tool function
+- `get_categories()` — return the set of all known tool-category names
+- `get_tools(categories)` — return the JSON array of function schemas for given categories
+- `call_tool(name, args)` — find and invoke a tool by name
 
 Tool categories:
 
-- **`default`** — session/environment queries: `get_working_directory`, `get_environment_variable`, `set_environment_variable`, `get_shell`, `get_operating_system`.
-- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `execute_file`, `replace_lines`. Utilities shared across filesystem tools live in `src/tools/filesystem.cpp` (e.g., `expand_tilde`, `resolve_path`).
-- **`bash`** — Unix/Linux/macOS shell; auto-detected on non-Windows or when `bash.exe` is in PATH.
-- **`cmd`** — Windows Command Prompt (platform-conditional).
-- **`powershell`** — Windows PowerShell (platform-conditional).
+- **`default`** — session/environment queries: `get_working_directory`, `get_environment_variable`, `set_environment_variable`, `get_shell`, `get_operating_system`. Defined in `src/tools/default.cpp`, one class per function.
+- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `execute_file`, `replace_lines`. Each tool is its own `.cpp` file in `src/tools/filesystem/`. Shared utilities (`expand_tilde`, `resolve_path`, `append_prefix_per_line`) are declared as `extern` in each tool file and defined in `src/tools/filesystem.cpp`.
+- **`bash`** — Unix/Linux/macOS shell; defined in `src/tools/bash.cpp`. On Windows, `enabled()` checks for `bash.exe` in PATH; on other platforms always enabled.
+- **`cmd`** — Windows Command Prompt; defined in `src/tools/cmd.cpp`. `enabled()` returns true only on Windows.
+- **`powershell`** — Windows PowerShell; defined in `src/tools/powershell.cpp`. `enabled()` returns true only on Windows.
 
 ### Config (`src/config.cpp`, `include/ai/config.h`)
 
