@@ -122,6 +122,7 @@ add_library(
   src/base/temp_dir.cc
   src/base/temp_file.cc
   src/base/terminal.cc
+  src/tools/execute.cpp
   src/tools/filesystem.cpp
   src/tools/filesystem/read_file.cpp
   src/tools/filesystem/read_multiple_files.cpp

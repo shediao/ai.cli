@@ -2,12 +2,13 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <ranges>
-#include <regex>
 #include <string>
 #include <subprocess/subprocess.hpp>
 #include <vector>
 
 #include "ai/function.h"
+#include "base/terminal.h"
+#include "tools/execute.h"
 
 namespace ai {
 
@@ -15,74 +16,6 @@ extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
 namespace {
-
-// Apply line-based filters to text. Each filter in the array is applied in
-// order. Each filter object must have exactly one of: head, tail, include,
-// exclude.
-std::string filter_lines(std::string const& text,
-                         nlohmann::json const& filters) {
-  if (text.empty()) {
-    return text;
-  }
-  if (!filters.is_array()) {
-    return text;
-  }
-
-  // Split text into lines using C++20 ranges
-  std::vector<std::string_view> lines;
-  for (auto&& rng : text | std::views::split('\n')) {
-    lines.emplace_back(rng.begin(), rng.end());
-  }
-  // Drop trailing empty line produced by split (matches std::getline semantics)
-  if (!lines.empty() && lines.back().empty()) {
-    lines.pop_back();
-  }
-
-  // Apply each filter in array order
-  for (auto const& filter : filters) {
-    if (!filter.is_object()) {
-      continue;
-    }
-
-    if (filter.contains("exclude") && filter["exclude"].is_string()) {
-      std::regex re(filter["exclude"].get<std::string>(),
-                    std::regex::ECMAScript);
-      std::erase_if(lines, [&re](std::string_view line) {
-        return std::regex_search(line.begin(), line.end(), re);
-      });
-    } else if (filter.contains("include") && filter["include"].is_string()) {
-      std::regex re(filter["include"].get<std::string>(),
-                    std::regex::ECMAScript);
-      std::erase_if(lines, [&re](std::string_view line) {
-        return !std::regex_search(line.begin(), line.end(), re);
-      });
-    } else if (filter.contains("head") && filter["head"].is_number_integer()) {
-      auto v = filter["head"].get<int>();
-      if (v >= 0 && static_cast<size_t>(v) < lines.size()) {
-        lines.resize(static_cast<size_t>(v));
-      }
-    } else if (filter.contains("tail") && filter["tail"].is_number_integer()) {
-      auto v = filter["tail"].get<int>();
-      if (v >= 0 && static_cast<size_t>(v) < lines.size()) {
-        lines.erase(lines.begin(), lines.end() - static_cast<size_t>(v));
-      }
-    }
-  }
-
-  // Join lines back with newlines
-  std::string result;
-  result.reserve(std::accumulate(
-      lines.begin(), lines.end(), 0,
-      [](size_t acc, std::string_view line) { return acc + line.size() + 1; }));
-  for (size_t i = 0; i < lines.size(); ++i) {
-    if (i > 0) {
-      result.push_back('\n');
-    }
-    result.append(lines[i].begin(), lines[i].end());
-  }
-  return result;
-}
-
 std::string execute_command(nlohmann::json const& args) {
   if (!args.is_object()) {
     return "function execute_command arguments is invalid: expected a JSON "
@@ -137,13 +70,29 @@ std::string execute_command(nlohmann::json const& args) {
     }
     args_str += cmd_args[i];
   }
-  print_toolcall_log("execute_command",
-                     {{"path", path},
-                      {"working_directory", working_directory},
-                      {"timeout", timeout_val == timeout_infinite
-                                      ? "infinite"
-                                      : std::to_string(timeout_val)},
-                      {"args", args_str}});
+  auto requires_confirmation = args.contains("requires_confirmation") &&
+                               args["requires_confirmation"].is_boolean() &&
+                               args["requires_confirmation"].get<bool>();
+
+  print_toolcall_log(
+      "execute_command",
+      {{"path", path},
+       {"working_directory", working_directory},
+       {"timeout", timeout_val == timeout_infinite
+                       ? "infinite"
+                       : std::to_string(timeout_val)},
+       {"args", args_str},
+       {"requires_confirmation", requires_confirmation ? "true" : "false"}});
+
+  // Check if user confirmation is required
+  if (requires_confirmation) {
+    ai::base::Terminal tty;
+    auto confirmed = tty.confirm("Execute command requires confirmation\n" +
+                                 path + " " + args_str + "\nExecute?");
+    if (!confirmed) {
+      return "Command Execute cancelled by user.";
+    }
+  }
 
   auto start = std::chrono::steady_clock::now();
   auto [exit_code, out_buf, err_buf] = subprocess::capture_run(
@@ -189,6 +138,7 @@ std::string execute_command(nlohmann::json const& args) {
 
 class ExecuteCommandFunction : public ai::Function {
  public:
+  ExecuteCommandFunction() { add_filter_parameter(schema_); }
   std::string call(nlohmann::json const& args) override {
     return execute_command(args);
   }
@@ -216,6 +166,10 @@ class ExecuteCommandFunction : public ai::Function {
         },
         "description": "Optional arguments to pass to the command."
       },
+      "requires_confirmation": {
+        "type": "boolean",
+        "description": "Set to true if the command is potentially dangerous or destructive and should require user confirmation before execution. Commands that modify files (rm, mv, dd), change system settings, install packages, use sudo, make network requests that could expose data, or any other sensitive operations should have this set to true. Set to false for safe read-only operations like cat, ls, find, grep, etc. Also set to false when the user has explicitly and directly requested the command to be executed - direct user instructions do not require additional confirmation."
+      },
       "timeout": {
         "type": "integer",
         "description": "Optional timeout in seconds. If the command does not complete within this time, it will be terminated. If not provided, no timeout is applied."
@@ -223,58 +177,6 @@ class ExecuteCommandFunction : public ai::Function {
       "working_directory": {
         "type": "string",
         "description": "Optional working directory for the command. If provided, the command will be run in this directory. Can be an absolute path or a relative path (resolved against the current working directory)."
-      },
-      "filter": {
-        "type": "array",
-        "description": "Optional ordered list of filters to apply to command output (both stdout and stderr). Filters are applied in array order. When a command is expected to produce long output (e.g., builds, logs, large directory listings), ALWAYS use filters — especially tail — to limit the output to a manageable size. Avoid returning excessive output that would overflow the context window.",
-        "items": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "head": {
-                  "type": "integer",
-                  "description": "Keep only the first N lines of output."
-                }
-              },
-              "required": ["head"],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "tail": {
-                  "type": "integer",
-                  "description": "Keep only the last N lines of output."
-                }
-              },
-              "required": ["tail"],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "include": {
-                  "type": "string",
-                  "description": "Only keep lines matching this ECMAScript regex pattern."
-                }
-              },
-              "required": ["include"],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "exclude": {
-                  "type": "string",
-                  "description": "Remove lines matching this ECMAScript regex pattern."
-                }
-              },
-              "required": ["exclude"],
-              "additionalProperties": false
-            }
-          ]
-        }
       }
     },
     "required": ["path"]

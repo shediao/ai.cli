@@ -7,6 +7,7 @@
 
 #include "ai/function.h"
 #include "base/terminal.h"
+#include "tools/execute.h"
 
 namespace ai {
 
@@ -70,15 +71,23 @@ std::string powershell(nlohmann::json const& args) {
                              $timeout = timeout_val, $cwd = working_directory);
   auto elapsed = std::chrono::steady_clock::now() - start;
 
-  std::string result;
-  if (!out_buf.empty()) {
-    result += out_buf.to_string();
+  std::string out_str = out_buf.to_string();
+  std::string err_str = err_buf.to_string();
+
+  // Apply output filters if specified
+  if (args.contains("filter") && args["filter"].is_array()) {
+    out_str = filter_lines(out_str, args["filter"]);
+    err_str = filter_lines(err_str, args["filter"]);
   }
-  if (!err_buf.empty()) {
+  std::string result;
+  if (!out_str.empty()) {
+    result += out_str;
+  }
+  if (!err_str.empty()) {
     if (!result.empty() && result.back() != '\n') {
       result += '\n';
     }
-    result += err_buf.to_string();
+    result += err_str;
   }
 
   if (ret != 0 && timeout_val != $timeout_infinite &&
@@ -98,6 +107,7 @@ std::string powershell(nlohmann::json const& args) {
 
 class PowershellFunction : public ai::Function {
  public:
+  PowershellFunction() { add_filter_parameter(schema_); }
   std::string call(nlohmann::json const& args) override {
     return powershell(args);
   }
