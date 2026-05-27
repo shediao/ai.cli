@@ -6,7 +6,8 @@
 
 using json = nlohmann::json;
 
-// Forward declare for direct testing (lives in src/tools/ask_user.cpp)
+// Forward declare for direct testing (lives in
+// src/tools/interactive/ask_user.cpp)
 namespace ai::detail {
 std::string ask_user_impl(json const& args);
 }

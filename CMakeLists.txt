@@ -140,7 +140,7 @@ add_library(
   src/tools/cmd.cpp
   src/tools/powershell.cpp
   src/tools/default.cpp
-  src/tools/ask_user.cpp
+  src/tools/interactive/ask_user.cpp
   src/function.cpp
   src/utils.cpp
   src/history.cpp

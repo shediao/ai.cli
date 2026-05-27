@@ -70,7 +70,7 @@ class AskUserFunction : public ai::Function {
   nlohmann::json const& schema() const override { return schema_; }
 
  private:
-  std::string category_ = "default";
+  std::string category_ = "interactive";
   nlohmann::json schema_ = R"(
 {
   "type": "function",
