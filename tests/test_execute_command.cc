@@ -183,7 +183,7 @@ TEST(ExecuteCommandTest, FilterHead) {
                                std::filesystem::perm_options::add);
 #endif
 
-  json args = {{"path", script_path}, {"filter", {{"head", 2}}}};
+  json args = {{"path", script_path}, {"filter", json::array({{{"head", 2}}})}};
   std::string result = ai::call_tool("execute_command", args);
   EXPECT_TRUE(result.find("line1") != std::string::npos);
   EXPECT_TRUE(result.find("line2") != std::string::npos);
@@ -220,7 +220,7 @@ TEST(ExecuteCommandTest, FilterTail) {
                                std::filesystem::perm_options::add);
 #endif
 
-  json args = {{"path", script_path}, {"filter", {{"tail", 2}}}};
+  json args = {{"path", script_path}, {"filter", json::array({{{"tail", 2}}})}};
   std::string result = ai::call_tool("execute_command", args);
   EXPECT_TRUE(result.find("line1") == std::string::npos);
   EXPECT_TRUE(result.find("line4") != std::string::npos);
@@ -253,7 +253,8 @@ TEST(ExecuteCommandTest, FilterRegexInclude) {
                                std::filesystem::perm_options::add);
 #endif
 
-  json args = {{"path", script_path}, {"filter", {{"regex_include", "hello"}}}};
+  json args = {{"path", script_path},
+               {"filter", json::array({{{"include", "hello"}}})}};
   std::string result = ai::call_tool("execute_command", args);
   EXPECT_TRUE(result.find("hello_world") != std::string::npos);
   EXPECT_TRUE(result.find("foo_bar") == std::string::npos);
@@ -286,7 +287,8 @@ TEST(ExecuteCommandTest, FilterRegexExclude) {
                                std::filesystem::perm_options::add);
 #endif
 
-  json args = {{"path", script_path}, {"filter", {{"regex_exclude", "debug"}}}};
+  json args = {{"path", script_path},
+               {"filter", json::array({{{"exclude", "debug"}}})}};
   std::string result = ai::call_tool("execute_command", args);
   EXPECT_TRUE(result.find("keep_me") != std::string::npos);
   EXPECT_TRUE(result.find("debug_info") == std::string::npos);
@@ -313,7 +315,7 @@ TEST(ExecuteCommandTest, FilterHeadZeroEmpty) {
                                std::filesystem::perm_options::add);
 #endif
 
-  json args = {{"path", script_path}, {"filter", {{"head", 0}}}};
+  json args = {{"path", script_path}, {"filter", json::array({{{"head", 0}}})}};
   std::string result = ai::call_tool("execute_command", args);
   // head 0 returns 0 lines, matching Unix head -n 0 semantics
   EXPECT_EQ(result, "Exit code: 0\n(no output)");
