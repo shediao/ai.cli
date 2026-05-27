@@ -263,8 +263,8 @@ TEST(WriteFileTest, ContentNotString) {
 
 TEST(EditFileTest, SingleSearchReplace) {
   TempTestFile f("hello world\n");
-  std::string diff =
-      "<<<<<<< SEARCH\nhello world\n=======\ngoodbye world\n>>>>>>> REPLACE\n";
+  json diff = json::array({json::object(
+      {{"search", "hello world\n"}, {"replace", "goodbye world\n"}})});
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
@@ -277,9 +277,9 @@ TEST(EditFileTest, SingleSearchReplace) {
 
 TEST(EditFileTest, MultipleSearchReplaceBlocks) {
   TempTestFile f("line A\nline B\nline C\n");
-  std::string diff =
-      "<<<<<<< SEARCH\nline A\n=======\nreplaced A\n>>>>>>> REPLACE\n"
-      "<<<<<<< SEARCH\nline C\n=======\nreplaced C\n>>>>>>> REPLACE\n";
+  json diff = json::array(
+      {json::object({{"search", "line A\n"}, {"replace", "replaced A\n"}}),
+       json::object({{"search", "line C\n"}, {"replace", "replaced C\n"}})});
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
@@ -292,16 +292,16 @@ TEST(EditFileTest, MultipleSearchReplaceBlocks) {
 
 TEST(EditFileTest, SearchNotFound) {
   TempTestFile f("original content\n");
-  std::string diff =
-      "<<<<<<< SEARCH\nnonexistent text\n=======\nreplacement\n>>>>>>> "
-      "REPLACE\n";
+  json diff = json::array({json::object(
+      {{"search", "nonexistent text\n"}, {"replace", "replacement\n"}})});
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
 }
 
 TEST(EditFileTest, FileNotExists) {
-  std::string diff = "<<<<<<< SEARCH\ntext\n=======\nnew\n>>>>>>> REPLACE\n";
+  json diff =
+      json::array({json::object({{"search", "text\n"}, {"replace", "new\n"}})});
   json args = {{"path", "/nonexistent/edit_file_test.txt"}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Failed to open file") != std::string::npos);
@@ -314,7 +314,7 @@ TEST(EditFileTest, NotAnObject) {
 }
 
 TEST(EditFileTest, MissingPath) {
-  json args = {{"diff", "some diff"}};
+  json args = {{"diff", json::array()}};
   std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("missing required parameter") != std::string::npos);
 }
@@ -327,77 +327,46 @@ TEST(EditFileTest, MissingDiff) {
 }
 
 TEST(EditFileTest, PathNotString) {
-  json args = {{"path", 1}, {"diff", "diff"}};
+  json args = {{"path", 1}, {"diff", json::array()}};
   std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos);
 }
 
-TEST(EditFileTest, DiffNotString) {
+TEST(EditFileTest, DiffNotArray) {
   TempTestFile f("content");
-  json args = {{"path", f.path()}, {"diff", false}};
+  json args = {{"path", f.path()}, {"diff", "not an array"}};
   std::string result = ai::call_tool("edit_file", args);
-  EXPECT_TRUE(result.find("\"diff\" must be a string") != std::string::npos);
+  EXPECT_TRUE(result.find("\"diff\" must be an array") != std::string::npos);
 }
 
-TEST(EditFileTest, MissingSplitLabel) {
+TEST(EditFileTest, DiffItemNotObject) {
   TempTestFile f("content");
-  std::string diff = "<<<<<<< SEARCH\ncontent\n>>>>>>> REPLACE\n";
+  json diff = json::array({"not an object"});
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
-  EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
+  EXPECT_TRUE(result.find("must be an object") != std::string::npos);
 }
 
-TEST(EditFileTest, DiffNotStartWithSearchLabel) {
+TEST(EditFileTest, DiffItemMissingSearch) {
   TempTestFile f("content");
-  // diff is just random text, does not start with "<<<<<<< SEARCH\n"
-  std::string diff = "not a valid diff";
+  json diff = json::array({json::object({{"replace", "new"}})});
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
-  EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
+  EXPECT_TRUE(result.find("missing required \"search\"") != std::string::npos);
 }
 
-TEST(EditFileTest, DiffEmpty) {
+TEST(EditFileTest, DiffItemMissingReplace) {
   TempTestFile f("content");
-  std::string diff = "";
+  json diff = json::array({json::object({{"search", "old"}})});
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
-  EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
-}
-
-TEST(EditFileTest, DiffSearchLabelNotFollowedByNewline) {
-  TempTestFile f("content");
-  // starts with "<<<<<<< SEARCH" but not followed by newline
-  std::string diff = "<<<<<<< SEARCH old content";
-  json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = ai::call_tool("edit_file", args);
-  EXPECT_TRUE(result.find("diff must start with") != std::string::npos);
-}
-
-TEST(EditFileTest, MismatchedLabelCounts) {
-  TempTestFile f("line A\nline B\n");
-  // 2 SEARCH blocks but only 1 SEPARATOR and 1 REPLACE
-  std::string diff =
-      "<<<<<<< SEARCH\nline A\n=======\nreplaced A\n>>>>>>> REPLACE\n"
-      "<<<<<<< SEARCH\nline B\n";
-  json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = ai::call_tool("edit_file", args);
-  EXPECT_TRUE(result.find("mismatched number of SEARCH/SEPARATOR/REPLACE "
-                          "labels") != std::string::npos);
-}
-
-TEST(EditFileTest, LabelsOutOfOrder) {
-  TempTestFile f("foo\nbar\n");
-  // REPLACE label appears before SEPARATOR label in the block
-  std::string diff = "<<<<<<< SEARCH\nfoo\n>>>>>>> REPLACE\n=======\nbar\n";
-  json args = {{"path", f.path()}, {"diff", diff}};
-  std::string result = ai::call_tool("edit_file", args);
-  EXPECT_TRUE(result.find("labels are out of order") != std::string::npos);
+  EXPECT_TRUE(result.find("missing required \"replace\"") != std::string::npos);
 }
 
 TEST(EditFileTest, EmptyReplaceBlock) {
   TempTestFile f("hello world\nfoo bar\nbaz qux\n");
-  // adjacent "=======" and ">>>>>>> REPLACE" means delete the SEARCH content
-  std::string diff = "<<<<<<< SEARCH\nfoo bar\n=======\n>>>>>>> REPLACE\n";
+  json diff =
+      json::array({json::object({{"search", "foo bar\n"}, {"replace", ""}})});
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
@@ -411,11 +380,10 @@ TEST(EditFileTest, EmptyReplaceBlock) {
 
 TEST(EditFileTest, MixedEmptyAndNonEmptyBlocks) {
   TempTestFile f("keep this\nremove me\nreplace this\nlast line\n");
-  // Block 1: delete "remove me\n"
-  // Block 2: replace "replace this\n" with "new content\n"
-  std::string diff =
-      "<<<<<<< SEARCH\nremove me\n=======\n>>>>>>> REPLACE\n"
-      "<<<<<<< SEARCH\nreplace this\n=======\nnew content\n>>>>>>> REPLACE\n";
+  json diff =
+      json::array({json::object({{"search", "remove me\n"}, {"replace", ""}}),
+                   json::object({{"search", "replace this\n"},
+                                 {"replace", "new content\n"}})});
   json args = {{"path", f.path()}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
   EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
@@ -426,21 +394,214 @@ TEST(EditFileTest, MixedEmptyAndNonEmptyBlocks) {
   EXPECT_EQ(content, "keep this\nnew content\nlast line\n");
 }
 
-TEST(EditFileTest, MismatchedLabelCountsExtraReplace) {
-  TempTestFile f("content A\ncontent B\n");
-  // Extra REPLACE label without corresponding SEARCH/SEPARATOR
-  std::string diff =
-      "<<<<<<< SEARCH\ncontent A\n=======\nnew A\n>>>>>>> REPLACE\n"
-      ">>>>>>> REPLACE\n";
-  json args = {{"path", f.path()}, {"diff", diff}};
+TEST(EditFileTest, EmptyPathString) {
+  json diff =
+      json::array({json::object({{"search", "text"}, {"replace", "new"}})});
+  json args = {{"path", ""}, {"diff", diff}};
   std::string result = ai::call_tool("edit_file", args);
-  EXPECT_TRUE(result.find("mismatched number of SEARCH/SEPARATOR/REPLACE "
-                          "labels") != std::string::npos);
+  EXPECT_TRUE(result.find("\"path\" must be a string") != std::string::npos);
 }
 
-// =============================================================================
-// create_directory tests
-// =============================================================================
+TEST(EditFileTest, EmptyDiffArray) {
+  TempTestFile f("original content\n");
+  json args = {{"path", f.path()}, {"diff", json::array()}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  // File should remain unchanged
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "original content\n");
+}
+
+TEST(EditFileTest, SearchAppearsMultipleTimesOnlyFirstReplaced) {
+  TempTestFile f("dup\ndup\ndup\n");
+  json diff = json::array(
+      {json::object({{"search", "dup\n"}, {"replace", "replaced\n"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "replaced\ndup\ndup\n");
+}
+
+TEST(EditFileTest, SearchFieldNotString) {
+  TempTestFile f("content");
+  json diff = json::array({json::object({{"search", 123}, {"replace", "x"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("missing required \"search\"") != std::string::npos);
+}
+
+TEST(EditFileTest, ReplaceFieldNotString) {
+  TempTestFile f("content");
+  json diff =
+      json::array({json::object({{"search", "content"}, {"replace", true}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("missing required \"replace\"") != std::string::npos);
+}
+
+TEST(EditFileTest, UnicodeContentSearchAndReplace) {
+  TempTestFile f("こんにちは\n世界\n");
+  json diff = json::array(
+      {json::object({{"search", "世界\n"}, {"replace", "🌍 Earth\n"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "こんにちは\n🌍 Earth\n");
+}
+
+TEST(EditFileTest, ReplaceWithContentContainingSearchString) {
+  // Replacing "foo" with "foobar" should not loop infinitely
+  TempTestFile f("foo\n");
+  json diff =
+      json::array({json::object({{"search", "foo"}, {"replace", "foobar"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "foobar\n");
+}
+
+TEST(EditFileTest, SecondDiffDependsOnFirst) {
+  // First diff changes "old" → "new", second diff replaces "new" → "final"
+  TempTestFile f("old text\nunchanged\n");
+  json diff = json::array(
+      {json::object({{"search", "old text\n"}, {"replace", "new text\n"}}),
+       json::object({{"search", "new text\n"}, {"replace", "final text\n"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "final text\nunchanged\n");
+}
+
+TEST(EditFileTest, SecondDiffSearchNotFoundAfterFirstModifiesFile) {
+  TempTestFile f("hello world\nfoo bar\n");
+  json diff =
+      json::array({json::object({{"search", "hello world\n"},
+                                 {"replace", "goodbye world\n"}}),
+                   json::object({{"search", "hello world\n"},
+                                 {"replace", "this should not be found\n"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  // Second diff block should fail since the original text is gone
+  EXPECT_TRUE(result.find("Failed to edit file") != std::string::npos);
+  EXPECT_TRUE(result.find("SEARCH block 2") != std::string::npos);
+}
+
+TEST(EditFileTest, AllDeleteOperations) {
+  TempTestFile f("a\nb\nc\nd\n");
+  json diff = json::array({json::object({{"search", "a\n"}, {"replace", ""}}),
+                           json::object({{"search", "c\n"}, {"replace", ""}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "b\nd\n");
+}
+
+TEST(EditFileTest, ReplaceWithMoreContent) {
+  TempTestFile f("short\n");
+  json diff = json::array({json::object(
+      {{"search", "short\n"}, {"replace", "much longer content here\n"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "much longer content here\n");
+}
+
+TEST(EditFileTest, ReplaceWithLessContent) {
+  TempTestFile f("very long content here\n");
+  json diff = json::array({json::object(
+      {{"search", "very long content here\n"}, {"replace", "short\n"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "short\n");
+}
+
+TEST(EditFileTest, SearchShorterThanReplacePreservesRest) {
+  // Replace "abc" with "XY" but "abc" is prefix of "abcdef"
+  TempTestFile f("abcdef\n");
+  json diff =
+      json::array({json::object({{"search", "abc"}, {"replace", "XY"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "XYdef\n");
+}
+
+TEST(EditFileTest, MultipleSequentialEditsToSameLine) {
+  TempTestFile f("the quick brown fox\n");
+  json diff =
+      json::array({json::object({{"search", "quick "}, {"replace", ""}}),
+                   json::object({{"search", "brown "}, {"replace", "red "}}),
+                   json::object({{"search", "fox"}, {"replace", "cat"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "the red cat\n");
+}
+
+TEST(EditFileTest, NonExistentPathInSubdirectory) {
+  TempTestDir dir;
+  std::string nonexistent =
+      (std::filesystem::path(dir.path()) / "nonexistent.txt").string();
+  json diff =
+      json::array({json::object({{"search", "text"}, {"replace", "new"}})});
+  json args = {{"path", nonexistent}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Failed to open file") != std::string::npos);
+}
+
+TEST(EditFileTest, OnlyWhitespaceChanges) {
+  TempTestFile f("indent:    value\n");
+  json diff = json::array({json::object(
+      {{"search", "indent:    value\n"}, {"replace", "indent:\tvalue\n"}})});
+  json args = {{"path", f.path()}, {"diff", diff}};
+  std::string result = ai::call_tool("edit_file", args);
+  EXPECT_TRUE(result.find("Successfully edited") != std::string::npos);
+
+  std::ifstream in(f.path(), std::ios::binary);
+  std::string content{std::istreambuf_iterator<char>(in),
+                      std::istreambuf_iterator<char>()};
+  EXPECT_EQ(content, "indent:\tvalue\n");
+}
 
 TEST(CreateDirectoryTest, CreatesDirectory) {
   TempTestDir parent;

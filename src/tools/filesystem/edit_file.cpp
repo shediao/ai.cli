@@ -36,16 +36,29 @@ std::string edit_file(nlohmann::json const& args) {
     return "function edit_file arguments is invalid: missing required "
            "parameter \"diff\".";
   }
-  if (!args["diff"].is_string()) {
-    return "function edit_file arguments is invalid: \"diff\" must be a "
-           "string.";
+  if (!args["diff"].is_array()) {
+    return "function edit_file arguments is invalid: \"diff\" must be an "
+           "array.";
   }
 
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
-  std::string diff = args["diff"].get<std::string>();
+  auto const& diff_array = args["diff"];
 
-  print_toolcall_log("edit_file", {{"path", path}, {"diff", diff}});
+  std::vector<std::pair<std::string, std::string>> log_args{{"path", path}};
+  for (auto const& item : diff_array) {
+    if (item.is_object()) {
+      if (item.contains("search") && item["search"].is_string()) {
+        log_args.emplace_back("search",
+                              "\n" + item["search"].get<std::string>());
+      }
+      if (item.contains("replace") && item["replace"].is_string()) {
+        log_args.emplace_back("replace",
+                              "\n" + item["replace"].get<std::string>());
+      }
+    }
+  }
+  print_toolcall_log("edit_file", log_args);
 
   // --- read original file ---
   auto file_content_opt = ai::base::read_file(path);
@@ -54,74 +67,28 @@ std::string edit_file(nlohmann::json const& args) {
   }
   std::string file_content = std::move(file_content_opt.value());
 
-#define SEARCH_LABLE "<<<<<<< SEARCH"
-#define SEPARATOR_LABLE "======="
-#define REPLACE_LABLE ">>>>>>> REPLACE"
-
-  // 1. 确认是否以 '<<<<<<< SEARCH' 开头
-  if (!diff.starts_with(SEARCH_LABLE "\n")) {
-    return "Failed to edit file " + path +
-           ": diff must start with \"<<<<<<< SEARCH\" followed by a "
-           "newline.";
-  }
-  // 2. 是否以 '
-
-  std::vector<std::string::size_type> search_indexes;     // <<<<<<< SEARCH
-  std::vector<std::string::size_type> separator_indexes;  // =======
-  std::vector<std::string::size_type> replace_indexes;    // >>>>>>> REPLACE
-
-  auto it = diff.find(SEARCH_LABLE "\n", 0);
-  while (it != std::string::npos) {
-    search_indexes.push_back(it);
-    it = diff.find(SEARCH_LABLE "\n", it + 15);
-  }
-
-  it = diff.find("\n" SEPARATOR_LABLE "\n", 0);
-  while (it != std::string::npos) {
-    separator_indexes.push_back(it + 1);
-    it = diff.find("\n" SEPARATOR_LABLE "\n", it + 9);
-  }
-
-  it = diff.find("\n" REPLACE_LABLE, 0);
-  while (it != std::string::npos) {
-    replace_indexes.push_back(it + 1);
-    it = diff.find("\n" REPLACE_LABLE, it + 16);
-  }
-
-  it = diff.find("\n" SEPARATOR_LABLE REPLACE_LABLE, 0);
-  while (it != std::string::npos) {
-    separator_indexes.push_back(it + 1);
-    replace_indexes.push_back(it + 1 + 7);
-    it = diff.find("\n" SEPARATOR_LABLE REPLACE_LABLE, it + 23);
-  }
-
-  // 3. 三个标签的个数应该一样
-  if (search_indexes.size() != separator_indexes.size() ||
-      separator_indexes.size() != replace_indexes.size()) {
-    return "Failed to edit file " + path +
-           ": mismatched number of SEARCH/SEPARATOR/REPLACE labels in "
-           "diff. Found " +
-           std::to_string(search_indexes.size()) + " SEARCH, " +
-           std::to_string(separator_indexes.size()) + " separator, " +
-           std::to_string(replace_indexes.size()) + " REPLACE labels.";
-  }
-
-  // 4. 检测每个标签组是否匹配
-  for (size_t i = 0; i < search_indexes.size(); i++) {
-    if (search_indexes[i] >= separator_indexes[i] ||
-        separator_indexes[i] >= replace_indexes[i]) {
-      return "Failed to edit file " + path +
-             ": SEARCH/SEPARATOR/REPLACE labels are out of order in "
-             "diff block " +
-             std::to_string(i + 1) + ".";
+  // --- validate and apply each diff item ---
+  for (size_t i = 0; i < diff_array.size(); i++) {
+    auto const& item = diff_array[i];
+    if (!item.is_object()) {
+      return "Failed to edit file " + path + ": diff item " +
+             std::to_string(i + 1) +
+             " must be an object with \"search\" and \"replace\" fields.";
     }
-  }
+    if (!item.contains("search") || !item["search"].is_string()) {
+      return "Failed to edit file " + path + ": diff item " +
+             std::to_string(i + 1) +
+             " is missing required \"search\" string field.";
+    }
+    if (!item.contains("replace") || !item["replace"].is_string()) {
+      return "Failed to edit file " + path + ": diff item " +
+             std::to_string(i + 1) +
+             " is missing required \"replace\" string field.";
+    }
 
-  for (size_t i = 0; i < search_indexes.size(); i++) {
-    std::string_view search{diff.data() + search_indexes[i] + 15,
-                            separator_indexes[i] - search_indexes[i] - 15};
-    std::string_view replace{diff.data() + separator_indexes[i] + 8,
-                             replace_indexes[i] - separator_indexes[i] - 8};
+    std::string search = item["search"].get<std::string>();
+    std::string replace = item["replace"].get<std::string>();
+
     auto search_it = file_content.find(search);
     if (search_it != std::string::npos) {
       file_content.replace(search_it, search.size(), replace);
@@ -171,7 +138,7 @@ class EditFileFunction : public ai::Function {
 {
   "type": "function",
   "name": "edit_file",
-  "description": "Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file. If the edit fails due to matching issues, fall back to using the write_file tool to rewrite the entire file with the corrected content.",
+  "description": "Request to replace sections of content in an existing file using SEARCH/REPLACE objects that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file. If the edit fails due to matching issues, fall back to using the write_file tool to rewrite the entire file with the corrected content.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -180,8 +147,22 @@ class EditFileFunction : public ai::Function {
         "description": "The path of the file to modify"
       },
       "diff": {
-        "type": "string",
-        "description": "One or more SEARCH/REPLACE blocks following this exact format:\n```\n<<<<<<< SEARCH\n[exact content to find]\n=======\n[new content to replace with]\n>>>>>>> REPLACE\n```\nCritical rules:\n1. SEARCH content must match the associated file section to find EXACTLY:\n * Match character-for-character including whitespace, indentation, line endings\n * Include all comments, docstrings, etc.\n 2. SEARCH/REPLACE blocks will ONLY replace the first match occurrence.\n * Including multiple unique SEARCH/REPLACE blocks if you need to make multiple changes.\n * Include *just* enough lines in each SEARCH section to uniquely match each set of lines that need to change.\n * When using multiple SEARCH/REPLACE blocks, list them in the order they appear in the file.\n 3. Keep SEARCH/REPLACE blocks concise:\n * Break large SEARCH/REPLACE blocks into a series of smaller blocks that each change a small portion of the file.\n * Include just the changing lines, and a few surrounding lines if needed for uniqueness.\n * Do not include long runs of unchanging lines in SEARCH/REPLACE blocks.\n * Each line must be complete. Never truncate lines mid-way through as this can cause matching failures.\n 4. Special operations:\n * To move code: Use two SEARCH/REPLACE blocks (one to delete from original + one to insert at new location)\n * To delete code: Use empty REPLACE section\n5. Delimiters '<<<<<<< SEARCH', '=======', '>>>>>>> REPLACE' need to be on separate lines"
+        "type": "array",
+        "description": "An array of SEARCH/REPLACE objects. Each object specifies an exact change to a specific part of the file. Use multiple objects when you need to make multiple changes.\n\nArray item format:\n{\n  \"search\": \"[exact content to find]\",\n  \"replace\": \"[new content to replace with]\"\n}\n\nCritical rules:\n1. SEARCH content must match the associated file section to find EXACTLY:\n * Match character-for-character including whitespace, indentation, line endings\n * Include all comments, docstrings, etc.\n2. Each SEARCH/REPLACE object will ONLY replace the first match occurrence.\n * Use multiple array items if you need to make multiple changes.\n * Include *just* enough lines in each SEARCH section to uniquely match each set of lines that need to change.\n * When using multiple items, list them in the order they appear in the file.\n3. Keep SEARCH/REPLACE blocks concise:\n * Break large changes into a series of smaller items that each change a small portion of the file.\n * Include just the changing lines, and a few surrounding lines if needed for uniqueness.\n * Do not include long runs of unchanging lines in SEARCH/REPLACE blocks.\n * Each line must be complete. Never truncate lines mid-way through as this can cause matching failures.\n4. Special operations:\n * To move code: Use two items (one to delete from original + one to insert at new location)\n * To delete code: Use empty replace string",
+        "items": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "The exact content to find (case-sensitive). Must match character-for-character including whitespace and indentation."
+            },
+            "replace": {
+              "type": "string",
+              "description": "The new content to replace with. Use an empty string to delete the matched content."
+            }
+          },
+          "required": ["search", "replace"]
+        }
       }
     },
     "required": ["path", "diff"]
