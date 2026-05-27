@@ -13,23 +13,29 @@ extern std::string expand_tilde(std::string const& path);
 extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
 namespace {
-std::string execute_file(nlohmann::json const& args) {
+std::string execute_command(nlohmann::json const& args) {
   if (!args.is_object()) {
-    return "function execute_file arguments is invalid: expected a JSON "
+    return "function execute_command arguments is invalid: expected a JSON "
            "object.";
   }
   auto path_opt = resolve_path(args);
   if (!path_opt.has_value()) {
-    return "function execute_file arguments is invalid: missing required "
+    return "function execute_command arguments is invalid: missing required "
            "parameter \"path\".";
   }
   if (path_opt->empty()) {
-    return "function execute_file arguments is invalid: \"path\" must be a "
+    return "function execute_command arguments is invalid: \"path\" must be a "
            "string.";
   }
 
   std::string path = std::move(*path_opt);
-  path = expand_tilde(path);
+
+  // If path contains a path separator, treat it as a file path and expand
+  // tilde. Otherwise treat it as a command name to be found in PATH.
+  if (path.find('/') != std::string::npos ||
+      path.find('\\') != std::string::npos) {
+    path = expand_tilde(path);
+  }
 
   // Build the command vector
   std::vector<std::string> cmd_args;
@@ -61,7 +67,7 @@ std::string execute_file(nlohmann::json const& args) {
     }
     args_str += cmd_args[i];
   }
-  print_toolcall_log("execute_file",
+  print_toolcall_log("execute_command",
                      {{"path", path},
                       {"working_directory", working_directory},
                       {"timeout", timeout_val == timeout_infinite
@@ -105,10 +111,10 @@ std::string execute_file(nlohmann::json const& args) {
 }
 }  // namespace
 
-class ExecuteFileFunction : public ai::Function {
+class ExecuteCommandFunction : public ai::Function {
  public:
   std::string call(nlohmann::json const& args) override {
-    return execute_file(args);
+    return execute_command(args);
   }
   std::string const& category() const override { return category_; }
   nlohmann::json const& schema() const override { return schema_; }
@@ -118,29 +124,29 @@ class ExecuteFileFunction : public ai::Function {
   nlohmann::json schema_ = R"===(
 {
   "type": "function",
-  "name": "execute_file",
-  "description": "Execute a file as a subprocess and capture its output. Returns the exit code, stdout, and stderr. Use this tool when you need to run an executable or script file.",
+  "name": "execute_command",
+  "description": "Execute a command as a subprocess and capture its output. Returns the exit code, stdout, and stderr. Use this tool when you need to run a command. If the path contains a path separator (e.g. '/', '\\'), it is treated as a file path to an executable; otherwise it is treated as a command name resolved from PATH.",
   "parameters": {
     "type": "object",
     "properties": {
       "path": {
         "type": "string",
-        "description": "The path to the executable file to run."
+        "description": "The command to run. If it contains a path separator, it is treated as a file path to an executable. Otherwise it is treated as a command name resolved from PATH."
       },
       "args": {
         "type": "array",
         "items": {
           "type": "string"
         },
-        "description": "Optional arguments to pass to the executable."
+        "description": "Optional arguments to pass to the command."
       },
       "timeout": {
         "type": "integer",
-        "description": "Optional timeout in seconds. If the executable does not complete within this time, it will be terminated. If not provided, no timeout is applied."
+        "description": "Optional timeout in seconds. If the command does not complete within this time, it will be terminated. If not provided, no timeout is applied."
       },
       "working_directory": {
         "type": "string",
-        "description": "Optional working directory for the executable. If provided, the executable will be run in this directory. Can be an absolute path or a relative path (resolved against the current working directory)."
+        "description": "Optional working directory for the command. If provided, the command will be run in this directory. Can be an absolute path or a relative path (resolved against the current working directory)."
       }
     },
     "required": ["path"]
@@ -149,6 +155,6 @@ class ExecuteFileFunction : public ai::Function {
 )==="_json;
 };
 
-AUTO_REGISTER(ExecuteFileFunction);
+AUTO_REGISTER(ExecuteCommandFunction);
 
 }  // namespace ai

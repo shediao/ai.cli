@@ -137,7 +137,7 @@ add_library(
   src/tools/execute/bash.cpp
   src/tools/execute/cmd.cpp
   src/tools/execute/powershell.cpp
-  src/tools/execute/execute_file.cpp
+  src/tools/execute/execute_command.cpp
   src/tools/filesystem/replace_lines.cpp
   src/tools/default.cpp
   src/tools/interactive/ask_user.cpp
