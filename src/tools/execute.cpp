@@ -1,7 +1,6 @@
 #include "execute.h"
 
 #include <numeric>
-#include <ranges>
 #include <regex>
 
 #include "nlohmann/json.hpp"
@@ -20,14 +19,21 @@ std::string filter_lines(std::string const& text,
     return text;
   }
 
-  // Split text into lines using C++20 ranges
   std::vector<std::string_view> lines;
-  for (auto&& rng : text | std::views::split('\n')) {
-    lines.emplace_back(rng.begin(), rng.end());
-  }
-  // Drop trailing empty line produced by split (matches std::getline semantics)
-  if (!lines.empty() && lines.back().empty()) {
-    lines.pop_back();
+  size_t pos = 0;
+  while (pos <= text.size()) {
+    auto next = text.find('\n', pos);
+    if (next == std::string::npos) {
+      // No more newlines. If the text does not end with '\n', the remainder
+      // is the final line. Otherwise the trailing empty after '\n' is
+      // dropped (matches std::getline semantics).
+      if (pos < text.size()) {
+        lines.emplace_back(text.data() + pos, text.size() - pos);
+      }
+      break;
+    }
+    lines.emplace_back(text.data() + pos, next - pos);
+    pos = next + 1;
   }
 
   // Apply each filter in array order
