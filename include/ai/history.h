@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "base/database.h"
+
 // Forward declare sqlite3
 struct sqlite3;
 
@@ -112,7 +114,7 @@ class HistoryDB {
   std::string generate_session_id() const;
 
   std::string db_path_;
-  sqlite3* db_{nullptr};
+  ai::base::database db_;
 };
 
 int history(AiArgs const& args);

@@ -112,6 +112,7 @@ add_library(
   src/openai.cpp
   src/response.cpp
   src/base/base64.cc
+  src/base/database.cc
   src/base/download.cc
   src/base/file.cc
   src/base/glob.cc

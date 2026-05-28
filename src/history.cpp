@@ -16,6 +16,7 @@
 #include "ai/args.h"
 #include "ai/openai.h"
 #include "ai/utils.h"
+#include "base/database.h"
 #include "base/logging.h"
 #include "base/string.h"
 #include "nlohmann/json_fwd.hpp"
@@ -25,19 +26,6 @@ namespace ai {
 // ── helpers ────────────────────────────────────────────────────────────────
 
 namespace {
-
-/// Execute @p sql that returns no rows.
-bool exec_sql(sqlite3* db, std::string const& sql) {
-  char* err_msg = nullptr;
-  int rc = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &err_msg);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "SQL error: " << (err_msg ? err_msg : "unknown")
-               << " (sql=" << sql << ")";
-    sqlite3_free(err_msg);
-    return false;
-  }
-  return true;
-}
 
 /// Generate a random hex string of length @p len bytes (produces 2*len chars).
 std::string random_hex(size_t len) {
@@ -71,47 +59,26 @@ constexpr const char* kTableName = "conversations_v1";
 
 // ── HistoryDB ──────────────────────────────────────────────────────────────
 
-HistoryDB::HistoryDB(std::string db_path) : db_path_(std::move(db_path)) {
-  // Ensure parent directory exists
-  std::filesystem::path p(db_path_);
-  if (!p.parent_path().empty() && !std::filesystem::exists(p.parent_path())) {
-    std::filesystem::create_directories(p.parent_path());
-  }
-
-  int rc = sqlite3_open_v2(
-      db_path_.c_str(), &db_,
-      SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX,
-      nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(FATAL) << "Failed to open history database " << db_path_ << ": "
-               << sqlite3_errmsg(db_);
-    sqlite3_close(db_);
-    db_ = nullptr;
-    return;
-  }
+HistoryDB::HistoryDB(std::string db_path)
+    : db_path_(std::move(db_path)), db_{db_path_} {
   init_db();
 }
 
-HistoryDB::~HistoryDB() {
-  if (db_) {
-    sqlite3_close(db_);
-    db_ = nullptr;
-  }
-}
+HistoryDB::~HistoryDB() {}
 
 void HistoryDB::init_db() {
-  if (!db_) {
+  if (!db_.is_valid()) {
     return;
   }
 
   // Enable WAL mode for concurrent multi-process access
-  exec_sql(db_, "PRAGMA journal_mode=WAL;");
+  db_.exec("PRAGMA journal_mode=WAL;");
 
   // Set busy timeout to 5 seconds so we wait if another process is writing
-  exec_sql(db_, "PRAGMA busy_timeout=5000;");
+  db_.exec("PRAGMA busy_timeout=5000;");
 
   // Enable foreign keys (good practice; not strictly needed for single table)
-  exec_sql(db_, "PRAGMA foreign_keys=ON;");
+  db_.exec("PRAGMA foreign_keys=ON;");
 
   // ── v1 table: Unix-timestamp time fields ─────────────────────────────
   char* err_msg = nullptr;
@@ -134,7 +101,8 @@ void HistoryDB::init_db() {
       prompt_cache_miss_tokens INTEGER NOT NULL DEFAULT 0
     );
   )SQL";
-  int rc = sqlite3_exec(db_, create_v1_sql, nullptr, nullptr, &err_msg);
+  int rc = sqlite3_exec(db_.native_handle(), create_v1_sql, nullptr, nullptr,
+                        &err_msg);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to create conversations_v1 table: "
                << (err_msg ? err_msg : "unknown");
@@ -143,9 +111,9 @@ void HistoryDB::init_db() {
   }
 
   // Create index for ordering by start
-  exec_sql(db_,
-           "CREATE INDEX IF NOT EXISTS idx_conversations_v1_start "
-           "ON conversations_v1(start);");
+  db_.exec(
+      "CREATE INDEX IF NOT EXISTS idx_conversations_v1_start "
+      "ON conversations_v1(start);");
 
   // ── Legacy table: kept for backward compatibility with older versions ─
   const char* create_legacy_sql = R"SQL(
@@ -162,7 +130,8 @@ void HistoryDB::init_db() {
       messages    TEXT    NOT NULL
     );
   )SQL";
-  rc = sqlite3_exec(db_, create_legacy_sql, nullptr, nullptr, &err_msg);
+  rc = sqlite3_exec(db_.native_handle(), create_legacy_sql, nullptr, nullptr,
+                    &err_msg);
   if (rc != SQLITE_OK) {
     LOG(ERROR) << "Failed to create legacy conversations table: "
                << (err_msg ? err_msg : "unknown");
@@ -173,28 +142,24 @@ void HistoryDB::init_db() {
   // Migration for legacy table: add columns if upgrading from older schema
   auto add_column_if_missing = [this](char const* col_name,
                                       char const* col_def) {
-    sqlite3_stmt* stmt = nullptr;
     bool exists = false;
-    int rc = sqlite3_prepare_v2(db_, "PRAGMA table_info(conversations);", -1,
-                                &stmt, nullptr);
-    if (rc == SQLITE_OK) {
-      while (sqlite3_step(stmt) == SQLITE_ROW) {
-        auto const* name =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        if (name && std::strcmp(name, col_name) == 0) {
+    ai::base::statement stmt(db_, "PRAGMA table_info(conversations);");
+    if (stmt.is_valid()) {
+      while (stmt.step() == ai::base::step_result::row) {
+        auto name = stmt.get<std::string>(1);
+        if (!name.empty() && name == col_name) {
           exists = true;
           break;
         }
       }
     }
-    sqlite3_finalize(stmt);
     if (!exists) {
       std::string sql = "ALTER TABLE conversations ADD COLUMN ";
       sql += col_name;
       sql += " ";
       sql += col_def;
       sql += ";";
-      exec_sql(db_, sql);
+      db_.exec(sql);
     }
   };
   add_column_if_missing("topic", "TEXT NOT NULL DEFAULT ''");
@@ -204,9 +169,9 @@ void HistoryDB::init_db() {
   add_column_if_missing("parent_id", "TEXT DEFAULT NULL");
 
   // Create index for legacy table ordering by updated_at
-  exec_sql(db_,
-           "CREATE INDEX IF NOT EXISTS idx_conversations_updated_at "
-           "ON conversations(updated_at);");
+  db_.exec(
+      "CREATE INDEX IF NOT EXISTS idx_conversations_updated_at "
+      "ON conversations(updated_at);");
 
   LOG(INFO) << "History database initialized: " << db_path_;
 }
@@ -226,7 +191,7 @@ std::string HistoryDB::create_session(
     std::string const& parent_id, int64_t start_ts, int64_t end_ts,
     int prompt_tokens, int completion_tokens, int total_tokens,
     int prompt_cache_hit_tokens, int prompt_cache_miss_tokens) {
-  if (!db_) {
+  if (!db_.native_handle()) {
     return "";
   }
 
@@ -251,8 +216,7 @@ std::string HistoryDB::create_session(
     messages_json = nlohmann::json::array().dump();
   }
 
-  // Wrap in a transaction for atomicity
-  exec_sql(db_, "BEGIN TRANSACTION;");
+  ai::base::transaction tx(db_);
 
   std::string insert_sql = std::string("INSERT INTO ") + kTableName +
                            " (session_id, start, end, url, model, work_dir, "
@@ -261,120 +225,97 @@ std::string HistoryDB::create_session(
                            "prompt_cache_hit_tokens, prompt_cache_miss_tokens) "
                            "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, "
                            "?9, ?10, ?11, ?12, ?13);";
-  sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, insert_sql.c_str(), -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to prepare insert: " << sqlite3_errmsg(db_);
-    exec_sql(db_, "ROLLBACK;");
+  ai::base::statement stmt(db_, insert_sql);
+  if (!stmt.is_valid()) {
     return "";
   }
 
-  sqlite3_bind_text(stmt, 1, session_id.c_str(),
-                    static_cast<int>(session_id.size()), SQLITE_STATIC);
-  sqlite3_bind_int64(stmt, 2, start_ts);
-  sqlite3_bind_int64(stmt, 3, end_ts);
-  sqlite3_bind_text(stmt, 4, url.c_str(), static_cast<int>(url.size()),
-                    SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 5, model.c_str(), static_cast<int>(model.size()),
-                    SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 6, work_dir.c_str(),
-                    static_cast<int>(work_dir.size()), SQLITE_STATIC);
+  stmt.bind(1, session_id);
+  stmt.bind(2, static_cast<sqlite3_int64>(start_ts));
+  stmt.bind(3, static_cast<sqlite3_int64>(end_ts));
+  stmt.bind(4, url);
+  stmt.bind(5, model);
+  stmt.bind(6, work_dir);
   if (parent_id.empty()) {
-    sqlite3_bind_null(stmt, 7);
+    stmt.bind(7, nullptr);
   } else {
-    sqlite3_bind_text(stmt, 7, parent_id.c_str(),
-                      static_cast<int>(parent_id.size()), SQLITE_STATIC);
+    stmt.bind(7, parent_id);
   }
-  sqlite3_bind_text(stmt, 8, messages_json.c_str(),
-                    static_cast<int>(messages_json.size()), SQLITE_STATIC);
-  sqlite3_bind_int(stmt, 9, prompt_tokens);
-  sqlite3_bind_int(stmt, 10, completion_tokens);
-  sqlite3_bind_int(stmt, 11, total_tokens);
-  sqlite3_bind_int(stmt, 12, prompt_cache_hit_tokens);
-  sqlite3_bind_int(stmt, 13, prompt_cache_miss_tokens);
+  stmt.bind(8, messages_json);
+  stmt.bind(9, prompt_tokens);
+  stmt.bind(10, completion_tokens);
+  stmt.bind(11, total_tokens);
+  stmt.bind(12, prompt_cache_hit_tokens);
+  stmt.bind(13, prompt_cache_miss_tokens);
 
-  rc = sqlite3_step(stmt);
-  sqlite3_finalize(stmt);
-
-  if (rc == SQLITE_DONE) {
-    exec_sql(db_, "COMMIT;");
+  if (stmt.step() == ai::base::step_result::done) {
+    tx.commit();
     LOG(INFO) << "Created session: " << session_id << " ("
               << (messages.is_array() ? messages.size() : 0) << " messages)";
     return session_id;
   }
 
-  LOG(ERROR) << "Failed to create session: " << sqlite3_errmsg(db_);
-  exec_sql(db_, "ROLLBACK;");
+  LOG(ERROR) << "Failed to create session: "
+             << sqlite3_errmsg(db_.native_handle());
   return "";
 }
 
 std::optional<nlohmann::json> HistoryDB::get_messages(
     std::string const& session_id) {
-  if (!db_) {
+  if (!db_.native_handle()) {
     return std::nullopt;
   }
 
   std::string select_sql = std::string("SELECT messages FROM ") + kTableName +
                            " WHERE session_id = ?1;";
-  sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, select_sql.c_str(), -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
+  ai::base::statement stmt(db_, select_sql);
+  if (!stmt.is_valid()) {
     return std::nullopt;
   }
 
-  sqlite3_bind_text(stmt, 1, session_id.c_str(),
-                    static_cast<int>(session_id.size()), SQLITE_STATIC);
+  stmt.bind(1, session_id);
 
   std::optional<nlohmann::json> result;
-  rc = sqlite3_step(stmt);
-  if (rc == SQLITE_ROW) {
-    auto const* text =
-        reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    int text_len = sqlite3_column_bytes(stmt, 0);
-    if (text && text_len > 0) {
+  if (stmt.step() == ai::base::step_result::row) {
+    auto text = stmt.get<std::string>(0);
+    if (!text.empty()) {
       try {
-        result = nlohmann::json::parse(std::string_view(text, text_len));
+        result = nlohmann::json::parse(text);
       } catch (nlohmann::json::parse_error const& e) {
         LOG(ERROR) << "Failed to parse messages JSON: " << e.what();
       }
     }
   }
 
-  sqlite3_finalize(stmt);
   return result;
 }
 
 std::vector<std::string> HistoryDB::list_sessions() {
   std::vector<std::string> sessions;
-  if (!db_) {
+  if (!db_.native_handle()) {
     return sessions;
   }
 
   std::string select_sql = std::string("SELECT session_id FROM ") + kTableName +
                            " ORDER BY start DESC;";
-  sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, select_sql.c_str(), -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
+  ai::base::statement stmt(db_, select_sql);
+  if (!stmt.is_valid()) {
     return sessions;
   }
 
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
-    auto const* text =
-        reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-    if (text) {
+  while (stmt.step() == ai::base::step_result::row) {
+    auto text = stmt.get<std::string>(0);
+    if (!text.empty()) {
       sessions.emplace_back(text);
     }
   }
 
-  sqlite3_finalize(stmt);
   return sessions;
 }
 
 std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
   std::vector<SessionInfo> infos;
-  if (!db_) {
+  if (!db_.native_handle()) {
     return infos;
   }
 
@@ -390,64 +331,54 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
   }
   sql += ";";
 
-  sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
+  ai::base::statement stmt(db_, sql);
+  if (!stmt.is_valid()) {
     return infos;
   }
 
   if (N > 0) {
-    sqlite3_bind_int(stmt, 1, N);
+    stmt.bind(1, N);
   }
 
-  while (sqlite3_step(stmt) == SQLITE_ROW) {
+  while (stmt.step() == ai::base::step_result::row) {
     SessionInfo info;
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) {
-      info.session_id = t;
+    if (auto t = stmt.get<std::optional<std::string>>(0); t) {
+      info.session_id = t.value();
     }
-    info.start = sqlite3_column_int64(stmt, 1);
-    info.end = sqlite3_column_int64(stmt, 2);
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
-      info.topic = t;
+    info.start = stmt.get<int64_t>(1);
+    info.end = stmt.get<int64_t>(2);
+    if (auto t = stmt.get<std::optional<std::string>>(3); t) {
+      info.topic = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
-      info.url = t;
+    if (auto t = stmt.get<std::optional<std::string>>(4); t) {
+      info.url = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
-      info.model = t;
+    if (auto t = stmt.get<std::optional<std::string>>(5); t) {
+      info.model = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
-      info.work_dir = t;
+    if (auto t = stmt.get<std::optional<std::string>>(6); t) {
+      info.work_dir = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
-      info.parent_id = t;
+    if (auto t = stmt.get<std::optional<std::string>>(7); t) {
+      info.parent_id = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
-      info.messages = t;
+    if (auto t = stmt.get<std::optional<std::string>>(8); t) {
+      info.messages = t.value();
     }
-    info.prompt_tokens = sqlite3_column_int(stmt, 9);
-    info.completion_tokens = sqlite3_column_int(stmt, 10);
-    info.total_tokens = sqlite3_column_int(stmt, 11);
-    info.prompt_cache_hit_tokens = sqlite3_column_int(stmt, 12);
-    info.prompt_cache_miss_tokens = sqlite3_column_int(stmt, 13);
+    info.prompt_tokens = stmt.get<int>(9);
+    info.completion_tokens = stmt.get<int>(10);
+    info.total_tokens = stmt.get<int>(11);
+    info.prompt_cache_hit_tokens = stmt.get<int>(12);
+    info.prompt_cache_miss_tokens = stmt.get<int>(13);
     infos.push_back(std::move(info));
   }
 
-  sqlite3_finalize(stmt);
   return infos;
 }
 
 std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
     std::string const& session_id) {
-  if (!db_) {
+  if (!db_.native_handle()) {
     return std::nullopt;
   }
 
@@ -459,86 +390,69 @@ std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
                         "FROM ") +
                     kTableName + " WHERE session_id = ?1;";
 
-  sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to prepare select: " << sqlite3_errmsg(db_);
+  ai::base::statement stmt(db_, sql);
+  if (!stmt.is_valid()) {
     return std::nullopt;
   }
 
-  sqlite3_bind_text(stmt, 1, session_id.c_str(),
-                    static_cast<int>(session_id.size()), SQLITE_STATIC);
+  stmt.bind(1, session_id);
 
   std::optional<SessionInfo> result;
-  if (sqlite3_step(stmt) == SQLITE_ROW) {
+  if (stmt.step() == ai::base::step_result::row) {
     SessionInfo info;
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0))) {
-      info.session_id = t;
+    if (auto t = stmt.get<std::optional<std::string>>(0); t) {
+      info.session_id = t.value();
     }
-    info.start = sqlite3_column_int64(stmt, 1);
-    info.end = sqlite3_column_int64(stmt, 2);
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3))) {
-      info.topic = t;
+    info.start = stmt.get<int64_t>(1);
+    info.end = stmt.get<int64_t>(2);
+    if (auto t = stmt.get<std::optional<std::string>>(3); t) {
+      info.topic = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4))) {
-      info.url = t;
+    if (auto t = stmt.get<std::optional<std::string>>(4); t) {
+      info.url = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5))) {
-      info.model = t;
+    if (auto t = stmt.get<std::optional<std::string>>(5); t) {
+      info.model = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 6))) {
-      info.work_dir = t;
+    if (auto t = stmt.get<std::optional<std::string>>(6); t) {
+      info.work_dir = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7))) {
-      info.parent_id = t;
+    if (auto t = stmt.get<std::optional<std::string>>(7); t) {
+      info.parent_id = t.value();
     }
-    if (auto const* t =
-            reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8))) {
-      info.messages = t;
+    if (auto t = stmt.get<std::optional<std::string>>(8); t) {
+      info.messages = t.value();
     }
-    info.prompt_tokens = sqlite3_column_int(stmt, 9);
-    info.completion_tokens = sqlite3_column_int(stmt, 10);
-    info.total_tokens = sqlite3_column_int(stmt, 11);
-    info.prompt_cache_hit_tokens = sqlite3_column_int(stmt, 12);
-    info.prompt_cache_miss_tokens = sqlite3_column_int(stmt, 13);
+    info.prompt_tokens = stmt.get<int>(9);
+    info.completion_tokens = stmt.get<int>(10);
+    info.total_tokens = stmt.get<int>(11);
+    info.prompt_cache_hit_tokens = stmt.get<int>(12);
+    info.prompt_cache_miss_tokens = stmt.get<int>(13);
     result = std::move(info);
   }
 
-  sqlite3_finalize(stmt);
   return result;
 }
 
 void HistoryDB::set_topic(std::string const& session_id,
                           std::string const& topic) {
-  if (!db_) {
+  if (!db_.native_handle()) {
     return;
   }
 
   std::string update_sql = std::string("UPDATE ") + kTableName +
                            " SET topic = ?1 WHERE session_id = ?2;";
-  sqlite3_stmt* stmt = nullptr;
-  int rc = sqlite3_prepare_v2(db_, update_sql.c_str(), -1, &stmt, nullptr);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to prepare topic update: " << sqlite3_errmsg(db_);
+  ai::base::statement stmt(db_, update_sql);
+  if (!stmt.is_valid()) {
     return;
   }
 
-  sqlite3_bind_text(stmt, 1, topic.c_str(), static_cast<int>(topic.size()),
-                    SQLITE_STATIC);
-  sqlite3_bind_text(stmt, 2, session_id.c_str(),
-                    static_cast<int>(session_id.size()), SQLITE_STATIC);
+  stmt.bind(1, topic);
+  stmt.bind(2, session_id);
 
-  rc = sqlite3_step(stmt);
-  sqlite3_finalize(stmt);
-
-  if (rc != SQLITE_DONE) {
-    LOG(ERROR) << "Failed to set topic: " << sqlite3_errmsg(db_);
+  if (stmt.step() != ai::base::step_result::done) {
+    LOG(ERROR) << "Failed to set topic: "
+               << sqlite3_errmsg(db_.native_handle());
   } else {
     LOG(INFO) << "Set topic for session " << session_id << ": " << topic;
   }
