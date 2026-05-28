@@ -2,7 +2,6 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <optional>
-#include <ranges>
 #include <string>
 #include <subprocess/subprocess.hpp>
 #include <vector>
@@ -105,9 +104,9 @@ std::string execute_command(nlohmann::json const& args) {
   }};
 
   auto start = std::chrono::steady_clock::now();
-  auto exit_code =
-      subprocess::run(cmd_args, $stdout > out_buf, $stderr > err_buf,
-                      $timeout = timeout_val, $cwd = working_directory);
+  auto exit_code = subprocess::run(cmd_args, $stdin<$devnull, $stdout> out_buf,
+                                   $stderr > err_buf, $timeout = timeout_val,
+                                   $cwd = working_directory, $newgroup = true);
   auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string result;

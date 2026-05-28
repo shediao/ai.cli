@@ -68,9 +68,10 @@ std::string cmd(nlohmann::json const& args) {
   }};
 
   auto start = std::chrono::steady_clock::now();
-  auto ret = subprocess::run("cmd", "/c", command, $stdout > out_buf,
-                             $stderr > err_buf, $timeout = timeout_val,
-                             $cwd = working_directory);
+  auto ret =
+      subprocess::run("cmd", "/c", command, $stdin<$devnull, $stdout> out_buf,
+                      $stderr > err_buf, $timeout = timeout_val,
+                      $cwd = working_directory, $newgroup = true);
   auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string out_str = out_buf.to_string();
