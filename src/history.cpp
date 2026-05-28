@@ -345,8 +345,8 @@ std::vector<HistoryDB::SessionInfo> HistoryDB::list_session_infos(int N) {
     if (auto t = stmt.get<std::optional<std::string>>(0); t) {
       info.session_id = t.value();
     }
-    info.start = stmt.get<int64_t>(1);
-    info.end = stmt.get<int64_t>(2);
+    info.start = stmt.get<sqlite3_int64>(1);
+    info.end = stmt.get<sqlite3_int64>(2);
     if (auto t = stmt.get<std::optional<std::string>>(3); t) {
       info.topic = t.value();
     }
@@ -403,8 +403,8 @@ std::optional<HistoryDB::SessionInfo> HistoryDB::get_session_info(
     if (auto t = stmt.get<std::optional<std::string>>(0); t) {
       info.session_id = t.value();
     }
-    info.start = stmt.get<int64_t>(1);
-    info.end = stmt.get<int64_t>(2);
+    info.start = stmt.get<sqlite3_int64>(1);
+    info.end = stmt.get<sqlite3_int64>(2);
     if (auto t = stmt.get<std::optional<std::string>>(3); t) {
       info.topic = t.value();
     }
