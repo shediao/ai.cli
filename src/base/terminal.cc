@@ -34,7 +34,7 @@ Terminal::~Terminal() {
 bool Terminal::available() const {
   return in_ != INVALID_HANDLE_VALUE && out_ != INVALID_HANDLE_VALUE;
 }
-void Terminal::write(const std::string_view s) {
+void Terminal::write(const std::string_view s) const {
   if (INVALID_NATIVE_HANDLE_VALUE == out_) {
     return;
   }
@@ -48,7 +48,7 @@ void Terminal::write(const std::string_view s) {
     written += w;
   }
 }
-std::string Terminal::read_line() {
+std::string Terminal::read_line() const {
   std::string line;
   if (INVALID_NATIVE_HANDLE_VALUE == in_) {
     return line;
@@ -69,7 +69,7 @@ std::string Terminal::read_line() {
   }
   return line;
 }
-char Terminal::read_char() {
+char Terminal::read_char() const {
   if (INVALID_NATIVE_HANDLE_VALUE == in_) {
     return '\0';
   }
