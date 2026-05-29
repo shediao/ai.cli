@@ -73,13 +73,26 @@ statement::statement(database& db, std::string_view sql) {
     return;
   }
   stmt_ = stmt;
+
+  int count = sqlite3_bind_parameter_count(stmt_);
+  for (int i = 1; i <= count; i++) {
+    auto* name = sqlite3_bind_parameter_name(stmt_, i);
+    if (name) {
+      named_params_.emplace(name, i);
+    } else {
+      LOG(ERROR) << "[SQLITE3] Failed to get parameter name index(" << i << ")";
+    }
+  }
 }
+
 statement::statement(statement&& other) noexcept
-    : stmt_{std::exchange(other.stmt_, nullptr)} {}
+    : stmt_{std::exchange(other.stmt_, nullptr)},
+      named_params_{std::move(other.named_params_)} {}
 statement& statement::operator=(statement&& other) noexcept {
   if (this != &other) {
     reset();
     stmt_ = std::exchange(other.stmt_, nullptr);
+    named_params_ = std::move(other.named_params_);
   }
   return *this;
 }
@@ -127,6 +140,28 @@ bool statement::bind_check(int rc) {
     return false;
   }
   return true;
+}
+
+int statement::get_named_param_index(std::string const& name) {
+  if (name.empty()) {
+    return 0;
+  }
+  if (name[0] == ':' || name[0] == '@' || name[0] == '$') {
+    auto it = named_params_.find(name);
+    if (it != named_params_.end()) {
+      return it->second;
+    }
+    LOG(ERROR) << "No such parameter: " << name;
+    return 0;
+  } else {
+    for (auto const& prefix : {":", "@", "$"}) {
+      if (auto index = get_named_param_index(prefix + name); index != 0) {
+        return index;
+      }
+    }
+    LOG(ERROR) << "No such parameter: " << name;
+    return 0;
+  }
 }
 
 transaction::transaction(database& db) : db_(db) {

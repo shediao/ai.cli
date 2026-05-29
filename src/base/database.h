@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace ai::base {
 namespace {
@@ -68,6 +69,15 @@ class statement {
     return bind(index, nullptr);
   }
 
+  template <typename T>
+  bool bind(std::string_view name_view, T&& value) {
+    auto index = get_named_param_index(std::string{name_view});
+    if (index == 0) {
+      return false;
+    }
+    return bind(index, std::forward<T>(value));
+  }
+
   template <typename... Args>
   bool bind_all(Args&&... args) {
     int index = 1;
@@ -79,8 +89,10 @@ class statement {
 
  private:
   void reset();
+  int get_named_param_index(std::string const& name);
   [[maybe_unused]] bool bind_check(int rc);
   sqlite3_stmt* stmt_{nullptr};
+  std::unordered_map<std::string, int> named_params_;
 };
 
 template <>

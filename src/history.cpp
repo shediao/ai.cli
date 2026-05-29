@@ -218,32 +218,36 @@ std::string HistoryDB::create_session(
 
   ai::base::transaction tx(db_);
 
-  std::string insert_sql = std::string("INSERT INTO ") + kTableName +
-                           " (session_id, start, end, url, model, work_dir, "
-                           "parent_id, messages, prompt_tokens, "
-                           "completion_tokens, total_tokens, "
-                           "prompt_cache_hit_tokens, prompt_cache_miss_tokens) "
-                           "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, "
-                           "?9, ?10, ?11, ?12, ?13);";
+  std::string insert_sql =
+      std::string("INSERT INTO ") + kTableName +
+      " (session_id, start, end, url, model, work_dir, "
+      "parent_id, messages, prompt_tokens, "
+      "completion_tokens, total_tokens, "
+      "prompt_cache_hit_tokens, prompt_cache_miss_tokens) "
+      "VALUES (:session_id, :start, :end, :url, :model, :work_dir, "
+      ":parent_id, :messages, :prompt_tokens, "
+      ":completion_tokens, :total_tokens, "
+      ":prompt_cache_hit_tokens, :prompt_cache_miss_tokens);";
   ai::base::statement stmt(db_, insert_sql);
   if (!stmt.is_valid()) {
     return "";
   }
 
-  stmt.bind(1, session_id);
-  stmt.bind(2, static_cast<sqlite3_int64>(start_ts));
-  stmt.bind(3, static_cast<sqlite3_int64>(end_ts));
-  stmt.bind(4, url);
-  stmt.bind(5, model);
-  stmt.bind(6, work_dir);
-  stmt.bind(7, parent_id.empty() ? std::optional<std::string>{std::nullopt}
-                                 : std::optional<std::string>{parent_id});
-  stmt.bind(8, messages_json);
-  stmt.bind(9, prompt_tokens);
-  stmt.bind(10, completion_tokens);
-  stmt.bind(11, total_tokens);
-  stmt.bind(12, prompt_cache_hit_tokens);
-  stmt.bind(13, prompt_cache_miss_tokens);
+  stmt.bind(":session_id", session_id);
+  stmt.bind(":start", static_cast<sqlite3_int64>(start_ts));
+  stmt.bind(":end", static_cast<sqlite3_int64>(end_ts));
+  stmt.bind(":url", url);
+  stmt.bind(":model", model);
+  stmt.bind(":work_dir", work_dir);
+  stmt.bind(":parent_id", parent_id.empty()
+                              ? std::optional<std::string>{std::nullopt}
+                              : std::optional<std::string>{parent_id});
+  stmt.bind(":messages", messages_json);
+  stmt.bind(":prompt_tokens", prompt_tokens);
+  stmt.bind(":completion_tokens", completion_tokens);
+  stmt.bind(":total_tokens", total_tokens);
+  stmt.bind(":prompt_cache_hit_tokens", prompt_cache_hit_tokens);
+  stmt.bind(":prompt_cache_miss_tokens", prompt_cache_miss_tokens);
 
   if (stmt.step() == ai::base::step_result::done) {
     tx.commit();

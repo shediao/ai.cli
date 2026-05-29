@@ -1139,6 +1139,577 @@ TEST(StatementBindTest, BindReturnsFalseOnInvalidIndex) {
 }
 
 // =============================================================================
+// statement::bind (named parameters)
+// =============================================================================
+
+TEST(StatementBindNamedTest, BindStringByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('alice');"
+               "INSERT INTO t VALUES('bob');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name = :name;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_TRUE(stmt.bind(":name", std::string_view{"bob"}));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "bob");
+}
+
+TEST(StatementBindNamedTest, BindIntByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(1, 'one');"
+               "INSERT INTO t VALUES(2, 'two');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id = :id;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_TRUE(stmt.bind(":id", 2));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "two");
+}
+
+TEST(StatementBindNamedTest, BindInt64ByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(10000000000, 'large');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id = :id;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_TRUE(stmt.bind(":id", static_cast<sqlite3_int64>(10000000000)));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "large");
+}
+
+TEST(StatementBindNamedTest, BindDoubleByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(val REAL);"
+               "INSERT INTO t VALUES(1.5);"
+               "INSERT INTO t VALUES(3.14);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE val > :threshold;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_TRUE(stmt.bind(":threshold", 2.0));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_DOUBLE_EQ(stmt.get<double>(0), 3.14);
+}
+
+TEST(StatementBindNamedTest, BindNullByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(x TEXT);"
+               "INSERT INTO t VALUES('hello');"
+               "INSERT INTO t VALUES(NULL);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT x FROM t WHERE x IS :val;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_TRUE(stmt.bind(":val", nullptr));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_TRUE(stmt.get<std::optional<std::string>>(0) == std::nullopt);
+}
+
+TEST(StatementBindNamedTest, BindOptionalStringSomeByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('alice');"
+               "INSERT INTO t VALUES('bob');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name = :name;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<std::string> name = std::string{"bob"};
+  EXPECT_TRUE(stmt.bind(":name", name));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "bob");
+}
+
+TEST(StatementBindNamedTest, BindOptionalStringNoneByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('alice');"
+               "INSERT INTO t VALUES(NULL);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name IS :name;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<std::string> name = std::nullopt;
+  EXPECT_TRUE(stmt.bind(":name", name));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_TRUE(stmt.get<std::optional<std::string>>(0) == std::nullopt);
+}
+
+TEST(StatementBindNamedTest, BindOptionalIntSomeByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(1, 'one');"
+               "INSERT INTO t VALUES(2, 'two');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id = :id;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<int> id = 2;
+  EXPECT_TRUE(stmt.bind(":id", id));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "two");
+}
+
+TEST(StatementBindNamedTest, BindOptionalIntNoneByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(1, 'one');"
+               "INSERT INTO t VALUES(NULL, 'nil');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id IS :id;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<int> id = std::nullopt;
+  EXPECT_TRUE(stmt.bind(":id", id));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "nil");
+}
+
+TEST(StatementBindNamedTest, BindOptionalDoubleSomeByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(val REAL);"
+               "INSERT INTO t VALUES(1.5);"
+               "INSERT INTO t VALUES(3.14);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE val > :threshold;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<double> threshold = 2.0;
+  EXPECT_TRUE(stmt.bind(":threshold", threshold));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_DOUBLE_EQ(stmt.get<double>(0), 3.14);
+}
+
+TEST(StatementBindNamedTest, BindOptionalDoubleNoneByName) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(val REAL);"
+               "INSERT INTO t VALUES(1.0);"
+               "INSERT INTO t VALUES(NULL);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE val IS :val;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<double> val = std::nullopt;
+  EXPECT_TRUE(stmt.bind(":val", val));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_TRUE(stmt.get<std::optional<double>>(0) == std::nullopt);
+}
+
+TEST(StatementBindNamedTest, BindNonexistentParameterReturnsFalse) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('hello');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name = :name;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  // Parameter ":nonexistent" does not exist in the SQL
+  EXPECT_FALSE(stmt.bind(":nonexistent", std::string_view{"value"}));
+  EXPECT_FALSE(stmt.bind(":nonexistent", 42));
+  EXPECT_FALSE(stmt.bind(":nonexistent", nullptr));
+}
+
+TEST(StatementBindNamedTest, MultipleNamedParameters) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(a INTEGER, b TEXT, c REAL);"
+               "INSERT INTO t VALUES(42, 'answer', 3.14);"
+               "INSERT INTO t VALUES(99, 'other', 1.0);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT b FROM t WHERE a = :a AND c = :c;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_TRUE(stmt.bind(":a", 42));
+  EXPECT_TRUE(stmt.bind(":c", 3.14));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "answer");
+}
+
+TEST(StatementBindNamedTest, InsertAndSelectWithNamedBinds) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(), "CREATE TABLE t(name TEXT, value INTEGER);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  // Insert using named binds
+  {
+    ai::base::statement stmt(
+        db, "INSERT INTO t(name, value) VALUES(:name, :value);");
+    EXPECT_TRUE(stmt.is_valid());
+    EXPECT_TRUE(stmt.bind(":name", std::string_view{"foo"}));
+    EXPECT_TRUE(stmt.bind(":value", 100));
+    EXPECT_EQ(stmt.step(), ai::base::step_result::done);
+  }
+  {
+    ai::base::statement stmt(
+        db, "INSERT INTO t(name, value) VALUES(:name, :value);");
+    EXPECT_TRUE(stmt.is_valid());
+    EXPECT_TRUE(stmt.bind(":name", std::string_view{"bar"}));
+    EXPECT_TRUE(stmt.bind(":value", 200));
+    EXPECT_EQ(stmt.step(), ai::base::step_result::done);
+  }
+
+  // Select using named binds
+  {
+    ai::base::statement stmt(db,
+                             "SELECT name, value FROM t WHERE value = :value;");
+    EXPECT_TRUE(stmt.is_valid());
+    EXPECT_TRUE(stmt.bind(":value", 200));
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_EQ(stmt.get<std::string>(0), "bar");
+    EXPECT_EQ(stmt.get<int>(1), 200);
+  }
+}
+
+TEST(StatementBindNamedTest, NamedParamsPreservedAfterMoveConstruct) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('alice');"
+               "INSERT INTO t VALUES('bob');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement src(db, "SELECT name FROM t WHERE name = :name;");
+  EXPECT_TRUE(src.is_valid());
+
+  ai::base::statement dst(std::move(src));
+  EXPECT_FALSE(src.is_valid());
+  EXPECT_TRUE(dst.is_valid());
+
+  // Named bind should still work on the moved-to statement
+  EXPECT_TRUE(dst.bind(":name", std::string_view{"bob"}));
+  EXPECT_EQ(dst.step(), ai::base::step_result::row);
+  EXPECT_EQ(dst.get<std::string>(0), "bob");
+}
+
+TEST(StatementBindNamedTest, NamedParamsPreservedAfterMoveAssign) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('alice');"
+               "INSERT INTO t VALUES('bob');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt1(db, "SELECT name FROM t WHERE name = :name;");
+  ai::base::statement stmt2(db, "SELECT COUNT(*) FROM t;");
+  EXPECT_TRUE(stmt1.is_valid());
+  EXPECT_TRUE(stmt2.is_valid());
+
+  stmt1 = std::move(stmt2);
+  EXPECT_TRUE(stmt1.is_valid());
+  EXPECT_FALSE(stmt2.is_valid());
+
+  // stmt1 now holds the COUNT(*) statement, which has no named params
+  EXPECT_EQ(stmt1.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt1.get<int>(0), 2);
+}
+
+TEST(StatementBindNamedTest, NamedParamWithAtPrefix) {
+  // sqlite3 supports @param syntax in addition to :param
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('hello');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name = @name;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_TRUE(stmt.bind("@name", std::string_view{"hello"}));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "hello");
+}
+
+TEST(StatementBindNamedTest, NamedParamWithDollarPrefix) {
+  // sqlite3 supports $param syntax in addition to :param
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(1, 'one');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id = $id;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_TRUE(stmt.bind("$id", 1));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "one");
+}
+
+TEST(StatementBindNamedTest, BindWithoutPrefixColonParam) {
+  // Binding with bare name (no prefix) should auto-detect :name in :param SQL
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('alice');"
+               "INSERT INTO t VALUES('bob');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name = :name;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  // Bind without the ":" prefix — should still find the parameter
+  EXPECT_TRUE(stmt.bind("name", std::string_view{"bob"}));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "bob");
+}
+
+TEST(StatementBindNamedTest, BindWithoutPrefixAtParam) {
+  // Binding with bare name should auto-detect @name in @param SQL
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(1, 'one');"
+               "INSERT INTO t VALUES(2, 'two');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id = @id;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  // Bind without the "@" prefix
+  EXPECT_TRUE(stmt.bind("id", 2));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "two");
+}
+
+TEST(StatementBindNamedTest, BindWithoutPrefixDollarParam) {
+  // Binding with bare name should auto-detect $name in $param SQL
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(1, 'one');"
+               "INSERT INTO t VALUES(2, 'two');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id = $id;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  // Bind without the "$" prefix
+  EXPECT_TRUE(stmt.bind("id", 2));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "two");
+}
+
+TEST(StatementBindNamedTest, BindEmptyNameReturnsFalse) {
+  // Empty name should be rejected early without searching named_params_
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('hello');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name = :name;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_FALSE(stmt.bind("", std::string_view{"value"}));
+}
+
+TEST(StatementBindNamedTest, BindOnlyPrefixReturnsFalse) {
+  // A bare ":" should not match any parameter
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('hello');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name = :name;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  EXPECT_FALSE(stmt.bind(":", std::string_view{"value"}));
+}
+
+// =============================================================================
 // statement::bind_all
 // =============================================================================
 
