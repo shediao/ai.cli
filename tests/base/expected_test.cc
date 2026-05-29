@@ -358,19 +358,85 @@ TEST(ExpectedValueTest, AndThenOnError) {
 
 TEST(ExpectedValueTest, AndThenChaining) {
   expected<int, std::string> e(3);
-  auto result =
-      e.and_then([](int& v) -> expected<int, std::string> {
-         return v * 2;
-       }).and_then([](int& v) -> expected<int, std::string> { return v + 1; });
+  auto r1 =
+      e.and_then([](int& v) -> expected<int, std::string> { return v * 2; });
+  EXPECT_TRUE(r1.has_value());
+  EXPECT_EQ(r1.value(), 6);
+  auto r2 =
+      r1.and_then([](int& v) -> expected<int, std::string> { return v + 1; });
+  EXPECT_TRUE(r2.has_value());
+  EXPECT_EQ(r2.value(), 7);
+}
+
+TEST(ExpectedValueTest, AndThenConstLvalueOnValue) {
+  const expected<int, std::string> e(5);
+  auto result = e.and_then(
+      [](const int& v) -> expected<double, std::string> { return v * 2.0; });
   EXPECT_TRUE(result.has_value());
-  EXPECT_EQ(result.value(), 7);
+  EXPECT_DOUBLE_EQ(result.value(), 10.0);
+}
+
+TEST(ExpectedValueTest, AndThenConstLvalueOnError) {
+  const expected<int, std::string> e(make_unexpected(std::string("fail")));
+  auto result = e.and_then(
+      [](const int& v) -> expected<double, std::string> { return v * 2.0; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+TEST(ExpectedValueTest, AndThenRvalueOnValue) {
+  expected<std::string, int> e("hello");
+  auto result =
+      std::move(e).and_then([](std::string&& v) -> expected<int, int> {
+        return static_cast<int>(v.size());
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 5);
+}
+
+TEST(ExpectedValueTest, AndThenRvalueOnError) {
+  expected<int, std::string> e(make_unexpected(std::string("fail")));
+  auto result = std::move(e).and_then(
+      [](int&& v) -> expected<double, std::string> { return v * 2.0; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+TEST(ExpectedValueTest, AndThenConstRvalueOnValue) {
+  auto make = []() -> const expected<int, std::string> { return 5; };
+  auto result = std::move(make()).and_then(
+      [](const int&& v) -> expected<double, std::string> { return v * 2.0; });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_DOUBLE_EQ(result.value(), 10.0);
+}
+
+TEST(ExpectedValueTest, AndThenConstRvalueOnError) {
+  auto make = []() -> const expected<int, std::string> {
+    return make_unexpected(std::string("fail"));
+  };
+  auto result = std::move(make()).and_then(
+      [](const int&& v) -> expected<double, std::string> { return v * 2.0; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+TEST(ExpectedValueTest, AndThenRvalueMoveSemantics) {
+  expected<std::string, int> e(std::string("hello"));
+  std::string moved_value;
+  auto result = std::move(e).and_then(
+      [&moved_value](std::string&& v) -> expected<int, int> {
+        moved_value = std::move(v);
+        return 0;
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(moved_value, "hello");
 }
 
 // =============================================================================
 // expected<T, E> — transform
 // =============================================================================
 
-TEST(ExpectedValueTest, TransformOnValue) {
+TEST(ExpectedValueTest, TransformLvalueOnValue) {
   expected<int, std::string> e(5);
   auto result = e.transform([](int& v) { return v * 2.0; });
   static_assert(
@@ -379,9 +445,70 @@ TEST(ExpectedValueTest, TransformOnValue) {
   EXPECT_DOUBLE_EQ(result.value(), 10.0);
 }
 
-TEST(ExpectedValueTest, TransformOnError) {
+TEST(ExpectedValueTest, TransformLvalueOnError) {
   expected<int, std::string> e(make_unexpected(std::string("fail")));
   auto result = e.transform([](int& v) { return v * 2.0; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+TEST(ExpectedValueTest, TransformConstLvalueOnValue) {
+  const expected<int, std::string> e(5);
+  auto result = e.transform([](const int& v) { return v * 2.0; });
+  static_assert(
+      std::is_same_v<decltype(result), expected<double, std::string>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_DOUBLE_EQ(result.value(), 10.0);
+}
+
+TEST(ExpectedValueTest, TransformConstLvalueOnError) {
+  const expected<int, std::string> e(make_unexpected(std::string("fail")));
+  auto result = e.transform([](const int& v) { return v * 2.0; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+TEST(ExpectedValueTest, TransformRvalueOnValue) {
+  expected<std::string, int> e("hello");
+  auto result = std::move(e).transform(
+      [](std::string&& v) -> int { return static_cast<int>(v.size()); });
+  static_assert(std::is_same_v<decltype(result), expected<int, int>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 5);
+}
+
+TEST(ExpectedValueTest, TransformRvalueOnError) {
+  expected<int, std::string> e(make_unexpected(std::string("fail")));
+  auto result = std::move(e).transform([](int&& v) { return v * 2.0; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+TEST(ExpectedValueTest, TransformRvalueMoveSemantics) {
+  expected<std::string, int> e(std::string("hello"));
+  std::string moved_value;
+  auto result = std::move(e).transform([&moved_value](std::string&& v) -> int {
+    moved_value = std::move(v);
+    return 0;
+  });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(moved_value, "hello");
+}
+
+TEST(ExpectedValueTest, TransformConstRvalueOnValue) {
+  auto make = []() -> const expected<int, std::string> { return 5; };
+  auto result =
+      std::move(make()).transform([](const int&& v) { return v * 2.0; });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_DOUBLE_EQ(result.value(), 10.0);
+}
+
+TEST(ExpectedValueTest, TransformConstRvalueOnError) {
+  auto make = []() -> const expected<int, std::string> {
+    return make_unexpected(std::string("fail"));
+  };
+  auto result =
+      std::move(make()).transform([](const int&& v) { return v * 2.0; });
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(result.error(), "fail");
 }
@@ -405,6 +532,217 @@ TEST(ExpectedValueTest, OrElseOnError) {
       [](std::string& /*err*/) -> expected<int, std::string> { return 999; });
   EXPECT_TRUE(result.has_value());
   EXPECT_EQ(result.value(), 999);
+}
+
+TEST(ExpectedValueTest, OrElseConstLvalueOnValue) {
+  const expected<int, std::string> e(42);
+  auto result =
+      e.or_else([](const std::string& err) -> expected<int, std::string> {
+        return static_cast<int>(err.size());
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 42);
+}
+
+TEST(ExpectedValueTest, OrElseConstLvalueOnError) {
+  const expected<int, std::string> e(make_unexpected(std::string("fail")));
+  auto result =
+      e.or_else([](const std::string& /*err*/) -> expected<int, std::string> {
+        return 999;
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 999);
+}
+
+TEST(ExpectedValueTest, OrElseRvalueOnValue) {
+  expected<std::string, int> e("hello");
+  auto result =
+      std::move(e).or_else([](int&& /*err*/) -> expected<std::string, int> {
+        return expected<std::string, int>("world");
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), "hello");
+}
+
+TEST(ExpectedValueTest, OrElseRvalueOnError) {
+  expected<int, std::string> e(make_unexpected(std::string("fail")));
+  auto result =
+      std::move(e).or_else([](std::string&& err) -> expected<int, std::string> {
+        return static_cast<int>(err.size());
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 4);  // "fail".size() == 4
+}
+
+TEST(ExpectedValueTest, OrElseRvalueMoveSemantics) {
+  expected<std::string, int> e(make_unexpected(42));
+  int moved_error = 0;
+  auto result = std::move(e).or_else(
+      [&moved_error](int&& err) -> expected<std::string, int> {
+        moved_error = err;
+        return expected<std::string, int>("recovered");
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), "recovered");
+  EXPECT_EQ(moved_error, 42);
+}
+
+TEST(ExpectedValueTest, OrElseConstRvalueOnValue) {
+  auto make = []() -> const expected<int, std::string> { return 42; };
+  auto result = std::move(make()).or_else(
+      [](const std::string&& err) -> expected<int, std::string> {
+        return static_cast<int>(err.size());
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 42);
+}
+
+TEST(ExpectedValueTest, OrElseConstRvalueOnError) {
+  auto make = []() -> const expected<int, std::string> {
+    return make_unexpected(std::string("fail"));
+  };
+  auto result = std::move(make()).or_else(
+      [](const std::string&& err) -> expected<int, std::string> {
+        return static_cast<int>(err.size());
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 4);  // "fail".size() == 4
+}
+
+// =============================================================================
+// expected<T, E> — transform_error
+// =============================================================================
+
+TEST(ExpectedValueTest, TransformErrorLvalueOnValue) {
+  expected<int, std::string> e(42);
+  int call_count = 0;
+  auto result = e.transform_error([&call_count](std::string& err) -> int {
+    ++call_count;
+    return static_cast<int>(err.size());
+  });
+  static_assert(std::is_same_v<decltype(result), expected<int, int>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 42);
+  EXPECT_EQ(call_count, 0);
+}
+
+TEST(ExpectedValueTest, TransformErrorLvalueOnError) {
+  expected<int, std::string> e(make_unexpected(std::string("fail")));
+  auto result = e.transform_error(
+      [](std::string& err) -> int { return static_cast<int>(err.size()); });
+  static_assert(std::is_same_v<decltype(result), expected<int, int>>);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 4);  // "fail".size() == 4
+}
+
+TEST(ExpectedValueTest, TransformErrorConstLvalueOnValue) {
+  const expected<int, std::string> e(42);
+  int call_count = 0;
+  auto result =
+      e.transform_error([&call_count](const std::string& err) -> long {
+        ++call_count;
+        return static_cast<long>(err.size());
+      });
+  static_assert(std::is_same_v<decltype(result), expected<int, long>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 42);
+  EXPECT_EQ(call_count, 0);
+}
+
+TEST(ExpectedValueTest, TransformErrorConstLvalueOnError) {
+  const expected<int, std::string> e(make_unexpected(std::string("boom")));
+  auto result = e.transform_error([](const std::string& err) -> int {
+    return static_cast<int>(err.size());
+  });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 4);
+}
+
+TEST(ExpectedValueTest, TransformErrorRvalueOnValue) {
+  expected<std::string, int> e("hello");
+  int call_count = 0;
+  auto result = std::move(e).transform_error([&call_count](int&& err) -> long {
+    ++call_count;
+    return static_cast<long>(err);
+  });
+  static_assert(std::is_same_v<decltype(result), expected<std::string, long>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), "hello");
+  EXPECT_EQ(call_count, 0);
+}
+
+TEST(ExpectedValueTest, TransformErrorRvalueOnError) {
+  expected<int, std::string> e(make_unexpected(std::string("fail")));
+  auto result = std::move(e).transform_error(
+      [](std::string&& err) -> int { return static_cast<int>(err.size()); });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 4);
+}
+
+TEST(ExpectedValueTest, TransformErrorRvalueMoveSemantics) {
+  expected<int, std::string> e(make_unexpected(std::string("hello_error")));
+  std::string moved_error;
+  auto result =
+      std::move(e).transform_error([&moved_error](std::string&& err) -> int {
+        moved_error = std::move(err);
+        return 0;
+      });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(moved_error, "hello_error");
+}
+
+TEST(ExpectedValueTest, TransformErrorConstRvalueOnValue) {
+  auto make = []() -> const expected<int, std::string> { return 42; };
+  int call_count = 0;
+  auto result = std::move(make()).transform_error(
+      [&call_count](const std::string&& err) -> int {
+        ++call_count;
+        return static_cast<int>(err.size());
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 42);
+  EXPECT_EQ(call_count, 0);
+}
+
+TEST(ExpectedValueTest, TransformErrorConstRvalueOnError) {
+  auto make = []() -> const expected<int, std::string> {
+    return make_unexpected(std::string("fail"));
+  };
+  auto result =
+      std::move(make()).transform_error([](const std::string&& err) -> int {
+        return static_cast<int>(err.size());
+      });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 4);
+}
+
+TEST(ExpectedValueTest, TransformErrorChaining) {
+  expected<int, std::string> e(make_unexpected(std::string("first_error")));
+  auto r = e.transform_error(
+      [](std::string& err) -> int { return static_cast<int>(err.size()); });
+  EXPECT_FALSE(r.has_value());
+  EXPECT_EQ(r.error(), 11);
+  // Chain: further transform_error on the new error type
+  auto r2 = r.transform_error(
+      [](int& err) -> std::string { return std::to_string(err * 2); });
+  EXPECT_FALSE(r2.has_value());
+  EXPECT_EQ(r2.error(), "22");
+}
+
+TEST(ExpectedValueTest, TransformErrorThenAndThen) {
+  expected<int, std::string> e(make_unexpected(std::string("recoverable")));
+  auto result = e.transform_error([](std::string& err) -> int {
+    // Map string error to int code, then recover
+    return static_cast<int>(err.size());
+  });
+  static_assert(std::is_same_v<decltype(result), expected<int, int>>);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 11);  // "recoverable".size() == 11
+  // Now and_then on value path — error path preserved
+  auto r2 =
+      result.and_then([](int& v) -> expected<double, int> { return v * 2.0; });
+  EXPECT_FALSE(r2.has_value());
+  EXPECT_EQ(r2.error(), 11);
 }
 
 // =============================================================================
@@ -734,6 +1072,210 @@ TEST(ExpectedVoidTest, AndThenOnError) {
   auto result = e.and_then([]() -> expected<double, int> { return 3.14; });
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(result.error(), 404);
+}
+
+TEST(ExpectedVoidTest, AndThenRvalueOnValue) {
+  expected<void, int> e;
+  auto result =
+      std::move(e).and_then([]() -> expected<double, int> { return 3.14; });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_DOUBLE_EQ(result.value(), 3.14);
+}
+
+TEST(ExpectedVoidTest, AndThenRvalueOnError) {
+  expected<void, std::string> e(make_unexpected(std::string("fail")));
+  auto result =
+      std::move(e).and_then([]() -> expected<int, std::string> { return 42; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+TEST(ExpectedVoidTest, AndThenConstRvalueOnError) {
+  auto make = []() -> const expected<void, std::string> {
+    return make_unexpected(std::string("fail"));
+  };
+  auto result = std::move(make()).and_then(
+      []() -> expected<int, std::string> { return 42; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+// =============================================================================
+// expected<void, E> — transform
+// =============================================================================
+
+TEST(ExpectedVoidTest, TransformLvalueOnValue) {
+  expected<void, int> e;
+  auto result = e.transform([]() -> double { return 3.14; });
+  static_assert(std::is_same_v<decltype(result), expected<double, int>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_DOUBLE_EQ(result.value(), 3.14);
+}
+
+TEST(ExpectedVoidTest, TransformLvalueOnError) {
+  expected<void, int> e(make_unexpected(404));
+  auto result = e.transform([]() -> double { return 3.14; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 404);
+}
+
+TEST(ExpectedVoidTest, TransformConstLvalueOnValue) {
+  const expected<void, int> e;
+  auto result = e.transform([]() -> double { return 1.41; });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_DOUBLE_EQ(result.value(), 1.41);
+}
+
+TEST(ExpectedVoidTest, TransformConstLvalueOnError) {
+  const expected<void, int> e(make_unexpected(500));
+  auto result = e.transform([]() -> double { return 1.41; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 500);
+}
+
+TEST(ExpectedVoidTest, TransformRvalueOnValue) {
+  expected<void, std::string> e;
+  auto result = std::move(e).transform([]() -> int { return 42; });
+  static_assert(std::is_same_v<decltype(result), expected<int, std::string>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 42);
+}
+
+TEST(ExpectedVoidTest, TransformRvalueOnError) {
+  expected<void, std::string> e(make_unexpected(std::string("fail")));
+  auto result = std::move(e).transform([]() -> int { return 42; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+TEST(ExpectedVoidTest, TransformConstRvalueOnValue) {
+  auto make = []() -> const expected<void, int> { return {}; };
+  auto result = std::move(make()).transform([]() -> double { return 2.71; });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_DOUBLE_EQ(result.value(), 2.71);
+}
+
+TEST(ExpectedVoidTest, TransformConstRvalueOnError) {
+  auto make = []() -> const expected<void, std::string> {
+    return make_unexpected(std::string("fail"));
+  };
+  auto result = std::move(make()).transform([]() -> int { return 1; });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "fail");
+}
+
+// =============================================================================
+// expected<void, E> — transform_error
+// =============================================================================
+
+TEST(ExpectedVoidTest, TransformErrorLvalueOnValue) {
+  expected<void, int> e;
+  int call_count = 0;
+  auto result = e.transform_error([&call_count](int& err) -> std::string {
+    ++call_count;
+    return std::to_string(err);
+  });
+  static_assert(std::is_same_v<decltype(result), expected<void, std::string>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(call_count, 0);
+}
+
+TEST(ExpectedVoidTest, TransformErrorLvalueOnError) {
+  expected<void, int> e(make_unexpected(404));
+  auto result = e.transform_error(
+      [](int& err) -> std::string { return std::to_string(err); });
+  static_assert(std::is_same_v<decltype(result), expected<void, std::string>>);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "404");
+}
+
+TEST(ExpectedVoidTest, TransformErrorConstLvalueOnValue) {
+  const expected<void, int> e;
+  int call_count = 0;
+  auto result = e.transform_error([&call_count](const int& err) -> long {
+    ++call_count;
+    return static_cast<long>(err);
+  });
+  static_assert(std::is_same_v<decltype(result), expected<void, long>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(call_count, 0);
+}
+
+TEST(ExpectedVoidTest, TransformErrorConstLvalueOnError) {
+  const expected<void, int> e(make_unexpected(500));
+  auto result = e.transform_error(
+      [](const int& err) -> std::string { return std::to_string(err * 2); });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), "1000");
+}
+
+TEST(ExpectedVoidTest, TransformErrorRvalueOnValue) {
+  expected<void, std::string> e;
+  int call_count = 0;
+  auto result =
+      std::move(e).transform_error([&call_count](std::string&& err) -> int {
+        ++call_count;
+        return static_cast<int>(err.size());
+      });
+  static_assert(std::is_same_v<decltype(result), expected<void, int>>);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(call_count, 0);
+}
+
+TEST(ExpectedVoidTest, TransformErrorRvalueOnError) {
+  expected<void, std::string> e(make_unexpected(std::string("boom")));
+  auto result = std::move(e).transform_error(
+      [](std::string&& err) -> int { return static_cast<int>(err.size()); });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 4);
+}
+
+TEST(ExpectedVoidTest, TransformErrorRvalueMoveSemantics) {
+  expected<void, std::string> e(make_unexpected(std::string("move_me")));
+  std::string moved_error;
+  auto result =
+      std::move(e).transform_error([&moved_error](std::string&& err) -> int {
+        moved_error = std::move(err);
+        return 0;
+      });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(moved_error, "move_me");
+}
+
+TEST(ExpectedVoidTest, TransformErrorConstRvalueOnValue) {
+  auto make = []() -> const expected<void, int> { return {}; };
+  int call_count = 0;
+  auto result = std::move(make()).transform_error(
+      [&call_count](const int&& err) -> std::string {
+        ++call_count;
+        return std::to_string(err);
+      });
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(call_count, 0);
+}
+
+TEST(ExpectedVoidTest, TransformErrorConstRvalueOnError) {
+  auto make = []() -> const expected<void, std::string> {
+    return make_unexpected(std::string("fail"));
+  };
+  auto result =
+      std::move(make()).transform_error([](const std::string&& err) -> int {
+        return static_cast<int>(err.size());
+      });
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), 4);
+}
+
+TEST(ExpectedVoidTest, TransformErrorChaining) {
+  expected<void, int> e(make_unexpected(42));
+  auto r1 = e.transform_error(
+      [](int& err) -> std::string { return "E" + std::to_string(err); });
+  EXPECT_FALSE(r1.has_value());
+  EXPECT_EQ(r1.error(), "E42");
+  auto r2 = r1.transform_error(
+      [](std::string& err) -> int { return static_cast<int>(err.size()); });
+  EXPECT_FALSE(r2.has_value());
+  EXPECT_EQ(r2.error(), 3);  // "E42".size() == 3
 }
 
 // =============================================================================
