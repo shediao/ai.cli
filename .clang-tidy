@@ -96,7 +96,6 @@ CheckOptions:
   - key: bugprone-argument-comment.StrictMode
     value: false
   - key: bugprone-exception-escape.IgnoredExceptions
-  - key: bugprone-exception-escape.IgnoredExceptions
     value: ""
   # --- cert ---
   - key: cert-dcl16-c.NewSuffixes

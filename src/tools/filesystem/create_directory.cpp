@@ -32,9 +32,8 @@ std::string create_directory(nlohmann::json const& args) {
   std::filesystem::create_directories(path, err);
   if (err) {
     return "Error: " + err.message();
-  } else {
-    return "Successfully created directory " + path;
   }
+  return "Successfully created directory " + path;
 }
 }  // namespace
 

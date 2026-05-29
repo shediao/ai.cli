@@ -40,9 +40,8 @@ std::string move_file(nlohmann::json const& args) {
 
   if (err) {
     return "Error: " + err.message();
-  } else {
-    return "Successfully moved " + source + " to " + distination;
   }
+  return "Successfully moved " + source + " to " + distination;
 }
 }  // namespace
 

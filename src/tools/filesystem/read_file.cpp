@@ -78,7 +78,8 @@ std::string read_file(nlohmann::json const& args) {
 
     if (limit == 0) {
       return std::string{};  // limit=0 means read zero lines
-    } else if (limit > 0) {
+    }
+    if (limit > 0) {
       auto end = it;
       for (int i = 0; i < limit; ++i) {
         end = std::find(end, content.end(), '\n');
@@ -88,9 +89,8 @@ std::string read_file(nlohmann::json const& args) {
         ++end;
       }
       return std::string(it, end);
-    } else {
-      return std::string(it, content.end());
     }
+    return std::string(it, content.end());
   }
 
   return content;

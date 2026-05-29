@@ -20,15 +20,15 @@ class Terminal {
   Terminal& operator=(Terminal&&) = delete;
 
   bool available() const;
-  void write(const std::string_view s);
+  void write(const std::string_view s) const;
 
-  std::string read_line();
-  char read_char();
+  std::string read_line() const;
+  char read_char() const;
 
-  bool confirm(std::string_view message, bool default_yes = false);
+  bool confirm(std::string_view message, bool default_yes = false) const;
 
   std::size_t menu(std::string_view title,
-                   std::vector<std::string> const& items);
+                   std::vector<std::string> const& items) const;
 
   static std::string edit(std::string_view initial_content = "");
 

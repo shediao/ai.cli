@@ -107,7 +107,7 @@ Terminal::~Terminal() {
   }
 }
 bool Terminal::available() const { return in_ != -1 && out_ != -1; }
-void Terminal::write(const std::string_view s) {
+void Terminal::write(const std::string_view s) const {
   if (out_ == INVALID_NATIVE_HANDLE_VALUE) {
     return;
   }
@@ -124,7 +124,7 @@ void Terminal::write(const std::string_view s) {
   }
 }
 
-std::string Terminal::read_line() {
+std::string Terminal::read_line() const {
   std::string line;
   if (in_ == INVALID_NATIVE_HANDLE_VALUE) {
     return line;
@@ -142,7 +142,7 @@ std::string Terminal::read_line() {
   return line;
 }
 
-char Terminal::read_char() {
+char Terminal::read_char() const {
   if (in_ == INVALID_NATIVE_HANDLE_VALUE) {
     return '\0';
   }
@@ -165,7 +165,7 @@ char Terminal::read_char() {
 
 #endif
 
-bool Terminal::confirm(std::string_view message, bool default_yes) {
+bool Terminal::confirm(std::string_view message, bool default_yes) const {
   for (;;) {
     std::string msg;
     msg.reserve(message.size() + 16);
@@ -205,7 +205,7 @@ bool Terminal::confirm(std::string_view message, bool default_yes) {
 }
 
 std::size_t Terminal::menu(std::string_view title,
-                           std::vector<std::string> const& items) {
+                           std::vector<std::string> const& items) const {
   if (items.empty()) {
     return 0;
   }
@@ -279,9 +279,8 @@ std::string Terminal::edit(std::string_view initial_content) {
   if (user_input.has_value()) {
     if (*user_input == initial_content) {
       return "";
-    } else {
-      return *user_input;
     }
+    return *user_input;
   }
   return "";
 }

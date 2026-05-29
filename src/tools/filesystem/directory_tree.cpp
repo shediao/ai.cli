@@ -32,12 +32,11 @@ static nlohmann::json buildTree(std::filesystem::path const& path) {
       ret.push_back(obj);
     }
     return ret;
-  } else {
-    nlohmann::json obj{};
-    obj["name"] = path.filename();
-    obj["type"] = "file";
-    return obj;
   }
+  nlohmann::json obj{};
+  obj["name"] = path.filename();
+  obj["type"] = "file";
+  return obj;
 }
 
 std::string directory_tree(nlohmann::json const& args) {

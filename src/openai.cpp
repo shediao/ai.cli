@@ -327,9 +327,8 @@ class OpenAIClient::Impl {
       if (error_buffer[0] != '\0') {
         LOG(ERROR) << "curl error: " << error_buffer;
         throw std::runtime_error(error_buffer);
-      } else {
-        throw std::runtime_error(curl_easy_strerror(res));
       }
+      throw std::runtime_error(curl_easy_strerror(res));
     }
 
     long http_code = 0;
@@ -406,9 +405,8 @@ class OpenAIClient::Impl {
       if (error_buffer[0] != '\0') {
         LOG(ERROR) << "curl error: " << error_buffer;
         throw std::runtime_error(error_buffer);
-      } else {
-        throw std::runtime_error(curl_easy_strerror(res));
       }
+      throw std::runtime_error(curl_easy_strerror(res));
     }
 
     LOG(INFO) << response_string;

@@ -126,11 +126,11 @@ step_result statement::step() {
   int rc = sqlite3_step(stmt_);
   if (rc == SQLITE_DONE) {
     return step_result::done;
-  } else if (rc == SQLITE_ROW) {
-    return step_result::row;
-  } else {
-    return step_result::error;
   }
+  if (rc == SQLITE_ROW) {
+    return step_result::row;
+  }
+  return step_result::error;
 }
 
 bool statement::bind(int index, decltype(nullptr)) {
@@ -170,15 +170,14 @@ int statement::get_named_param_index(std::string const& name) {
     }
     LOG(ERROR) << "No such parameter: " << name;
     return 0;
-  } else {
-    for (auto const& prefix : {":", "@", "$"}) {
-      if (auto index = get_named_param_index(prefix + name); index != 0) {
-        return index;
-      }
-    }
-    LOG(ERROR) << "No such parameter: " << name;
-    return 0;
   }
+  for (auto const& prefix : {":", "@", "$"}) {
+    if (auto index = get_named_param_index(prefix + name); index != 0) {
+      return index;
+    }
+  }
+  LOG(ERROR) << "No such parameter: " << name;
+  return 0;
 }
 
 transaction::transaction(database& db) : db_(db) {

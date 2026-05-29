@@ -81,7 +81,6 @@ void HistoryDB::init_db() {
   db_.exec("PRAGMA foreign_keys=ON;");
 
   // ── v1 table: Unix-timestamp time fields ─────────────────────────────
-  char* err_msg = nullptr;
   const char* create_v1_sql = R"SQL(
     CREATE TABLE IF NOT EXISTS conversations_v1 (
       id                      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,15 +100,11 @@ void HistoryDB::init_db() {
       prompt_cache_miss_tokens INTEGER NOT NULL DEFAULT 0
     );
   )SQL";
-  int rc = sqlite3_exec(db_.native_handle(), create_v1_sql, nullptr, nullptr,
-                        &err_msg);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to create conversations_v1 table: "
-               << (err_msg ? err_msg : "unknown");
-    sqlite3_free(err_msg);
+
+  if (!db_.exec(create_v1_sql)) {
+    LOG(ERROR) << "Failed to create conversations_v1 table";
     return;
   }
-
   // Create index for ordering by start
   db_.exec(
       "CREATE INDEX IF NOT EXISTS idx_conversations_v1_start "
@@ -130,12 +125,8 @@ void HistoryDB::init_db() {
       messages    TEXT    NOT NULL
     );
   )SQL";
-  rc = sqlite3_exec(db_.native_handle(), create_legacy_sql, nullptr, nullptr,
-                    &err_msg);
-  if (rc != SQLITE_OK) {
-    LOG(ERROR) << "Failed to create legacy conversations table: "
-               << (err_msg ? err_msg : "unknown");
-    sqlite3_free(err_msg);
+  if (db_.exec(create_legacy_sql)) {
+    LOG(ERROR) << "Failed to create legacy conversations table";
     return;
   }
 
