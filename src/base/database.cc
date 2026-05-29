@@ -118,7 +118,7 @@ bool statement::bind(int index, double value) {
 bool statement::bind(int index, std::string_view value) {
   return bind_check(sqlite3_bind_text(stmt_, index, value.data(),
                                       static_cast<int>(value.size()),
-                                      SQLITE_STATIC));
+                                      SQLITE_TRANSIENT));
 }
 
 bool statement::bind_check(int rc) {

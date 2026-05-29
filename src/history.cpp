@@ -236,11 +236,8 @@ std::string HistoryDB::create_session(
   stmt.bind(4, url);
   stmt.bind(5, model);
   stmt.bind(6, work_dir);
-  if (parent_id.empty()) {
-    stmt.bind(7, nullptr);
-  } else {
-    stmt.bind(7, parent_id);
-  }
+  stmt.bind(7, parent_id.empty() ? std::optional<std::string>{std::nullopt}
+                                 : std::optional<std::string>{parent_id});
   stmt.bind(8, messages_json);
   stmt.bind(9, prompt_tokens);
   stmt.bind(10, completion_tokens);

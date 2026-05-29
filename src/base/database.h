@@ -7,6 +7,18 @@
 #include <string_view>
 
 namespace ai::base {
+namespace {
+template <typename T>
+struct is_optional : std::false_type {};
+
+template <typename T>
+struct is_optional<std::optional<T>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_optional_v = is_optional<T>::value;
+
+}  // namespace
+
 class database {
  public:
   explicit database(std::string_view path);
@@ -47,6 +59,14 @@ class statement {
   bool bind(int index, sqlite3_int64 value);
   bool bind(int index, double value);
   bool bind(int index, std::string_view value);
+  template <typename T>
+    requires is_optional_v<std::remove_cvref_t<T>>
+  bool bind(int index, T&& value) {
+    if (value.has_value()) {
+      return bind(index, std::move(value.value()));
+    }
+    return bind(index, nullptr);
+  }
 
   template <typename... Args>
   bool bind_all(Args&&... args) {
@@ -88,15 +108,6 @@ inline std::string statement::get<std::string>(int index) {
   return std::string{text,
                      static_cast<size_t>(sqlite3_column_bytes(stmt_, index))};
 }
-
-namespace {
-template <typename T>
-struct is_optional : std::false_type {};
-
-template <typename T>
-struct is_optional<std::optional<T>> : std::true_type {};
-
-}  // namespace
 
 template <typename T>
 inline T statement::get(int index) {

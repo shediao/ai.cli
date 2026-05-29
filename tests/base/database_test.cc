@@ -939,6 +939,186 @@ TEST(StatementBindTest, BindStdString) {
   EXPECT_EQ(stmt.step(), ai::base::step_result::row);
 }
 
+TEST(StatementBindTest, BindOptionalIntSome) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(1, 'one');"
+               "INSERT INTO t VALUES(2, 'two');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id = ?1;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<int> id = 2;
+  EXPECT_TRUE(stmt.bind(1, id));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "two");
+}
+
+TEST(StatementBindTest, BindOptionalIntNone) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(id INTEGER, val TEXT);"
+               "INSERT INTO t VALUES(1, 'one');"
+               "INSERT INTO t VALUES(NULL, 'nil');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE id IS ?1;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<int> id = std::nullopt;
+  EXPECT_TRUE(stmt.bind(1, id));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "nil");
+}
+
+TEST(StatementBindTest, BindOptionalStringSome) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('alice');"
+               "INSERT INTO t VALUES('bob');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name = ?1;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<std::string> name = std::string{"bob"};
+  EXPECT_TRUE(stmt.bind(1, name));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "bob");
+}
+
+TEST(StatementBindTest, BindOptionalStringNone) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('alice');"
+               "INSERT INTO t VALUES(NULL);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE name IS ?1;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<std::string> name = std::nullopt;
+  EXPECT_TRUE(stmt.bind(1, name));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_TRUE(stmt.get<std::optional<std::string>>(0) == std::nullopt);
+}
+
+TEST(StatementBindTest, BindOptionalDoubleSome) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(val REAL);"
+               "INSERT INTO t VALUES(1.5);"
+               "INSERT INTO t VALUES(3.14);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE val > ?1;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<double> threshold = 2.0;
+  EXPECT_TRUE(stmt.bind(1, threshold));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_DOUBLE_EQ(stmt.get<double>(0), 3.14);
+}
+
+TEST(StatementBindTest, BindOptionalDoubleNone) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(val REAL);"
+               "INSERT INTO t VALUES(1.0);"
+               "INSERT INTO t VALUES(NULL);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t WHERE val IS ?1;");
+  EXPECT_TRUE(stmt.is_valid());
+
+  std::optional<double> val = std::nullopt;
+  EXPECT_TRUE(stmt.bind(1, val));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_TRUE(stmt.get<std::optional<double>>(0) == std::nullopt);
+}
+
+TEST(StatementBindTest, BindOptionalTemporaryString) {
+  // Verify that binding a temporary std::optional<std::string> works
+  // (SQLITE_TRANSIENT copies the data, so the temporary can be destroyed).
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(name TEXT);"
+               "INSERT INTO t VALUES('hello');"
+               "INSERT INTO t VALUES(NULL);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  {
+    ai::base::statement stmt(db, "SELECT name FROM t WHERE name = ?1;");
+    EXPECT_TRUE(stmt.is_valid());
+
+    // Temporary optional — must work and not dangle after the semicolon.
+    EXPECT_TRUE(stmt.bind(1, std::optional<std::string>{"hello"}));
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_EQ(stmt.get<std::string>(0), "hello");
+  }
+  {
+    ai::base::statement stmt(db, "SELECT name FROM t WHERE name IS ?1;");
+    EXPECT_TRUE(stmt.is_valid());
+
+    EXPECT_TRUE(stmt.bind(1, std::optional<std::string>{std::nullopt}));
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_TRUE(stmt.get<std::optional<std::string>>(0) == std::nullopt);
+  }
+}
+
 TEST(StatementBindTest, BindReturnsFalseOnInvalidIndex) {
   ai::base::TempDir dir;
   auto db_path = (fs::path(dir.path()) / "test.db").string();
@@ -1027,6 +1207,83 @@ TEST(StatementBindAllTest, BindsNullInMiddle) {
 
   EXPECT_TRUE(stmt.bind_all(2, nullptr));
   EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+}
+
+TEST(StatementBindAllTest, BindsMixedWithOptional) {
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(a INTEGER, b TEXT, c REAL);"
+               "INSERT INTO t VALUES(42, 'answer', 3.14);"
+               "INSERT INTO t VALUES(NULL, 'nil', 1.0);",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  {
+    // Optional with value
+    ai::base::statement stmt(db, "SELECT b FROM t WHERE a = ?1 AND c = ?2;");
+    EXPECT_TRUE(stmt.is_valid());
+
+    EXPECT_TRUE(
+        stmt.bind_all(std::optional<int>{42}, std::optional<double>{3.14}));
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_EQ(stmt.get<std::string>(0), "answer");
+  }
+  {
+    // Mixed: optional none + regular value
+    ai::base::statement stmt(db, "SELECT b FROM t WHERE a IS ?1 AND c = ?2;");
+    EXPECT_TRUE(stmt.is_valid());
+
+    EXPECT_TRUE(stmt.bind_all(std::optional<int>{std::nullopt}, 1.0));
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_EQ(stmt.get<std::string>(0), "nil");
+  }
+}
+
+TEST(StatementBindAllTest, BindsOptionalStringTemporary) {
+  // Simulates the exact pattern from history.cpp create_session().
+  ai::base::TempDir dir;
+  auto db_path = (fs::path(dir.path()) / "test.db").string();
+  ai::base::database db(db_path);
+
+  char* err = nullptr;
+  sqlite3_exec(db.native_handle(),
+               "CREATE TABLE t(parent TEXT, msg TEXT);"
+               "INSERT INTO t VALUES(NULL, 'orphan');"
+               "INSERT INTO t VALUES('abc', 'child');",
+               nullptr, nullptr, &err);
+  if (err) {
+    sqlite3_free(err);
+  }
+
+  // Non-empty parent_id → bind with value
+  {
+    std::string parent_id = "abc";
+    ai::base::statement stmt(db, "SELECT msg FROM t WHERE parent = ?1;");
+    EXPECT_TRUE(stmt.is_valid());
+
+    stmt.bind(1, parent_id.empty() ? std::optional<std::string>{std::nullopt}
+                                   : std::optional<std::string>{parent_id});
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_EQ(stmt.get<std::string>(0), "child");
+  }
+
+  // Empty parent_id → bind null
+  {
+    std::string parent_id = "";
+    ai::base::statement stmt(db, "SELECT msg FROM t WHERE parent IS ?1;");
+    EXPECT_TRUE(stmt.is_valid());
+
+    stmt.bind(1, parent_id.empty() ? std::optional<std::string>{std::nullopt}
+                                   : std::optional<std::string>{parent_id});
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_EQ(stmt.get<std::string>(0), "orphan");
+  }
 }
 
 TEST(StatementBindAllTest, ShortCircuitsOnFirstFailure) {
