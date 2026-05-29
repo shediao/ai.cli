@@ -9,10 +9,13 @@
 #include <limits>
 #endif
 
+#include <algorithm>
+
 namespace ai::base {
 
 // return value: -1 on error, >=0 on success
-ssize_t write_some(unique_fd const& fd, void const* data, std::size_t size) {
+ssize_t write_some(scoped_handle const& fd, void const* data,
+                   std::size_t size) {
 #if defined(_WIN32)
   DWORD chunk = static_cast<DWORD>((std::min<std::size_t>)(0x7ffff000u, size));
   DWORD written{0};
@@ -32,7 +35,7 @@ ssize_t write_some(unique_fd const& fd, void const* data, std::size_t size) {
 #endif
 }
 
-bool write_all(unique_fd const& fd, void const* data, std::size_t size) {
+bool write_all(scoped_handle const& fd, void const* data, std::size_t size) {
   auto* p = static_cast<std::byte const*>(data);
   while (size > 0) {
     const ssize_t written = write_some(fd, p, size);
@@ -45,7 +48,7 @@ bool write_all(unique_fd const& fd, void const* data, std::size_t size) {
   return true;
 }
 
-ssize_t read_some(unique_fd const& fd, void* data, std::size_t size) {
+ssize_t read_some(scoped_handle const& fd, void* data, std::size_t size) {
   if (size == 0) {
     return 0;
   }
@@ -72,7 +75,7 @@ ssize_t read_some(unique_fd const& fd, void* data, std::size_t size) {
 #endif
 }
 
-bool read_exact(unique_fd const& fd, void* data, std::size_t size) {
+bool read_exact(scoped_handle const& fd, void* data, std::size_t size) {
   auto* p = static_cast<std::byte*>(data);
   while (size > 0) {
     const ssize_t read = read_some(fd, p, size);
