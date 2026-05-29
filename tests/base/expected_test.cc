@@ -161,10 +161,14 @@ TEST(ExpectedValueTest, CopyAssignmentValueToError) {
 
 TEST(ExpectedValueTest, CopyAssignmentSelf) {
   expected<int, std::string> e(42);
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wself-assign-overloaded"
+#endif
   e = e;
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
   EXPECT_EQ(e.value(), 42);
 }
 
@@ -966,10 +970,14 @@ TEST(ExpectedVoidTest, CopyAssignmentValueToError) {
 
 TEST(ExpectedVoidTest, CopyAssignmentSelf) {
   expected<void, int> e;
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wself-assign-overloaded"
+#endif
   e = e;
+#ifdef __clang__
 #pragma clang diagnostic pop
+#endif
   EXPECT_TRUE(e.has_value());
 }
 
