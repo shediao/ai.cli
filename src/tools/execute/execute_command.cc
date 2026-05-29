@@ -161,13 +161,13 @@ class ExecuteCommandFunction : public ai::Function {
 {
   "type": "function",
   "name": "execute_command",
-  "description": "Execute a command as a subprocess and capture its output. Returns the exit code, stdout, and stderr. Use this tool when you need to run a command. If the path contains a path separator (e.g. '/', '\\'), it is treated as a file path to an executable; otherwise it is treated as a command name resolved from PATH.",
+  "description": "Execute a command as a subprocess and capture its output. Returns the exit code, stdout, and stderr. Use this tool when you need to run a command. NOTE: This is NOT a shell — the command is executed directly via exec/CreateProcessW using path + args as argv. No shell parsing, glob expansion, pipes, redirects, or variable substitution will occur. If you need shell features, use the bash, cmd, or powershell tools instead. If the path contains a path separator (e.g. '/', '\\'), it is treated as a file path to an executable; otherwise it is treated as a command name resolved from PATH.",
   "parameters": {
     "type": "object",
     "properties": {
       "path": {
         "type": "string",
-        "description": "The command to run. If it contains a path separator, it is treated as a file path to an executable. Otherwise it is treated as a command name resolved from PATH."
+        "description": "The command to run. This is executed directly (not via a shell) — the path and args form the argv array passed to exec/CreateProcessW. If it contains a path separator, it is treated as a file path to an executable. Otherwise it is treated as a command name resolved from PATH."
       },
       "args": {
         "type": "array",
