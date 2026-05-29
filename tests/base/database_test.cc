@@ -198,20 +198,223 @@ TEST(DatabaseTest, ResetReleasesTheHandle) {
 }
 
 // =============================================================================
+// database — in-memory
+// =============================================================================
+
+TEST(DatabaseMemoryTest, DefaultConstructorCreatesValidMemoryDatabase) {
+  ai::base::database db;
+  EXPECT_TRUE(db.is_valid());
+  EXPECT_NE(db.native_handle(), nullptr);
+
+  // Verify it's functional
+  EXPECT_TRUE(db.exec("CREATE TABLE t(x TEXT);"));
+  EXPECT_TRUE(db.exec("INSERT INTO t VALUES('hello');"));
+
+  ai::base::statement stmt(db, "SELECT x FROM t;");
+  ASSERT_TRUE(stmt.is_valid());
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "hello");
+}
+
+TEST(DatabaseMemoryTest, MemoryPathConstructorAlsoWorks) {
+  ai::base::database db(":memory:");
+  EXPECT_TRUE(db.is_valid());
+  EXPECT_NE(db.native_handle(), nullptr);
+
+  EXPECT_TRUE(db.exec("CREATE TABLE t(id INTEGER);"));
+  EXPECT_TRUE(db.exec("INSERT INTO t VALUES(42);"));
+
+  ai::base::statement stmt(db, "SELECT id FROM t;");
+  ASSERT_TRUE(stmt.is_valid());
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<int>(0), 42);
+}
+
+TEST(DatabaseMemoryTest, MemoryDatabaseDoesNotCreateFiles) {
+  // Count files before
+  auto count_files_in_cwd = []() -> int {
+    int count = 0;
+    for (auto const& entry : std::filesystem::directory_iterator(".")) {
+      (void)entry;
+      ++count;
+    }
+    return count;
+  };
+
+  int before = count_files_in_cwd();
+
+  {
+    ai::base::database db;
+    EXPECT_TRUE(db.is_valid());
+    EXPECT_TRUE(db.exec("CREATE TABLE t(x TEXT);"));
+  }
+
+  int after = count_files_in_cwd();
+  EXPECT_EQ(after, before);
+}
+
+TEST(DatabaseMemoryTest, MultipleMemoryDatabasesAreIndependent) {
+  ai::base::database db1;
+  ai::base::database db2;
+
+  EXPECT_TRUE(db1.is_valid());
+  EXPECT_TRUE(db2.is_valid());
+  EXPECT_NE(db1.native_handle(), db2.native_handle());
+
+  // Create and populate in db1 only
+  EXPECT_TRUE(db1.exec("CREATE TABLE t(val TEXT);"));
+  EXPECT_TRUE(db1.exec("INSERT INTO t VALUES('from_db1');"));
+
+  // db2 should not see db1's data
+  EXPECT_TRUE(db2.exec("CREATE TABLE t(val TEXT);"));
+  EXPECT_TRUE(db2.exec("INSERT INTO t VALUES('from_db2');"));
+
+  // Verify db1 has its own data
+  {
+    ai::base::statement stmt(db1, "SELECT val FROM t;");
+    ASSERT_TRUE(stmt.is_valid());
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_EQ(stmt.get<std::string>(0), "from_db1");
+  }
+
+  // Verify db2 has its own data
+  {
+    ai::base::statement stmt(db2, "SELECT val FROM t;");
+    ASSERT_TRUE(stmt.is_valid());
+    EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+    EXPECT_EQ(stmt.get<std::string>(0), "from_db2");
+  }
+}
+
+TEST(DatabaseMemoryTest, MoveConstructMemoryDatabase) {
+  ai::base::database src;
+  EXPECT_TRUE(src.is_valid());
+  sqlite3* original_handle = src.native_handle();
+
+  EXPECT_TRUE(src.exec("CREATE TABLE t(x TEXT);"));
+  EXPECT_TRUE(src.exec("INSERT INTO t VALUES('moved');"));
+
+  ai::base::database dst(std::move(src));
+  EXPECT_FALSE(src.is_valid());
+  EXPECT_EQ(src.native_handle(), nullptr);
+  EXPECT_TRUE(dst.is_valid());
+  EXPECT_EQ(dst.native_handle(), original_handle);
+
+  // Data should still be accessible through dst
+  ai::base::statement stmt(dst, "SELECT x FROM t;");
+  ASSERT_TRUE(stmt.is_valid());
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "moved");
+}
+
+TEST(DatabaseMemoryTest, MoveAssignMemoryDatabase) {
+  ai::base::database db1;
+  ai::base::database db2;
+  EXPECT_TRUE(db1.is_valid());
+  EXPECT_TRUE(db2.is_valid());
+
+  EXPECT_TRUE(db2.exec("CREATE TABLE t(val INTEGER);"));
+  EXPECT_TRUE(db2.exec("INSERT INTO t VALUES(999);"));
+  sqlite3* db2_handle = db2.native_handle();
+
+  db1 = std::move(db2);
+  EXPECT_TRUE(db1.is_valid());
+  EXPECT_EQ(db1.native_handle(), db2_handle);
+  EXPECT_FALSE(db2.is_valid());
+  EXPECT_EQ(db2.native_handle(), nullptr);
+
+  ai::base::statement stmt(db1, "SELECT val FROM t;");
+  ASSERT_TRUE(stmt.is_valid());
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<int>(0), 999);
+}
+
+TEST(DatabaseMemoryTest, MemoryDatabaseExecAndStatement) {
+  ai::base::database db;
+  ASSERT_TRUE(db.is_valid());
+
+  EXPECT_TRUE(db.exec("CREATE TABLE t(id INTEGER PRIMARY KEY, name TEXT);"));
+  EXPECT_TRUE(db.exec("INSERT INTO t VALUES(1, 'alice');"));
+  EXPECT_TRUE(db.exec("INSERT INTO t VALUES(2, 'bob');"));
+
+  ai::base::statement stmt(db, "SELECT name FROM t WHERE id = ?1;");
+  ASSERT_TRUE(stmt.is_valid());
+  EXPECT_TRUE(stmt.bind(1, 2));
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "bob");
+}
+
+TEST(DatabaseMemoryTest, MemoryDatabaseTransactionCommit) {
+  ai::base::database db;
+  ASSERT_TRUE(db.is_valid());
+
+  EXPECT_TRUE(db.exec("CREATE TABLE t(val TEXT);"));
+
+  {
+    ai::base::transaction tx(db);
+    EXPECT_TRUE(db.exec("INSERT INTO t VALUES('committed');"));
+    tx.commit();
+  }
+
+  ai::base::statement stmt(db, "SELECT val FROM t;");
+  ASSERT_TRUE(stmt.is_valid());
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<std::string>(0), "committed");
+}
+
+TEST(DatabaseMemoryTest, MemoryDatabaseTransactionRollback) {
+  ai::base::database db;
+  ASSERT_TRUE(db.is_valid());
+
+  EXPECT_TRUE(db.exec("CREATE TABLE t(val TEXT);"));
+  EXPECT_TRUE(db.exec("INSERT INTO t VALUES('original');"));
+
+  {
+    ai::base::transaction tx(db);
+    EXPECT_TRUE(db.exec("INSERT INTO t VALUES('rolled_back');"));
+    // no commit → rollback
+  }
+
+  ai::base::statement stmt(db, "SELECT COUNT(*) FROM t;");
+  ASSERT_TRUE(stmt.is_valid());
+  EXPECT_EQ(stmt.step(), ai::base::step_result::row);
+  EXPECT_EQ(stmt.get<int>(0), 1);
+}
+
+TEST(DatabaseMemoryTest, DestructorClosesMemoryDatabase) {
+  // Just ensure no crash, leak, or double-close on destruction
+  {
+    ai::base::database db;
+    EXPECT_TRUE(db.is_valid());
+    EXPECT_TRUE(db.exec("CREATE TABLE t(x TEXT);"));
+    EXPECT_TRUE(db.exec("INSERT INTO t VALUES('test');"));
+  }
+  SUCCEED();
+}
+
+TEST(DatabaseMemoryTest, MemoryDatabaseSupportsPragma) {
+  ai::base::database db;
+  ASSERT_TRUE(db.is_valid());
+
+  EXPECT_TRUE(db.exec("PRAGMA journal_mode=OFF;"));
+  EXPECT_TRUE(db.exec("PRAGMA foreign_keys=ON;"));
+}
+
+// =============================================================================
 // database — edge cases
 // =============================================================================
 
 TEST(DatabaseTest, MoveConstructedFromDefaultState) {
-  // We can't default-construct database, so we simulate by moving from
-  // a moved-from database (which is in the null state).
-  ai::base::TempDir dir;
-  auto db_path = (fs::path(dir.path()) / "movedfrom.db").string();
+  // Default-construct (memory database) then move — simulates the null state.
+  ai::base::database src;
+  EXPECT_TRUE(src.is_valid());
+  sqlite3* handle = src.native_handle();
 
-  ai::base::database src(db_path);
   ai::base::database dst(std::move(src));  // src is now null
-
-  // dst is valid
+  EXPECT_FALSE(src.is_valid());
+  EXPECT_EQ(src.native_handle(), nullptr);
   EXPECT_TRUE(dst.is_valid());
+  EXPECT_EQ(dst.native_handle(), handle);
 
   // Move from the now-null src
   ai::base::database dst2(std::move(src));

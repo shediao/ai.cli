@@ -22,6 +22,8 @@ constexpr bool is_optional_v = is_optional<T>::value;
 
 class database {
  public:
+  // Create an in-memory database.
+  database();
   explicit database(std::string_view path);
   ~database();
   database(database const&) = delete;

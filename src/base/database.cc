@@ -8,10 +8,27 @@
 
 namespace ai::base {
 
+database::database() {
+  sqlite3* db = nullptr;
+  int rc = sqlite3_open_v2(
+      ":memory:", &db,
+      SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX,
+      nullptr);
+  if (rc != SQLITE_OK) {
+    LOG(ERROR) << "Failed to open sqlite memory database: "
+               << sqlite3_errmsg(db);
+    sqlite3_close(db);
+    return;
+  }
+  db_ = db;
+}
+
 database::database(std::string_view path) {
-  std::filesystem::path p(path);
-  if (!p.parent_path().empty() && !std::filesystem::exists(p.parent_path())) {
-    std::filesystem::create_directories(p.parent_path());
+  if (path != ":memory:") {
+    std::filesystem::path p(path);
+    if (!p.parent_path().empty() && !std::filesystem::exists(p.parent_path())) {
+      std::filesystem::create_directories(p.parent_path());
+    }
   }
 
   sqlite3* db = nullptr;
