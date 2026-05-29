@@ -103,7 +103,7 @@ gh run view <run-id> --log --job <job-id>
 
 **When fetching logs with `gh` commands, always prefer getting only the key information rather than the full logs unless absolutely necessary.** For example:
 
-- Use `gh run view <run-id> --log --failed` to get only failed step logs (if supported).
+- Use `gh run view <run-id> --log-failed` to get only failed step logs (if supported).
 - Pipe through `grep` to filter for error messages, failed test names, or compilation errors: `gh run view <run-id> --log 2>&1 | grep -E '(error:|FAILED|failure)'`.
 - For test failures, look for the specific test output rather than the entire build log.
 - Only fetch full logs when the filtered output does not provide enough context to diagnose the issue.
@@ -175,7 +175,7 @@ Tool categories:
 
 - **`default`** — session/environment queries: `get_working_directory`, `get_environment_variable`, `set_environment_variable`, `get_shell`, `get_operating_system`. Defined in `src/tools/default.cpp`, one class per function.
 - **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `replace_lines`. Each tool is its own `.cpp` file in `src/tools/filesystem/`. Shared utilities (`expand_tilde`, `resolve_path`, `append_prefix_per_line`) are declared as `extern` in each tool file and defined in `src/tools/filesystem.cpp`. `edit_file` uses a structured JSON array of `{search, replace}` objects for the `diff` parameter (legacy string-based SEARCH/REPLACE markers are gone).
-- **`execute`** — shell and command execution: `bash`, `cmd`, `powershell`, `execute_command`. All defined in `src/tools/execute/` with shared utilities (`filter_lines()`, `add_filter_parameter()`, subprocess execution helpers) in `src/tools/execute.cpp`/`.h`. `execute_command` is PATH-aware: if the path contains `/` or `\` it's treated as a file path (with tilde expansion); otherwise resolved from PATH. All execute tools support an optional ordered array of output filters (`head`, `tail`, `include`/regex, `exclude`/regex) applied via C++20 `std::views::split`. `bash` is enabled on non-Windows or if `bash.exe` in PATH; `cmd`/`powershell` only on Windows.
+- **`execute`** — shell and command execution: `bash`, `cmd`, `powershell`, `execute_command`. All defined in `src/tools/execute/` with shared utilities (`filter_lines()`, `add_filter_parameter()`, subprocess execution helpers) in `src/tools/execute.cpp`/`.h`. All execute tools redirect stdin from `/dev/null` and launch processes in a new process group (`$newgroup = true`). `execute_command` is PATH-aware: if the path contains `/` or `\` it's treated as a file path (with tilde expansion); otherwise resolved from PATH. All execute tools support an optional ordered array of output filters (`head`, `tail`, `include`/regex, `exclude`/regex) applied via a manual line-splitting loop (drops trailing empty line, matching `std::getline` semantics). `bash` is enabled on non-Windows or if `bash.exe` in PATH; `cmd`/`powershell` only on Windows.
 - **`interactive`** — user interaction: `ask_user`. Defined in `src/tools/interactive/ask_user.cpp`. Prompts the user with a question and numbered menu via TTY; disabled (`enabled()=false`) when no TTY is available.
 
 ### Config (`src/config.cpp`, `include/ai/config.h`)
@@ -203,20 +203,23 @@ Self-update subcommand. Fetches the latest GitHub release from `api.github.com/r
 
 ### Base Utilities (`src/base/`)
 
-| File                | Purpose                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------------------ |
-| `file.h`/`.cc`      | Cross-platform file read/write                                                                         |
-| `string.h`/`.cc`    | String utilities (split, UTF-8 helpers, `utf8_truncate`), ANSI terminal color constants (`ai::term::`) |
-| `terminal.h`/`.cc`  | TTY detection, interactive confirmation (`Terminal` class)                                             |
-| `temp_file.h`/`.cc` | RAII temporary file (auto-deleted)                                                                     |
-| `temp_dir.h`/`.cc`  | RAII temporary directory (auto-deleted)                                                                |
-| `download.h`/`.cc`  | HTTP file download via CURL                                                                            |
-| `scope_exit.h`      | Scope-guard cleanup (header-only, `ai::base::scope_exit`)                                              |
-| `logging.h`/`.cc`   | Logging system (macros `LOG(LEVEL)`, `LOG_IF`)                                                         |
-| `io.h`/`.cc`        | Cross-platform IO handles (stdin-is-atty, foreground detection)                                        |
-| `glob.h`/`.cc`      | Glob pattern matching                                                                                  |
-| `matchglob.h`/`.cc` | Match glob utilities                                                                                   |
-| `base64.h`/`.cc`    | Base64 encoding for image input                                                                        |
+| File                | Purpose                                                                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `file.h`/`.cc`      | Cross-platform file read/write                                                                                                                  |
+| `string.h`/`.cc`    | String utilities (split, UTF-8 helpers, `utf8_truncate`), ANSI terminal color constants (`ai::term::`)                                          |
+| `terminal.h`/`.cc`  | TTY detection, interactive confirmation (`Terminal` class)                                                                                      |
+| `temp_file.h`/`.cc` | RAII temporary file (auto-deleted)                                                                                                              |
+| `temp_dir.h`/`.cc`  | RAII temporary directory (auto-deleted)                                                                                                         |
+| `download.h`/`.cc`  | HTTP file download via CURL                                                                                                                     |
+| `scope_exit.h`      | Scope-guard cleanup (header-only, `ai::base::scope_exit`)                                                                                       |
+| `logging.h`/`.cc`   | Logging system (macros `LOG(LEVEL)`, `LOG_IF`)                                                                                                  |
+| `io.h`/`.cc`        | Cross-platform IO (stdin-is-atty, foreground detection); includes `scoped_handle.h`                                                             |
+| `scoped_handle.h`   | Cross-platform RAII native handle wrapper (`scoped_handle`, `scoped_handle_base`) (extracted from io.h)                                         |
+| `database.h`/`.cc`  | RAII SQLite3 wrapper: `database`, `statement` (indexed/named binding, `bind_all`, `optional<T>`), `transaction`                                 |
+| `expected.h`        | `expected<T,E>` utility with monadic API (`and_then`, `transform`, `transform_error`, `or_else`, `value_or`), `expected<void,E>` specialization |
+| `glob.h`/`.cc`      | Glob pattern matching                                                                                                                           |
+| `matchglob.h`/`.cc` | Match glob utilities                                                                                                                            |
+| `base64.h`/`.cc`    | Base64 encoding for image input                                                                                                                 |
 
 ### Key Dependencies (all via FetchContent)
 
