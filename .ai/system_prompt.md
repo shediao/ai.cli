@@ -21,7 +21,7 @@ cmake -B build -S . -DAICLI_USE_SYSTEM_CURL=ON    # use system libcurl
 cmake -B build -S . -DAICLI_ENABLE_ASAN=OFF       # disable sanitizers
 
 # Format code (Google style, 2-space indent, C++20)
-clang-format -i src/*.cpp src/base/*.cc include/ai/*.h tests/*.cc tests/*.cpp
+clang-format -i src/*.cc src/base/*.cc include/ai/*.h tests/*.cc tests/*.cc
 cmake-format -i CMakeLists.txt tests/CMakeLists.txt
 ```
 
@@ -125,14 +125,14 @@ This is a C++20 CLI chatbot that communicates with OpenAI-compatible APIs (DeepS
 
 ### Entry & Dispatch
 
-- `src/main.cpp` — `CurlGlobalInitGuard` RAII wrapper initializes/cleans CURL globally. On Windows, uses `wmain` + `SetConsoleOutputCP(CP_UTF8)`. Parses CLI args via `argparse::ArgParser` (defined in `src/args.cpp`, struct in `include/ai/args.h`), dispatches to `chat()`, `models()`, `history()`, or `update()`.
-- `src/args.cpp` — defines all CLI subcommands, options, and flags. Provider aliases from `config.json` (e.g., `--deepseek`, `--openai`) set the `--base-url`. Automatically resolves API keys (`{ALIAS}_API_KEY` env var → config file), models (`{ALIAS}_API_MODEL` env var → config `default_model`), and proxy (`{ALIAS}_API_PROXY`). Default tools (`default`, `filesystem`, `execute`, `interactive`) are auto-selected unless `--no-tools` or `--tools` is specified.
+- `src/main.cc` — `CurlGlobalInitGuard` RAII wrapper initializes/cleans CURL globally. On Windows, uses `wmain` + `SetConsoleOutputCP(CP_UTF8)`. Parses CLI args via `argparse::ArgParser` (defined in `src/args.cc`, struct in `include/ai/args.h`), dispatches to `chat()`, `models()`, `history()`, or `update()`.
+- `src/args.cc` — defines all CLI subcommands, options, and flags. Provider aliases from `config.json` (e.g., `--deepseek`, `--openai`) set the `--base-url`. Automatically resolves API keys (`{ALIAS}_API_KEY` env var → config file), models (`{ALIAS}_API_MODEL` env var → config `default_model`), and proxy (`{ALIAS}_API_PROXY`). Default tools (`default`, `filesystem`, `execute`, `interactive`) are auto-selected unless `--no-tools` or `--tools` is specified.
 
-### Core Loop (`src/chat.cpp`)
+### Core Loop (`src/chat.cc`)
 
 The `chat()` function runs the conversation loop:
 
-1. Builds a system prompt — auto-context with CWD, OS, architecture, shell, git branch from `build_default_system_prompt()` in `src/system_prompt.cpp`. If no user-supplied system prompt and the history is empty, the auto-context is used. System prompts starting with `@` (e.g., `@./prompt.txt`) load content from the specified file. If tools are enabled, appends `"Working Directory: <cwd>"`.
+1. Builds a system prompt — auto-context with CWD, OS, architecture, shell, git branch from `build_default_system_prompt()` in `src/system_prompt.cc`. If no user-supplied system prompt and the history is empty, the auto-context is used. System prompts starting with `@` (e.g., `@./prompt.txt`) load content from the specified file. If tools are enabled, appends `"Working Directory: <cwd>"`.
 2. If `-C` (`--continue-with-last-history`) is given, loads the most recent session's messages. If `--continue-from <id>` is given, loads messages from the specific session via `HistoryDB::get_messages()`.
 3. If `--list-tools` is given, prints all registered tool categories and their functions, then exits immediately.
 4. Calls `OpenAIClient::chat()` which sends the request and receives a `Response`.
@@ -142,7 +142,7 @@ The `chat()` function runs the conversation loop:
 
 Reasoning/thinking content (`reasoning_content` in response): in streaming mode, wrapped in ANSI-dim `<thinking>…</thinking>` blocks in the terminal; in non-streaming mode, prepended to content before printing.
 
-### HTTP & Response Layer (`src/openai.cpp`, `src/response.cpp`, `include/ai/response.h`)
+### HTTP & Response Layer (`src/openai.cc`, `src/response.cc`, `include/ai/response.h`)
 
 - `OpenAIClient` uses the **PIMPL idiom** — all CURL usage is hidden in `OpenAIClient::Impl`.
 - `OpenAIClient::chat()`: builds the JSON request body (model, messages, stream options, tools converted to DeepSeek-compatible format, temperature/top_p/max_tokens/reasoning_effort/thinking params), sends via CURL.
@@ -151,7 +151,7 @@ Reasoning/thinking content (`reasoning_content` in response): in streaming mode,
   - **Streaming (SSE)**: `StreamResponse::parse()` is set as the CURL write callback; parses `data: ` lines, `parse_line()` prints reasoning/content tokens to stdout with ANSI styling, accumulates JSON fragments. `StreamResponse::toResponse()` → `Response::from_sse_json()` reconstructs a unified `Response`.
 - Image handling: local image files (by extension) are base64-encoded via `base64_encode()`; HTTP(S) URLs are downloaded to temp files via `base::download()`, then base64-encoded. Both are injected as `image_url` content blocks in the user message. Non-image URLs/paths are appended as text.
 
-### Plugin-Style Tool System (`include/ai/function.h`, `src/function.cpp`)
+### Plugin-Style Tool System (`include/ai/function.h`, `src/function.cc`)
 
 Tools are registered via **static initialization** (which is why the build uses an OBJECT library — to prevent the linker from stripping static initializers).
 
@@ -173,12 +173,12 @@ Key API functions (all in `namespace ai`):
 
 Tool categories:
 
-- **`default`** — session/environment queries: `get_working_directory`, `get_environment_variable`, `set_environment_variable`, `get_shell`, `get_operating_system`. Defined in `src/tools/default.cpp`, one class per function.
-- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `replace_lines`. Each tool is its own `.cpp` file in `src/tools/filesystem/`. Shared utilities (`expand_tilde`, `resolve_path`, `append_prefix_per_line`) are declared as `extern` in each tool file and defined in `src/tools/filesystem.cpp`. `edit_file` uses a structured JSON array of `{search, replace}` objects for the `diff` parameter (legacy string-based SEARCH/REPLACE markers are gone).
-- **`execute`** — shell and command execution: `bash`, `cmd`, `powershell`, `execute_command`. All defined in `src/tools/execute/` with shared utilities (`filter_lines()`, `add_filter_parameter()`, subprocess execution helpers) in `src/tools/execute.cpp`/`.h`. All execute tools redirect stdin from `/dev/null` and launch processes in a new process group (`$newgroup = true`). `execute_command` is PATH-aware: if the path contains `/` or `\` it's treated as a file path (with tilde expansion); otherwise resolved from PATH. All execute tools support an optional ordered array of output filters (`head`, `tail`, `include`/regex, `exclude`/regex) applied via a manual line-splitting loop (drops trailing empty line, matching `std::getline` semantics). `bash` is enabled on non-Windows or if `bash.exe` in PATH; `cmd`/`powershell` only on Windows.
-- **`interactive`** — user interaction: `ask_user`. Defined in `src/tools/interactive/ask_user.cpp`. Prompts the user with a question and numbered menu via TTY; disabled (`enabled()=false`) when no TTY is available.
+- **`default`** — session/environment queries: `get_working_directory`, `get_environment_variable`, `set_environment_variable`, `get_shell`, `get_operating_system`. Defined in `src/tools/default.cc`, one class per function.
+- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `replace_lines`. Each tool is its own `.cc` file in `src/tools/filesystem/`. Shared utilities (`expand_tilde`, `resolve_path`, `append_prefix_per_line`) are declared as `extern` in each tool file and defined in `src/tools/filesystem.cc`. `edit_file` uses a structured JSON array of `{search, replace}` objects for the `diff` parameter (legacy string-based SEARCH/REPLACE markers are gone).
+- **`execute`** — shell and command execution: `bash`, `cmd`, `powershell`, `execute_command`. All defined in `src/tools/execute/` with shared utilities (`filter_lines()`, `add_filter_parameter()`, subprocess execution helpers) in `src/tools/execute.cc`/`.h`. All execute tools redirect stdin from `/dev/null` and launch processes in a new process group (`$newgroup = true`). `execute_command` is PATH-aware: if the path contains `/` or `\` it's treated as a file path (with tilde expansion); otherwise resolved from PATH. All execute tools support an optional ordered array of output filters (`head`, `tail`, `include`/regex, `exclude`/regex) applied via a manual line-splitting loop (drops trailing empty line, matching `std::getline` semantics). `bash` is enabled on non-Windows or if `bash.exe` in PATH; `cmd`/`powershell` only on Windows.
+- **`interactive`** — user interaction: `ask_user`. Defined in `src/tools/interactive/ask_user.cc`. Prompts the user with a question and numbered menu via TTY; disabled (`enabled()=false`) when no TTY is available.
 
-### Config (`src/config.cpp`, `include/ai/config.h`)
+### Config (`src/config.cc`, `include/ai/config.h`)
 
 - Config file at OS-standard path (`ai::utils::app_data_dir("ai.cli") + "/config.json"`).
 - `AppConfig` holds a `vector<ProviderConfig>`, each with `alias`, `base_url`, optional `api_key` and `default_model`.
@@ -186,18 +186,18 @@ Tool categories:
 - API keys resolved via: env var `{ALIAS}_API_KEY` → config file → empty.
 - Model resolved via: CLI `--model` → env var `{ALIAS}_API_MODEL` → config file `default_model`.
 
-### History (`src/history.cpp`, `include/ai/history.h`)
+### History (`src/history.cc`, `include/ai/history.h`)
 
 - SQLite-backed via `HistoryDB` using WAL journal mode and busy timeout (5s) for multi-process safety.
 - Table `conversations_v1` with Unix-timestamp time fields; legacy `conversations` table kept for backward compatibility.
 - Each conversation is a session with a unique session_id (format: `YYYYMMDD-HHMMSS-<16-hex>`), storing the full message JSON array, metadata (URL, model, working directory, parent session for continuations), token usage stats, and an AI-generated topic.
 - `history` subcommand supports JSON array output (`--json`), line output (`--line`), human-readable text (`--text`), and single-session lookup (`--session`). Defaults to line format with newest-first ordering, showing fields `start|work_dir|topic`.
 
-### Update (`src/update.cpp`, `include/ai/update.h`)
+### Update (`src/update.cc`, `include/ai/update.h`)
 
 Self-update subcommand. Fetches the latest GitHub release from `api.github.com/repos/shediao/ai.cli/releases/latest`, compares semver with the current `GIT_VERSION`, downloads the platform-appropriate asset (`darwin-universal`, `linux-arm64`/`x64`, `windows-arm64`/`x64`, `mingw64-x64`, `freebsd-arm64`/`x64`), extracts the binary, and replaces the running executable. On Windows, a detached batch script handles the in-place replacement after process exit. Supports `--force` to skip version comparison.
 
-### Models (`src/models.cpp`, `include/ai/models.h`)
+### Models (`src/models.cc`, `include/ai/models.h`)
 
 `models` subcommand. Uses `OpenAIClient::models()` to GET the `/models` endpoint and prints model IDs.
 

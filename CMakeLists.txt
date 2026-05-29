@@ -104,13 +104,13 @@ include(Dependencies)
 # regist_tool_category) are linked into the final executable.
 add_library(
   ai_core OBJECT
-  src/chat.cpp
-  src/system_prompt.cpp
-  src/args.cpp
-  src/config.cpp
-  src/models.cpp
-  src/openai.cpp
-  src/response.cpp
+  src/chat.cc
+  src/system_prompt.cc
+  src/args.cc
+  src/config.cc
+  src/models.cc
+  src/openai.cc
+  src/response.cc
   src/base/base64.cc
   src/base/database.cc
   src/base/download.cc
@@ -123,30 +123,30 @@ add_library(
   src/base/temp_dir.cc
   src/base/temp_file.cc
   src/base/terminal.cc
-  src/tools/execute.cpp
-  src/tools/filesystem.cpp
-  src/tools/filesystem/read_file.cpp
-  src/tools/filesystem/read_multiple_files.cpp
-  src/tools/filesystem/write_file.cpp
-  src/tools/filesystem/edit_file.cpp
-  src/tools/filesystem/create_directory.cpp
-  src/tools/filesystem/list_directory.cpp
-  src/tools/filesystem/directory_tree.cpp
-  src/tools/filesystem/move_file.cpp
-  src/tools/filesystem/find_files.cpp
-  src/tools/filesystem/get_file_info.cpp
-  src/tools/filesystem/disk_space_info.cpp
-  src/tools/execute/bash.cpp
-  src/tools/execute/cmd.cpp
-  src/tools/execute/powershell.cpp
-  src/tools/execute/execute_command.cpp
-  src/tools/filesystem/replace_lines.cpp
-  src/tools/default.cpp
-  src/tools/interactive/ask_user.cpp
-  src/function.cpp
-  src/utils.cpp
-  src/history.cpp
-  src/update.cpp)
+  src/tools/execute.cc
+  src/tools/filesystem.cc
+  src/tools/filesystem/read_file.cc
+  src/tools/filesystem/read_multiple_files.cc
+  src/tools/filesystem/write_file.cc
+  src/tools/filesystem/edit_file.cc
+  src/tools/filesystem/create_directory.cc
+  src/tools/filesystem/list_directory.cc
+  src/tools/filesystem/directory_tree.cc
+  src/tools/filesystem/move_file.cc
+  src/tools/filesystem/find_files.cc
+  src/tools/filesystem/get_file_info.cc
+  src/tools/filesystem/disk_space_info.cc
+  src/tools/execute/bash.cc
+  src/tools/execute/cmd.cc
+  src/tools/execute/powershell.cc
+  src/tools/execute/execute_command.cc
+  src/tools/filesystem/replace_lines.cc
+  src/tools/default.cc
+  src/tools/interactive/ask_user.cc
+  src/function.cc
+  src/utils.cc
+  src/history.cc
+  src/update.cc)
 
 # ── Include directories ────────────────────────────────────────────────────
 target_include_directories(
@@ -183,7 +183,7 @@ target_link_libraries(
          SQLite3::SQLite3)
 
 # ── Executable ─────────────────────────────────────────────────────────────
-add_executable(ai src/main.cpp $<TARGET_OBJECTS:ai_core>)
+add_executable(ai src/main.cc $<TARGET_OBJECTS:ai_core>)
 
 set_target_properties(ai PROPERTIES OUTPUT_NAME "ai")
 
