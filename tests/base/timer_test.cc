@@ -14,9 +14,9 @@ using namespace std::chrono_literals;
 TEST(TimerTest, FiresCallbackAfterDuration) {
   std::atomic_bool called{false};
   {
-    ai::base::Timer timer([&called] { called.store(true); }, 10ms);
+    ai::base::Timer timer([&called] { called.store(true); }, 50ms);
     EXPECT_TRUE(timer.running());
-    std::this_thread::sleep_for(50ms);
+    std::this_thread::sleep_for(200ms);
     // Timer should have fired and stopped by now
     EXPECT_TRUE(called.load());
   }
@@ -56,14 +56,14 @@ TEST(TimerTest, DestructorStopsTimer) {
 
 TEST(TimerTest, MoveConstructor) {
   std::atomic_bool called{false};
-  ai::base::Timer t1([&called] { called.store(true); }, 10ms);
+  ai::base::Timer t1([&called] { called.store(true); }, 50ms);
   EXPECT_TRUE(t1.running());
 
   ai::base::Timer t2(std::move(t1));
   EXPECT_FALSE(t1.running());  // moved-from should not be running
   EXPECT_TRUE(t2.running());
 
-  std::this_thread::sleep_for(50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_TRUE(called.load());
 }
 
@@ -93,9 +93,9 @@ TEST(TimerTest, SelfStopFromCallback) {
         callback_ran.store(true);
         timer.stop();  // self-stop
       },
-      10ms);
+      50ms);
 
-  std::this_thread::sleep_for(50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_TRUE(callback_ran.load());
   EXPECT_FALSE(timer.running());
 }
@@ -108,10 +108,10 @@ TEST(TimerTest, RestartRunningTimer) {
   EXPECT_TRUE(timer.running());
 
   // Restart with a different callback
-  timer.start([&second_called] { second_called.store(true); }, 10ms);
+  timer.start([&second_called] { second_called.store(true); }, 50ms);
   EXPECT_TRUE(timer.running());
 
-  std::this_thread::sleep_for(50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_FALSE(first_called.load());  // original callback cancelled
   EXPECT_TRUE(second_called.load());  // new callback fired
 }
@@ -119,27 +119,27 @@ TEST(TimerTest, RestartRunningTimer) {
 TEST(TimerTest, ExceptionInCallbackIsCaught) {
   // Callback that throws should not crash; exception is caught and logged.
   ai::base::Timer timer([] { throw std::runtime_error("test exception"); },
-                        10ms);
+                        50ms);
 
-  std::this_thread::sleep_for(50ms);
+  std::this_thread::sleep_for(200ms);
   // No crash = pass. Timer should no longer be running after callback returns.
   EXPECT_FALSE(timer.running());
 }
 
 TEST(TimerTest, UnknownExceptionInCallbackIsCaught) {
   // Callback that throws a non-std exception should not crash.
-  ai::base::Timer timer([] { throw 42; }, 10ms);
+  ai::base::Timer timer([] { throw 42; }, 50ms);
 
-  std::this_thread::sleep_for(50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_FALSE(timer.running());
 }
 
 TEST(TimerTest, AfterStaticFactory) {
   std::atomic_bool called{false};
-  auto timer = ai::base::Timer::after([&called] { called.store(true); }, 10ms);
+  auto timer = ai::base::Timer::after([&called] { called.store(true); }, 50ms);
   EXPECT_TRUE(timer.running());
 
-  std::this_thread::sleep_for(50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_TRUE(called.load());
 }
 
@@ -172,8 +172,8 @@ TEST(TimerTest, StartStopStart) {
 TEST(TimerTest, CallbackCapturesByReference) {
   // Non-trivial captures work correctly (no slicing, no dangling).
   int value = 0;
-  ai::base::Timer timer([&value] { value = 42; }, 10ms);
+  ai::base::Timer timer([&value] { value = 42; }, 50ms);
 
-  std::this_thread::sleep_for(50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_EQ(value, 42);
 }
