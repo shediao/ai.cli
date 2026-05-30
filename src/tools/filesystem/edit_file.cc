@@ -11,11 +11,9 @@
 #include "ai/utils.h"
 #include "base/file.h"
 #include "base/temp_file.h"
+#include "tools/filesystem.h"
 
 namespace ai {
-
-extern std::string expand_tilde(std::string const& path);
-extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
 namespace {
 std::string edit_file(nlohmann::json const& args) {

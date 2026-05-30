@@ -5,11 +5,9 @@
 
 #include "ai/function.h"
 #include "base/glob.h"
+#include "tools/filesystem.h"
 
 namespace ai {
-
-extern std::string expand_tilde(std::string const& path);
-extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
 namespace {
 std::string find_files(nlohmann::json const& args) {

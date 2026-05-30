@@ -4,11 +4,9 @@
 #include <string>
 
 #include "ai/function.h"
+#include "tools/filesystem.h"
 
 namespace ai {
-
-extern std::string expand_tilde(std::string const& path);
-extern std::optional<std::string> resolve_path(nlohmann::json const& args);
 
 namespace {
 static nlohmann::json buildTree(std::filesystem::path const& path) {

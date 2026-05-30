@@ -9,13 +9,9 @@
 #include "ai/function.h"
 #include "base/file.h"
 #include "base/temp_file.h"
+#include "tools/filesystem.h"
 
 namespace ai {
-
-extern std::string expand_tilde(std::string const& path);
-extern std::optional<std::string> resolve_path(nlohmann::json const& args);
-extern std::string append_prefix_per_line(std::string_view str,
-                                          std::string_view prefix);
 
 namespace {
 std::string replace_lines(nlohmann::json const& args) {

@@ -3,10 +3,9 @@
 #include <string>
 
 #include "ai/function.h"
+#include "tools/filesystem.h"
 
 namespace ai {
-
-extern std::string expand_tilde(std::string const& path);
 
 namespace {
 std::string move_file(nlohmann::json const& args) {

@@ -5,10 +5,9 @@
 
 #include "ai/function.h"
 #include "base/file.h"
+#include "tools/filesystem.h"
 
 namespace ai {
-
-extern std::string expand_tilde(std::string const& path);
 
 namespace {
 std::string read_multiple_files(nlohmann::json const& args) {
