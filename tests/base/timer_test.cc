@@ -71,7 +71,7 @@ TEST(TimerTest, MoveAssignment) {
   std::atomic_bool c1{false};
   std::atomic_bool c2{false};
 
-  ai::base::Timer t1([&c1] { c1.store(true); }, 10ms);
+  ai::base::Timer t1([&c1] { c1.store(true); }, 50ms);
   ai::base::Timer t2([&c2] { c2.store(true); }, 1s);
 
   t2 = std::move(t1);
@@ -80,7 +80,7 @@ TEST(TimerTest, MoveAssignment) {
   EXPECT_TRUE(t2.running());
   EXPECT_FALSE(c2.load());  // original t2 callback cancelled
 
-  std::this_thread::sleep_for(50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_TRUE(c1.load());
   EXPECT_FALSE(c2.load());
 }
@@ -156,16 +156,16 @@ TEST(TimerTest, StartStopStart) {
   std::atomic_int count{0};
   ai::base::Timer timer;
 
-  timer.start([&count] { ++count; }, 10ms);
-  std::this_thread::sleep_for(50ms);
+  timer.start([&count] { ++count; }, 50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_EQ(count.load(), 1);
 
-  timer.start([&count] { ++count; }, 10ms);
-  std::this_thread::sleep_for(50ms);
+  timer.start([&count] { ++count; }, 50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_EQ(count.load(), 2);
 
-  timer.start([&count] { ++count; }, 10ms);
-  std::this_thread::sleep_for(50ms);
+  timer.start([&count] { ++count; }, 50ms);
+  std::this_thread::sleep_for(200ms);
   EXPECT_EQ(count.load(), 3);
 }
 

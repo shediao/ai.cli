@@ -22,7 +22,7 @@ std::string execute_command(nlohmann::json const& args) {
   auto path_opt = resolve_path(args);
 
   if (!path_opt.has_value()) {
-    if (args["command"].is_string()) {
+    if (args.contains("command") && args["command"].is_string()) {
       path_opt = args["command"].get<std::string>();
     }
   }
