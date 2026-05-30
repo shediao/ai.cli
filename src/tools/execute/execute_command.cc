@@ -22,6 +22,12 @@ std::string execute_command(nlohmann::json const& args) {
            "object.";
   }
   auto path_opt = resolve_path(args);
+
+  if (!path_opt.has_value()) {
+    if (args["command"].is_string()) {
+      path_opt = args["command"].get<std::string>();
+    }
+  }
   if (!path_opt.has_value()) {
     return "function execute_command arguments is invalid: missing required "
            "parameter \"path\".";
