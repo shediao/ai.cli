@@ -21,13 +21,11 @@ class Timer {
   Timer(const Timer&) = delete;
   Timer& operator=(const Timer&) = delete;
 
-  Timer(Timer&& other) noexcept
-      : state_{std::atomic_exchange(&other.state_, std::shared_ptr<State>{})} {}
+  Timer(Timer&& other) noexcept : state_{other.exchange_state(nullptr)} {}
   Timer& operator=(Timer&& other) noexcept {
     if (this != &other) {
       stop();
-      std::atomic_store(&state_, std::atomic_exchange(
-                                     &other.state_, std::shared_ptr<State>{}));
+      store_state(other.exchange_state(nullptr));
     }
     return *this;
   }
@@ -35,12 +33,12 @@ class Timer {
   ~Timer() { stop(); }
 
   bool running() const {
-    auto s = std::atomic_load(&state_);
+    auto s = load_state();
     return s && s->running_.load();
   }
 
   void stop() {
-    auto state = std::atomic_exchange(&state_, std::shared_ptr<State>{});
+    auto state = exchange_state(nullptr);
     if (!state) {
       return;
     }
@@ -63,7 +61,7 @@ class Timer {
   void start(F&& f, Duration timeout) {
     stop();
     auto state = std::make_shared<State>();
-    std::atomic_store(&state_, state);
+    store_state(state);
 
     state->cancelled_.store(false);
     state->running_.store(true);
@@ -100,7 +98,28 @@ class Timer {
     std::atomic_bool running_{false};
     std::thread worker_;
   };
+
+#ifdef __cpp_lib_atomic_shared_ptr
+  std::atomic<std::shared_ptr<State>> state_{};
+
+  std::shared_ptr<State> load_state() const { return state_.load(); }
+  void store_state(std::shared_ptr<State> s) { state_.store(std::move(s)); }
+  std::shared_ptr<State> exchange_state(std::shared_ptr<State> s) {
+    return state_.exchange(std::move(s));
+  }
+#else
   std::shared_ptr<State> state_;
+
+  std::shared_ptr<State> load_state() const {
+    return std::atomic_load(&state_);
+  }
+  void store_state(std::shared_ptr<State> s) {
+    std::atomic_store(&state_, std::move(s));
+  }
+  std::shared_ptr<State> exchange_state(std::shared_ptr<State> s) {
+    return std::atomic_exchange(&state_, std::move(s));
+  }
+#endif
 };
 
 }  // namespace ai::base
