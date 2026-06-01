@@ -60,6 +60,38 @@ std::string bash(nlohmann::json const& args) {
       return "Command cancelled by user: " + command;
     }
   }
+  // Resolve bash path manually to avoid picking up C:\Windows\System32\bash.exe
+  // (the WSL launcher) on Windows.  SearchPathW searches System32 before PATH,
+  // so subprocess::named_arguments::bash would find the wrong executable.
+  std::string bash_cmd = "bash";
+#if defined(_WIN32)
+  if (auto shell = env::get("SHELL").value_or("");
+      (shell.ends_with("sh") || shell.ends_with("sh.exe"))) {
+    if (shell.ends_with("bash") || shell.ends_with("bash.exe")) {
+      bash_cmd = shell;
+    }
+  } else {
+    for (auto const& path : env::path()) {
+      if (auto p = std::filesystem::path(path) / "bash.exe"; exists(p)) {
+        bash_cmd = p.string();
+        break;
+      }
+    }
+  }
+#else
+  bool bash_exists = false;
+  for (auto const& path : env::path()) {
+    if (auto p = std::filesystem::path(path) / "bash"; exists(p)) {
+      bash_exists = true;
+      break;
+    }
+  }
+  if (!bash_exists) {
+    if (auto shell = env::get("SHELL"); shell.has_value()) {
+      bash_cmd = shell.value();
+    }
+  }
+#endif
   subprocess::buffer out_buf{[](const unsigned char* data, size_t size) {
     std::cout.write(reinterpret_cast<const char*>(data), size);
   }};
@@ -68,8 +100,8 @@ std::string bash(nlohmann::json const& args) {
   }};
 
   auto start = std::chrono::steady_clock::now();
-  using subprocess::named_arguments::bash;
-  auto ret = subprocess::run(bash, command, $stdin<$devnull, $stdout> out_buf,
+  auto ret = subprocess::run(bash_cmd, "-c", command,
+                             $stdin<$devnull, $stdout> out_buf,
                              $stderr > err_buf, $timeout = timeout_val,
                              $cwd = working_directory, $newgroup = true);
   auto elapsed = std::chrono::steady_clock::now() - start;
