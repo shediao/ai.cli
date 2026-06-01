@@ -241,18 +241,7 @@ void replace_and_restart(const std::filesystem::path& current_exe,
   }
 
   // Launch the batch file detached with no visible window
-  STARTUPINFOW si{};
-  PROCESS_INFORMATION pi{};
-  si.cb = sizeof(STARTUPINFOW);
-  si.dwFlags = STARTF_USESHOWWINDOW;
-  si.wShowWindow = SW_HIDE;
-  std::wstring cmd = L"cmd.exe /c \"" + bat_path.wstring() + L"\"";
-  if (CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE,
-                     DETACHED_PROCESS | CREATE_NO_WINDOW, nullptr, nullptr, &si,
-                     &pi)) {
-    CloseHandle(pi.hProcess);
-    CloseHandle(pi.hThread);
-    // The batch script will take over – exit cleanly.
+  if (subprocess::detach_run($shell, L"call " + bat_path.wstring())) {
     std::exit(0);
   } else {
     LOG(ERROR) << "update: failed to launch update script (error "
@@ -457,13 +446,13 @@ int update(AiArgs const& args) {
   std::filesystem::create_directories(tmp_dir.path());
 
 #if defined(_WIN32) || defined(_WIN64)
+  using subprocess::named_arguments::powershell;
   auto [ret, _, stderr_] = subprocess::capture_run(
-      {"powershell", "-NoProfile", "-Command",
-       "Expand-Archive -Path '" + tmp_archive.path() + "' -DestinationPath '" +
-           tmp_dir.path() + "' -Force"});
+      powershell, "Expand-Archive -Path '" + tmp_archive.path() +
+                      "' -DestinationPath '" + tmp_dir.path() + "' -Force");
 #else
   auto [ret, _, stderr_] = subprocess::capture_run(
-      {"tar", "-xzf", tmp_archive.path(), "-C", tmp_dir.path()});
+      "tar", {"-xzf", tmp_archive.path(), "-C", tmp_dir.path()});
 #endif
 
   if (ret != 0) {

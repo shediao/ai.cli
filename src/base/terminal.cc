@@ -268,10 +268,11 @@ std::string Terminal::edit(std::string_view initial_content) {
   write_file(temp_file_path, std::string(initial_content));
 
   // 3. Open the editor with the temporary file
+  using subprocess::named_arguments::shell;
 #if defined(_WIN32)
-  (void)subprocess::run("cmd", "/d", "/c", editor + " " + tempfile.path());
+  (void)subprocess::run(shell, editor + " " + tempfile.path());
 #else
-  (void)subprocess::run("sh", "-c", editor + " " + tempfile.path());
+  (void)subprocess::run(shell, editor + " " + tempfile.path());
 #endif
 
   // 4. Read the content of the temporary file

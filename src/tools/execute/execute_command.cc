@@ -46,7 +46,6 @@ std::string execute_command(nlohmann::json const& args) {
 
   // Build the command vector
   std::vector<std::string> cmd_args;
-  cmd_args.push_back(path);
   if (args.contains("args") && args["args"].is_array()) {
     for (auto const& a : args["args"]) {
       if (a.is_string()) {
@@ -108,9 +107,9 @@ std::string execute_command(nlohmann::json const& args) {
   }};
 
   auto start = std::chrono::steady_clock::now();
-  auto exit_code = subprocess::run(cmd_args, $stdin<$devnull, $stdout> out_buf,
-                                   $stderr > err_buf, $timeout = timeout_val,
-                                   $cwd = working_directory, $newgroup = true);
+  auto exit_code = subprocess::run(
+      path, cmd_args, $stdin<$devnull, $stdout> out_buf, $stderr > err_buf,
+      $timeout = timeout_val, $cwd = working_directory, $newgroup = true);
   auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string result;

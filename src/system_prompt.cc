@@ -106,9 +106,9 @@ std::string build_default_system_prompt() {
     prompt += "Repository root: " + git_root.value() + "\n";
 
     // Current branch
-    auto [ret_br, out_br, err_br] =
-        subprocess::capture_run(std::vector<std::string>{
-            "git", "-C", git_root.value(), "branch", "--show-current"});
+    auto [ret_br, out_br, err_br] = subprocess::capture_run(
+        "git", std::vector<std::string>{"-C", git_root.value(), "branch",
+                                        "--show-current"});
     if (ret_br == 0) {
       std::string branch = out_br.to_string();
       if (!branch.empty() && branch.back() == '\n') {

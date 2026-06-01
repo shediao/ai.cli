@@ -68,10 +68,17 @@ std::string powershell(nlohmann::json const& args) {
   }};
 
   auto start = std::chrono::steady_clock::now();
+#if defined(_WIN32)
+  using subprocess::named_arguments::powershell;
+  auto ret = subprocess::run(
+      powershell, command, $stdin<$devnull, $stdout> out_buf, $stderr > err_buf,
+      $timeout = timeout_val, $cwd = working_directory, $newgroup = true);
+#else
   auto ret = subprocess::run("powershell", "-NoProfile", "-Command", command,
                              $stdin<$devnull, $stdout> out_buf,
                              $stderr > err_buf, $timeout = timeout_val,
                              $cwd = working_directory, $newgroup = true);
+#endif
   auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string out_str = out_buf.to_string();

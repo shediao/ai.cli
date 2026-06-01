@@ -68,10 +68,17 @@ std::string cmd(nlohmann::json const& args) {
   }};
 
   auto start = std::chrono::steady_clock::now();
-  auto ret =
-      subprocess::run("cmd", "/c", command, $stdin<$devnull, $stdout> out_buf,
-                      $stderr > err_buf, $timeout = timeout_val,
-                      $cwd = working_directory, $newgroup = true);
+#if defined(_WIN32)
+  using subprocess::named_arguments::shell;
+  auto ret = subprocess::run(shell, command, $stdin<$devnull, $stdout> out_buf,
+                             $stderr > err_buf, $timeout = timeout_val,
+                             $cwd = working_directory, $newgroup = true);
+#else
+  auto ret = subprocess::run("cmd", "/d", "/s", "/c", command,
+                             $stdin<$devnull, $stdout> out_buf,
+                             $stderr > err_buf, $timeout = timeout_val,
+                             $cwd = working_directory, $newgroup = true);
+#endif
   auto elapsed = std::chrono::steady_clock::now() - start;
 
   std::string out_str = out_buf.to_string();
@@ -128,13 +135,13 @@ class CmdFunction : public ai::Function {
 {
   "type": "function",
   "name": "cmd",
-  "description": "Execute a Windows CMD command and return the output. This tool allows running arbitrary Windows Command Prompt commands. The command is executed via 'cmd /c', so all cmd features like pipelines, redirects, variable expansions, and built-in commands (dir, type, echo, set, etc.) are available. Use this tool for Windows system administration, file operations, process management, and any Command Prompt tasks. Returns both stdout and stderr output.",
+  "description": "Execute a Windows CMD command and return the output. This tool allows running arbitrary Windows Command Prompt commands. The command is executed via 'cmd /d /s /c', so all cmd features like pipelines, redirects, variable expansions, and built-in commands (dir, type, echo, set, etc.) are available. Use this tool for Windows system administration, file operations, process management, and any Command Prompt tasks. Returns both stdout and stderr output.",
   "parameters": {
     "type": "object",
     "properties": {
       "command": {
         "type": "string",
-        "description": "The CMD command to execute. This will be passed to 'cmd /c'. Can include pipelines, redirects, variable expansions with %VAR%, and any valid CMD syntax. Examples: 'dir /b', 'type file.txt', 'echo %PATH%', 'tasklist | findstr chrome'."
+        "description": "The CMD command to execute. This will be passed to 'cmd /d /s /c'. Can include pipelines, redirects, variable expansions with %VAR%, and any valid CMD syntax. Examples: 'dir /b', 'type file.txt', 'echo %PATH%', 'tasklist | findstr chrome'."
       },
       "requires_confirmation": {
         "type": "boolean",
