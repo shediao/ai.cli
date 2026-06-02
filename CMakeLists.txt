@@ -24,6 +24,7 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(BUILD_SHARED_LIBS OFF)
 
 if(NOT MSYS)
   set(CMAKE_CXX_EXTENSIONS OFF)
@@ -98,6 +99,8 @@ message(STATUS "Git version: ${GIT_VERSION}")
 # ── Dependencies ───────────────────────────────────────────────────────────
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Dependencies)
+
+add_subdirectory(third_party/sqlite)
 
 # ── Object library (all sources except main) ───────────────────────────────
 # Use OBJECT library instead of STATIC to ensure all static initializers (e.g.
