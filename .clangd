@@ -14,6 +14,7 @@ CompileFlags:
     - -fsanitize=address,undefined
     - -fno-omit-frame-pointer
     - -fno-optimize-sibling-calls
+    - -fno-keep-inline-dllexport
     - /fsanitize=address
 
 Diagnostics:

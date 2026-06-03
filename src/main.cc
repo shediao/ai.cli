@@ -9,20 +9,11 @@
 #include "ai/history.h"
 #include "ai/models.h"
 #include "ai/update.h"
+#include "base/scope_exit.h"
 #include "base/string.h"
 #include "curl/curl.h"
 
 using namespace ai;
-
-class CurlGlobalInitGuard {
- public:
-  CurlGlobalInitGuard() { curl_global_init(CURL_GLOBAL_DEFAULT); }
-  ~CurlGlobalInitGuard() { curl_global_cleanup(); }
-  CurlGlobalInitGuard(CurlGlobalInitGuard const&) = delete;
-  CurlGlobalInitGuard& operator=(CurlGlobalInitGuard const&) = delete;
-  CurlGlobalInitGuard(CurlGlobalInitGuard&&) = delete;
-  CurlGlobalInitGuard& operator=(CurlGlobalInitGuard&&) = delete;
-};
 
 #if defined(_WIN32)
 int wmain(int argc, wchar_t* argv[])
@@ -30,10 +21,24 @@ int wmain(int argc, wchar_t* argv[])
 int main(int argc, char* argv[])
 #endif
 {
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+  auto curl_init_guard =
+      ai::base::make_scope_exit([]() { curl_global_cleanup(); });
+
 #if defined(_WIN32)
+  auto oldInputCP = GetConsoleCP();
+  auto oldOutputCP = GetConsoleOutputCP();
+
+  SetConsoleCP(CP_UTF8);
   SetConsoleOutputCP(CP_UTF8);
+
+  auto win_console_cp_guard =
+      ai::base::make_scope_exit([oldInputCP, oldOutputCP]() {
+        SetConsoleCP(oldInputCP);
+        SetConsoleOutputCP(oldOutputCP);
+      });
 #endif
-  CurlGlobalInitGuard guard;
+
   AiArgs args;
   auto parser = get_parser(args);
 #if defined(_WIN32)

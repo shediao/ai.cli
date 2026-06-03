@@ -31,7 +31,7 @@ endif()
 
 # ── Helper function to add a test executable ───────────────────────────────
 function(add_ai_cli_test test_name test_files)
-  add_executable(${test_name} ${test_files} $<TARGET_OBJECTS:ai_core>)
+  add_executable(${test_name} ${test_files} main.cc $<TARGET_OBJECTS:ai_core>)
   target_include_directories(
     ${test_name}
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include
@@ -51,8 +51,7 @@ function(add_ai_cli_test test_name test_files)
     target_compile_options(${test_name} PRIVATE /W4 /WX /utf-8 /EHsc)
   endif()
 
-  target_link_libraries(${test_name} PRIVATE GTest::gtest GTest::gtest_main
-                                             ai_core)
+  target_link_libraries(${test_name} PRIVATE GTest::gtest ai_core)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 
