@@ -1,5 +1,6 @@
 #pragma once
 
+#include <source_location>
 #include <sstream>
 
 #if defined(_WIN32)
@@ -29,8 +30,7 @@ enum : unsigned int {
   LOG_TO_ALL = LOG_TO_FILE | LOG_TO_STDERR,
 };
 
-#define LOG_STREAM(severity) \
-  ::ai::base::LogMessage(__FILE__, __LINE__, severity).stream()
+#define LOG_STREAM(severity) ::ai::base::LogMessage(severity).stream()
 #define LAZY_STREAM(stream, condition) \
   !(condition) ? (void)0 : ::ai::base::LogMessageVoidify() & (stream)
 #define LOG_IS_ON(severity) (::ai::base::ShouldCreateLogMessage(severity))
@@ -50,7 +50,8 @@ class LogMessageVoidify {
 
 class LogMessage {
  public:
-  LogMessage(const char* file, int line, LogSeverity severity);
+  LogMessage(LogSeverity severity, const std::source_location location =
+                                       std::source_location::current());
 
   LogMessage(const LogMessage&) = delete;
   LogMessage& operator=(const LogMessage&) = delete;
@@ -67,9 +68,6 @@ class LogMessage {
 
   const LogSeverity severity_;
   std::ostringstream stream_;
-  size_t message_start_;
-  const char* const file_;
-  const int line_;
 };
 
 bool ShouldCreateLogMessage(LogSeverity severity);
