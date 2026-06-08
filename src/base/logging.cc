@@ -1,7 +1,6 @@
 
 #include "logging.h"
 
-#include <source_location>
 #if defined(_WIN32)
 #include <Windows.h>
 #else
@@ -118,14 +117,21 @@ NativeHandle GetLogFileNativeHandle() {
 
 LogMessage::~LogMessage() { Flush(); }
 
+#if defined(__cpp_lib_source_location) && __cpp_lib_source_location
 LogMessage::LogMessage(LogSeverity severity,
                        const std::source_location location)
     : severity_{severity} {
-  Init(location);
+  Init(location.file_name(), location.line());
+}
+#endif
+
+LogMessage::LogMessage(LogSeverity severity, const char* filename, int line)
+    : severity_{severity} {
+  Init(filename, line);
 }
 
-void LogMessage::Init(const std::source_location& location) {
-  std::string_view filename = location.file_name();
+void LogMessage::Init(const char* f, int line) {
+  std::string_view filename = f;
 
   auto path_pos = filename.find_last_of("/\\");
   if (path_pos != std::string_view::npos) {
@@ -179,7 +185,7 @@ void LogMessage::Init(const std::source_location& location) {
   } else {
     stream_ << "VERBOSE" << -severity_ << ":";
   }
-  stream_ << filename << ":" << location.line() << "] ";
+  stream_ << filename << ":" << line << "] ";
 }
 void LogMessage::Flush() {
   stream_ << std::endl;

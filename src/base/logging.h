@@ -1,7 +1,11 @@
 #pragma once
 
-#include <source_location>
 #include <sstream>
+#include <version>
+
+#if defined(__cpp_lib_source_location) && __cpp_lib_source_location
+#include <source_location>
+#endif
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -30,7 +34,12 @@ enum : unsigned int {
   LOG_TO_ALL = LOG_TO_FILE | LOG_TO_STDERR,
 };
 
+#if defined(__cpp_lib_source_location) && __cpp_lib_source_location
 #define LOG_STREAM(severity) ::ai::base::LogMessage(severity).stream()
+#else
+#define LOG_STREAM(severity) \
+  ::ai::base::LogMessage(severity, __FILE__, __LINE__).stream()
+#endif
 #define LAZY_STREAM(stream, condition) \
   !(condition) ? (void)0 : ::ai::base::LogMessageVoidify() & (stream)
 #define LOG_IS_ON(severity) (::ai::base::ShouldCreateLogMessage(severity))
@@ -50,9 +59,14 @@ class LogMessageVoidify {
 
 class LogMessage {
  public:
+#if defined(__cpp_lib_source_location) && __cpp_lib_source_location
   LogMessage(LogSeverity severity, const std::source_location location =
                                        std::source_location::current());
+#endif
+  LogMessage(LogSeverity severity, const char* filename, int line);
 
+  LogMessage(LogMessage&&) = delete;
+  LogMessage& operator=(LogMessage&&) = delete;
   LogMessage(const LogMessage&) = delete;
   LogMessage& operator=(const LogMessage&) = delete;
   virtual ~LogMessage();
@@ -64,7 +78,7 @@ class LogMessage {
   void Flush();
 
  private:
-  void Init(const std::source_location&);
+  void Init(const char* filename, int line);
 
   const LogSeverity severity_;
   std::ostringstream stream_;
