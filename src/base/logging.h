@@ -64,7 +64,7 @@ class LogMessage {
   void Flush();
 
  private:
-  void Init(const char* file, int line);
+  void Init(const std::source_location&);
 
   const LogSeverity severity_;
   std::ostringstream stream_;

@@ -121,17 +121,13 @@ LogMessage::~LogMessage() { Flush(); }
 LogMessage::LogMessage(LogSeverity severity,
                        const std::source_location location)
     : severity_{severity} {
-  Init(location.file_name(), location.line());
+  Init(location);
 }
 
-void LogMessage::Init(const char* file, int line) {
-  std::string_view filename = file;
+void LogMessage::Init(const std::source_location& location) {
+  std::string_view filename = location.file_name();
 
-  auto path_pos = filename.rfind('/');
-  if (path_pos == std::string_view::npos) {
-    path_pos = filename.rfind('\\');
-  }
-
+  auto path_pos = filename.find_last_of("/\\");
   if (path_pos != std::string_view::npos) {
     filename = filename.substr(path_pos + 1);
   }
@@ -179,11 +175,11 @@ void LogMessage::Init(const char* file, int line) {
     // stream_ << TickCount() << ':';
   }
   if (severity_ >= 0) {
-    stream_ << GetSeverityName(severity_);
+    stream_ << GetSeverityName(severity_) << ":";
   } else {
-    stream_ << "VERBOSE" << -severity_;
+    stream_ << "VERBOSE" << -severity_ << ":";
   }
-  stream_ << ":" << filename << ":" << line << "] ";
+  stream_ << filename << ":" << location.line() << "] ";
 }
 void LogMessage::Flush() {
   stream_ << std::endl;
