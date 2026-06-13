@@ -12,10 +12,10 @@ namespace ai::base {
 #if defined(_WIN32)
 using ssize_t = std::ptrdiff_t;
 #endif
-ssize_t write_some(scoped_handle const& fd, void const* data, std::size_t size);
-bool write_all(scoped_handle const& fd, void const* data, std::size_t size);
-ssize_t read_some(scoped_handle const& fd, void* data, std::size_t size);
-bool read_exact(scoped_handle const& fd, void* data, std::size_t size);
+ssize_t write_some(NativeHandle fd, void const* data, std::size_t size);
+bool write_all(NativeHandle fd, void const* data, std::size_t size);
+ssize_t read_some(NativeHandle fd, void* data, std::size_t size);
+bool read_exact(NativeHandle fd, void* data, std::size_t size);
 
 bool stdin_is_atty();
 bool stdout_is_atty();

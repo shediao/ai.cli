@@ -14,12 +14,11 @@
 namespace ai::base {
 
 // return value: -1 on error, >=0 on success
-ssize_t write_some(scoped_handle const& fd, void const* data,
-                   std::size_t size) {
+ssize_t write_some(NativeHandle fd, void const* data, std::size_t size) {
 #if defined(_WIN32)
   DWORD chunk = static_cast<DWORD>((std::min<std::size_t>)(0x7ffff000u, size));
   DWORD written{0};
-  BOOL ok = WriteFile(fd.get(), data, chunk, &written, 0);
+  BOOL ok = WriteFile(fd, data, chunk, &written, 0);
   if (!ok) {
     return -1;
   }
@@ -29,13 +28,13 @@ ssize_t write_some(scoped_handle const& fd, void const* data,
   const std::size_t chunk =
       std::min<std::size_t>(std::numeric_limits<ssize_t>::max(), size);
   do {
-    written = ::write(fd.get(), data, chunk);
+    written = ::write(fd, data, chunk);
   } while (written == -1 && errno == EINTR);
   return written;
 #endif
 }
 
-bool write_all(scoped_handle const& fd, void const* data, std::size_t size) {
+bool write_all(NativeHandle fd, void const* data, std::size_t size) {
   auto* p = static_cast<std::byte const*>(data);
   while (size > 0) {
     const ssize_t written = write_some(fd, p, size);
@@ -48,14 +47,14 @@ bool write_all(scoped_handle const& fd, void const* data, std::size_t size) {
   return true;
 }
 
-ssize_t read_some(scoped_handle const& fd, void* data, std::size_t size) {
+ssize_t read_some(NativeHandle fd, void* data, std::size_t size) {
   if (size == 0) {
     return 0;
   }
 #if defined(_WIN32)
   DWORD chunk = static_cast<DWORD>((std::min<std::size_t>)(0x7ffff000u, size));
   DWORD read{0};
-  BOOL ok = ReadFile(fd.get(), data, chunk, &read, 0);
+  BOOL ok = ReadFile(fd, data, chunk, &read, 0);
   if (!ok) {
     auto err = GetLastError();
     if (err == ERROR_BROKEN_PIPE || err == ERROR_NO_DATA) {
@@ -69,13 +68,13 @@ ssize_t read_some(scoped_handle const& fd, void* data, std::size_t size) {
   const std::size_t chunk =
       std::min<std::size_t>(std::numeric_limits<ssize_t>::max(), size);
   do {
-    read = ::read(fd.get(), data, chunk);
+    read = ::read(fd, data, chunk);
   } while (read == -1 && errno == EINTR);
   return read;
 #endif
 }
 
-bool read_exact(scoped_handle const& fd, void* data, std::size_t size) {
+bool read_exact(NativeHandle fd, void* data, std::size_t size) {
   auto* p = static_cast<std::byte*>(data);
   while (size > 0) {
     const ssize_t read = read_some(fd, p, size);
