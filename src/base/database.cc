@@ -172,8 +172,9 @@ int statement::get_named_param_index(std::string const& name) {
     return 0;
   }
   for (auto const& prefix : {":", "@", "$"}) {
-    if (auto index = get_named_param_index(prefix + name); index != 0) {
-      return index;
+    auto it = named_params_.find(prefix + name);
+    if (it != named_params_.end()) {
+      return it->second;
     }
   }
   LOG(ERROR) << "No such parameter: " << name;
