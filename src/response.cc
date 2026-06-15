@@ -5,9 +5,9 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 
+#include "base/io.h"
 #include "base/logging.h"
 #include "base/string.h"
-#include "base/terminal.h"
 
 using json = nlohmann::json;
 

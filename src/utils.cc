@@ -1,24 +1,18 @@
 #include <curl/curl.h>
 
-#include <algorithm>
 #include <cctype>
 #include <chrono>
-#include <cstdio>  // For std::remove
 #include <ctime>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <iterator>
-#include <limits>
-#include <stdexcept>  // For std::runtime_error
 #include <string>
 
 #ifdef _WIN32
 #include <objbase.h>
-#include <windows.h>  // For GetEnvironmentVariable
+#include <windows.h>
 #else
 #include <termios.h>
-#include <unistd.h>  // For access, isatty, STDIN_FILENO/STDOUT_FILENO/STDERR_FILENO
+#include <unistd.h>
 #endif
 
 #include <environment/environment.hpp>

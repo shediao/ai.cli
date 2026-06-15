@@ -1,8 +1,6 @@
+#include <curl/curl.h>
+
 #include <argparse/argparse.hpp>
-#include <cstdlib>
-#include <iterator>
-#include <nlohmann/json.hpp>
-#include <vector>
 
 #include "ai/args.h"
 #include "ai/chat.h"
@@ -11,7 +9,6 @@
 #include "ai/update.h"
 #include "base/scope_exit.h"
 #include "base/string.h"
-#include "curl/curl.h"
 
 using namespace ai;
 

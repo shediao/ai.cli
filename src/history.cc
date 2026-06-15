@@ -3,12 +3,10 @@
 #include <sqlite3.h>
 
 #include <chrono>
-#include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <iostream>
 #include <iterator>
-#include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
 #include <thread>
@@ -19,7 +17,7 @@
 #include "base/database.h"
 #include "base/logging.h"
 #include "base/string.h"
-#include "nlohmann/json_fwd.hpp"
+#include "nlohmann/json.hpp"
 
 namespace ai {
 

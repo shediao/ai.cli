@@ -2,26 +2,17 @@
 
 #include <algorithm>
 #include <argparse/argparse.hpp>
-#include <cstdlib>
 #include <environment/environment.hpp>
 #include <filesystem>
 #include <initializer_list>
 #include <limits>
 
-#include "ai/function.h"
-#include "base/io.h"
-#include "base/string.h"
-#include "base/terminal.h"
-
-#ifndef _WIN32
-#include <sys/stat.h>
-#include <unistd.h>
-#endif
-
 #include "ai/config.h"
 #include "ai/function.h"
 #include "base/file.h"
+#include "base/io.h"
 #include "base/string.h"
+#include "base/terminal.h"
 
 namespace ai {
 
