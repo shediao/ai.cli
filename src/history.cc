@@ -123,7 +123,7 @@ void HistoryDB::init_db() {
       messages    TEXT    NOT NULL
     );
   )SQL";
-  if (db_.exec(create_legacy_sql)) {
+  if (!db_.exec(create_legacy_sql)) {
     LOG(ERROR) << "Failed to create legacy conversations table";
     return;
   }
