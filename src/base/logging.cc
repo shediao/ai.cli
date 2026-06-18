@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #endif
+#include <chrono>
 #include <iomanip>
 
 namespace ai::base {
@@ -155,27 +156,22 @@ void LogMessage::Init(const char* f, int line) {
     // stream_ << base::PlatformThread::CurrentId() << ':';
   }
   if (g_log_timestamp) {
+    auto now = std::chrono::system_clock::now();
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+    char buf[128];
+    struct tm tm{};
 #if defined(_WIN32)
-    SYSTEMTIME local_time;
-    GetLocalTime(&local_time);
-    stream_ << std::setfill('0') << std::setw(2) << local_time.wMonth
-            << std::setw(2) << local_time.wDay << '/' << std::setw(2)
-            << local_time.wHour << std::setw(2) << local_time.wMinute
-            << std::setw(2) << local_time.wSecond << '.' << std::setw(3)
-            << local_time.wMilliseconds << ':';
+    localtime_s(&tm, &now_time_t);
 #else
-    timeval tv{};
-    gettimeofday(&tv, nullptr);
-    time_t t = tv.tv_sec;
-    struct tm local_time{};
-    localtime_r(&t, &local_time);
-    struct tm* tm_time = &local_time;
-    stream_ << std::setfill('0') << std::setw(2) << 1 + tm_time->tm_mon
-            << std::setw(2) << tm_time->tm_mday << '/' << std::setw(2)
-            << tm_time->tm_hour << std::setw(2) << tm_time->tm_min
-            << std::setw(2) << tm_time->tm_sec << '.' << std::setw(6)
-            << tv.tv_usec << ':';
+    localtime_r(&now_time_t, &tm);
 #endif
+    strftime(buf, sizeof(buf) - 1, "%Y/%m/%d %H:%M:%S", &tm);
+    stream_ << buf << '.' << std::setw(3) << std::setfill('0')
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   now.time_since_epoch())
+                       .count() %
+                   1000
+            << ':';
   }
   if (g_log_tickcount) {
     // stream_ << TickCount() << ':';
