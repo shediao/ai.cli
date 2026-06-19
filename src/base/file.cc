@@ -17,8 +17,16 @@ std::optional<std::string> read_file(std::string const& path) {
   if (!file.is_open()) {
     return std::nullopt;
   }
-  return std::string{std::istreambuf_iterator<char>(file),
-                     std::istreambuf_iterator<char>()};
+  std::string content;
+  file.seekg(0, std::ios::end);
+  auto size = file.tellg();
+  if (size > 0) {
+    content.reserve(static_cast<std::string::size_type>(size));
+  }
+  file.seekg(0, std::ios::beg);
+  content.assign(std::istreambuf_iterator<char>(file),
+                 std::istreambuf_iterator<char>());
+  return content;
 }
 
 bool write_file(std::string const& path, std::string const& content) {
