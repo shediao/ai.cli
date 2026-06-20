@@ -21,7 +21,7 @@ cmake -B build -S . -DAICLI_USE_SYSTEM_CURL=ON    # use system libcurl
 cmake -B build -S . -DAICLI_ENABLE_ASAN=OFF       # disable sanitizers
 
 # Format code (Google style, 2-space indent, C++20)
-clang-format -i src/*.cc src/base/*.cc include/ai/*.h tests/*.cc tests/*.cc
+clang-format -i src/*.cc src/base/*.cc include/ai/*.h tests/*.cc tests/*_test.cc
 cmake-format -i CMakeLists.txt tests/CMakeLists.txt
 ```
 
@@ -125,7 +125,7 @@ This is a C++20 CLI chatbot that communicates with OpenAI-compatible APIs (DeepS
 
 ### Entry & Dispatch
 
-- `src/main.cc` — `CurlGlobalInitGuard` RAII wrapper initializes/cleans CURL globally. On Windows, uses `wmain` + `SetConsoleOutputCP(CP_UTF8)`. Parses CLI args via `argparse::ArgParser` (defined in `src/args.cc`, struct in `include/ai/args.h`), dispatches to `chat()`, `models()`, `history()`, or `update()`.
+- `src/main.cc` — Uses `ai::base::make_scope_exit` to initialize/clean CURL globally at scope exit. On Windows, uses `wmain` + `SetConsoleOutputCP(CP_UTF8)`, saving and restoring original console input/output code pages at scope exit. Parses CLI args via `argparse::ArgParser` (defined in `src/args.cc`, struct in `include/ai/args.h`), dispatches to `chat()`, `models()`, `history()`, or `update()`.
 - `src/args.cc` — defines all CLI subcommands, options, and flags. Provider aliases from `config.json` (e.g., `--deepseek`, `--openai`) set the `--base-url`. Automatically resolves API keys (`{ALIAS}_API_KEY` env var → config file), models (`{ALIAS}_API_MODEL` env var → config `default_model`), and proxy (`{ALIAS}_API_PROXY`). Default tools (`default`, `filesystem`, `execute`, `interactive`) are auto-selected unless `--no-tools` or `--tools` is specified.
 
 ### Core Loop (`src/chat.cc`)
@@ -174,8 +174,8 @@ Key API functions (all in `namespace ai`):
 Tool categories:
 
 - **`default`** — session/environment queries: `get_working_directory`, `get_environment_variable`, `set_environment_variable`, `get_shell`, `get_operating_system`. Defined in `src/tools/default.cc`, one class per function.
-- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `replace_lines`. Each tool is its own `.cc` file in `src/tools/filesystem/`. Shared utilities (`expand_tilde`, `resolve_path`, `append_prefix_per_line`) are declared as `extern` in each tool file and defined in `src/tools/filesystem.cc`. `edit_file` uses a structured JSON array of `{search, replace}` objects for the `diff` parameter (legacy string-based SEARCH/REPLACE markers are gone).
-- **`execute`** — shell and command execution: `bash`, `cmd`, `powershell`, `execute_command`. All defined in `src/tools/execute/` with shared utilities (`filter_lines()`, `add_filter_parameter()`, subprocess execution helpers) in `src/tools/execute.cc`/`.h`. All execute tools redirect stdin from `/dev/null` and launch processes in a new process group (`$newgroup = true`). `execute_command` is PATH-aware: if the path contains `/` or `\` it's treated as a file path (with tilde expansion); otherwise resolved from PATH. All execute tools support an optional ordered array of output filters (`head`, `tail`, `include`/regex, `exclude`/regex) applied via a manual line-splitting loop (drops trailing empty line, matching `std::getline` semantics). `bash` is enabled on non-Windows or if `bash.exe` in PATH; `cmd`/`powershell` only on Windows.
+- **`filesystem`** — file operations: `read_file`, `read_multiple_files`, `write_file`, `edit_file`, `create_directory`, `list_directory`, `directory_tree`, `move_file`, `find_files`, `get_file_info`, `disk_space_info`, `replace_lines`. Each tool is its own `.cc` file in `src/tools/filesystem/`. Shared utilities (`expand_tilde`, `resolve_path`, `append_prefix_per_line`) are declared in `src/tools/filesystem.h` and defined in `src/tools/filesystem.cc`. `edit_file` uses a structured JSON array of `{search, replace}` objects for the `diff` parameter (legacy string-based SEARCH/REPLACE markers are gone).
+- **`execute`** — shell and command execution: `bash`, `cmd`, `powershell`, `execute_command`. All defined in `src/tools/execute/` with shared utilities (`filter_lines()`, `add_filter_parameter()`, subprocess execution helpers) in `src/tools/execute.cc`/`.h`. All execute tools redirect stdin from `/dev/null` and launch processes in a new process group (`$newgroup = true`). `execute_command` is PATH-aware: if the path contains `/` or `\` it's treated as a file path (with tilde expansion); otherwise resolved from PATH. As a defensive fallback, if neither `path` nor `file` is present in args, also tries the `command` parameter (for when the AI model uses `command` instead of the schema-defined `path`). All execute tools support an optional ordered array of output filters (`head`, `tail`, `include`/regex, `exclude`/regex) applied via a manual line-splitting loop (drops trailing empty line, matching `std::getline` semantics). `bash` is enabled on non-Windows or if `bash.exe` in PATH; `cmd`/`powershell` only on Windows.
 - **`interactive`** — user interaction: `ask_user`. Defined in `src/tools/interactive/ask_user.cc`. Prompts the user with a question and numbered menu via TTY; disabled (`enabled()=false`) when no TTY is available.
 
 ### Config (`src/config.cc`, `include/ai/config.h`)
@@ -213,8 +213,9 @@ Self-update subcommand. Fetches the latest GitHub release from `api.github.com/r
 | `download.h`/`.cc`  | HTTP file download via CURL                                                                                                                     |
 | `scope_exit.h`      | Scope-guard cleanup (header-only, `ai::base::scope_exit`)                                                                                       |
 | `logging.h`/`.cc`   | Logging system (macros `LOG(LEVEL)`, `LOG_IF`)                                                                                                  |
-| `io.h`/`.cc`        | Cross-platform IO (stdin-is-atty, foreground detection); includes `scoped_handle.h`                                                             |
-| `scoped_handle.h`   | Cross-platform RAII native handle wrapper (`scoped_handle`, `scoped_handle_base`) (extracted from io.h)                                         |
+| `io.h`/`.cc`        | Cross-platform IO (stdin-is-atty, foreground detection); functions accept `NativeHandle` (raw OS handle type); includes `scoped_handle.h`       |
+| `scoped_handle.h`   | Cross-platform RAII native handle wrapper (`scoped_handle`, `scoped_handle_base`) and `NativeHandle` typedef (used by `io.h`)                   |
+| `timer.h`           | Thread-safe one-shot delayed execution (`Timer` with static `Timer::after()` factory, cancellation, move semantics)                             |
 | `database.h`/`.cc`  | RAII SQLite3 wrapper: `database`, `statement` (indexed/named binding, `bind_all`, `optional<T>`), `transaction`                                 |
 | `expected.h`        | `expected<T,E>` utility with monadic API (`and_then`, `transform`, `transform_error`, `or_else`, `value_or`), `expected<void,E>` specialization |
 | `glob.h`/`.cc`      | Glob pattern matching                                                                                                                           |
@@ -223,17 +224,17 @@ Self-update subcommand. Fetches the latest GitHub release from `api.github.com/r
 
 ### Key Dependencies (all via FetchContent)
 
-| Library                                      | Purpose                                                     |
-| -------------------------------------------- | ----------------------------------------------------------- |
-| `argparse.hpp` (custom fork)                 | CLI argument parsing                                        |
-| `nlohmann/json` (vendored in `third_party/`) | JSON handling                                               |
-| `libcurl` (fetched or system)                | HTTP client (minimal build: HTTP-only, platform-native SSL) |
-| `sqlite3` (amalgamation v3.53.0)             | Chat history persistence                                    |
-| `subprocess.hpp` (custom fork)               | Subprocess execution for tools                              |
-| `environment.hpp` (custom fork)              | Cross-platform env var access                               |
-| `base64.hpp` (custom fork)                   | Base64 encoding for image input                             |
-| `utfx.hpp` (custom fork)                     | UTF-8 validation                                            |
-| Google Test (fetched)                        | Unit testing                                                |
+| Library                                                             | Purpose                                                                              |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `argparse.hpp` (custom fork)                                        | CLI argument parsing                                                                 |
+| `nlohmann/json` (vendored in `third_party/`)                        | JSON handling                                                                        |
+| `libcurl` (fetched or system)                                       | HTTP client (minimal build: HTTP-only, platform-native SSL)                          |
+| `sqlite3` (amalgamation v3.53.0, vendored in `third_party/sqlite/`) | Chat history persistence                                                             |
+| `subprocess.hpp` (custom fork)                                      | Subprocess execution for tools                                                       |
+| `environment.hpp` (custom fork)                                     | Cross-platform env var access                                                        |
+| `base64.hpp` (custom fork)                                          | Base64 encoding for image input                                                      |
+| `utfx.hpp` (custom fork)                                            | UTF-8 validation                                                                     |
+| Google Test (fetched)                                               | Unit testing (custom `tests/main.cc` with CURL init and Windows UTF-8 console setup) |
 
 All custom forks are under `github.com/shediao/*`.
 
@@ -243,7 +244,7 @@ All custom forks are under `github.com/shediao/*`.
 - `.clang-tidy` disables: `llvm-header-guard`, `modernize-use-trailing-return-type`, `readability-identifier-naming`, `cppcoreguidelines-pro-type-cstyle-cast`, and several modernize checks.
 - Use `ai::term::` namespace (from `src/base/string.h`) for ANSI terminal colors/styles instead of raw escape codes.
 - Use `ai::base::scope_exit` for scope-guard cleanup instead of manual try/finally patterns.
-- Use the `LOG(LEVEL)` macro from `base/logging.h` (levels: VERBOSE=-1, DEBUG=0, INFO=1, WARNING=2, ERROR=3, FATAL=4).
+- Use the `LOG(LEVEL)` macro from `base/logging.h` (levels: VERBOSE=-1, DEBUG=0, INFO=1, WARNING=2, ERROR=3, FATAL=4). Logging uses `std::source_location` (C++20) to capture caller location, with `__FILE__`/`__LINE__` fallback when `__cpp_lib_source_location` is not defined. Timestamps are formatted uniformly across platforms via `std::chrono::system_clock` as `YYYY/MM/DD HH:MM:SS.mmm`.
 - ANSI terminal color constants live in `src/base/string.h` under `ai::term::`; the `src/base/terminal.h` header provides the `ai::base::Terminal` class for TTY detection, interactive prompts, and external editor invocation.
 - Include order: standard library → third-party → project headers.
 - All source code files must use LF (`\n`) line endings. Do not introduce CRLF (`\r\n`) when editing files.
