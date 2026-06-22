@@ -6,6 +6,7 @@
 #include <string_view>
 #include <subprocess/subprocess.hpp>
 
+#include "ai/args.h"
 #include "ai/function.h"
 #include "base/terminal.h"
 #include "tools/execute.h"
@@ -54,8 +55,9 @@ std::string bash(nlohmann::json const& args) {
   // Check if user confirmation is required
   if (requires_confirmation) {
     ai::base::Terminal tty;
-    auto confirmed = tty.confirm("Bash command requires confirmation:\n" +
-                                 command + "\nExecute?");
+    auto confirmed = tty.confirm(
+        "Bash command requires confirmation:\n" + command + "\nExecute?",
+        get_chat_args().confirm_default_yes);
     if (!confirmed) {
       return "Command cancelled by user: " + command;
     }

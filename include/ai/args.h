@@ -30,6 +30,7 @@ struct AiArgs {
     std::optional<std::string> continue_with_history_id;
     bool no_tools{false};
     bool list_tools{false};
+    bool confirm_default_yes{false};
     std::optional<std::string> topic_base_url;
     std::optional<std::string> topic_api_key;
     std::optional<std::string> topic_model;

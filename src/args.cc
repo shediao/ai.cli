@@ -288,6 +288,15 @@ static void bind_chat_args(argparse::ArgParser& parser, AiArgs& args) {
 
   chat.add_flag("no-tools", "Disable all tool calling capabilities",
                 chat_args.no_tools);
+  chat.add_flag("yes",
+                "Auto-confirm (answer yes to) all tool confirmation "
+                "prompts that require user approval before execution",
+                chat_args.confirm_default_yes);
+  chat.add_negative_flag("no",
+                         "Auto-deny (answer no to) all tool confirmation "
+                         "prompts that require user approval before execution",
+                         chat_args.confirm_default_yes);
+
   chat.add_flag("list-tools",
                 "List all available tool categories and their functions",
                 chat_args.list_tools)

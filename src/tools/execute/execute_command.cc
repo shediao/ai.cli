@@ -6,6 +6,7 @@
 #include <subprocess/subprocess.hpp>
 #include <vector>
 
+#include "ai/args.h"
 #include "ai/function.h"
 #include "base/terminal.h"
 #include "tools/execute.h"
@@ -93,7 +94,8 @@ std::string execute_command(nlohmann::json const& args) {
   if (requires_confirmation) {
     ai::base::Terminal tty;
     auto confirmed = tty.confirm("Execute command requires confirmation\n" +
-                                 path + " " + args_str + "\nExecute?");
+                                     path + " " + args_str + "\nExecute?",
+                                 get_chat_args().confirm_default_yes);
     if (!confirmed) {
       return "Command Execute cancelled by user.";
     }
