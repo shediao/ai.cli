@@ -651,13 +651,30 @@ static void bind_ai_args(argparse::ArgParser& parser, AiArgs& args) {
 
 }  // namespace
 
-argparse::ArgParser get_parser(AiArgs& args) {
+AiArgs& get_args_instance() {
+  static AiArgs args;
+  return args;
+}
+const AiArgs& get_args() { return get_args_instance(); }
+const AiArgs::ChatArgs& get_chat_args() {
+  return get_args_instance().chat_args;
+}
+const AiArgs::ModelsArgs& get_models_args() {
+  return get_args_instance().models_args;
+}
+const AiArgs::HistoryArgs& get_history_args() {
+  return get_args_instance().history_args;
+}
+const AiArgs::UpdateArgs& get_update_args() {
+  return get_args_instance().update_args;
+}
+argparse::ArgParser get_parser() {
   argparse::ArgParser parser(
       "ai",
       "OpenAI API-compatible multi-provider CLI chatbot with "
       "tool-calling capabilities");
 
-  bind_ai_args(parser, args);
+  bind_ai_args(parser, get_args_instance());
   return parser;
 }
 

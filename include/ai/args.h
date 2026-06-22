@@ -83,6 +83,12 @@ struct AiArgs {
   bool print_fish_completion{false};
 };
 
-argparse::ArgParser get_parser(AiArgs& args);
+const AiArgs& get_args();
+const AiArgs::ChatArgs& get_chat_args();
+const AiArgs::ModelsArgs& get_models_args();
+const AiArgs::HistoryArgs& get_history_args();
+const AiArgs::UpdateArgs& get_update_args();
+
+argparse::ArgParser get_parser();
 
 }  // namespace ai

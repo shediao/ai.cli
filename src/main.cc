@@ -36,8 +36,7 @@ int main(int argc, char* argv[])
       });
 #endif
 
-  AiArgs args;
-  auto parser = get_parser(args);
+  auto parser = get_parser();
 #if defined(_WIN32)
   std::vector<std::string> utf8_args;
   std::transform(argv, argv + argc, std::back_inserter(utf8_args),
@@ -57,16 +56,16 @@ int main(int argc, char* argv[])
 #endif
 
     if (cmd.command() == "chat") {
-      return chat(args);
+      return chat(get_args());
     }
     if (cmd.command() == "models") {
-      return models(args);
+      return models(get_args());
     }
     if (cmd.command() == "history") {
-      return history(args);
+      return history(get_args());
     }
     if (cmd.command() == "update") {
-      return update(args);
+      return update(get_args());
     }
     cmd.print_usage();
   } catch (std::exception const& e) {
