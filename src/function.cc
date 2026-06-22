@@ -45,10 +45,12 @@ std::vector<std::unique_ptr<Function>>& functions() {
   static std::vector<std::unique_ptr<Function>> functions;
   return functions;
 }
-void regist_function(std::unique_ptr<Function> func) {
+Function* regist_function(std::unique_ptr<Function> func) {
   if (func && func->enabled()) {
     functions().push_back(std::move(func));
+    return functions().back().get();
   }
+  return nullptr;
 }
 
 std::set<std::string> get_categories() {

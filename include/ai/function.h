@@ -8,10 +8,8 @@
 
 #include "nlohmann/json.hpp"
 
-#define AUTO_REGISTER(T)                  \
-  namespace {                             \
-  ai::AutoRegister<T> _auto_register_##T; \
-  }
+#define AUTO_REGISTER(T) \
+  Function* const T::registered_ = regist_function(std::make_unique<T>());
 
 namespace ai {
 class Function {
@@ -26,13 +24,7 @@ class Function {
   virtual nlohmann::json const& schema() const = 0;
 };
 
-template <typename T>
-class AutoRegister {
- public:
-  AutoRegister() { regist_function(std::make_unique<T>()); }
-};
-
-void regist_function(std::unique_ptr<Function> func);
+Function* regist_function(std::unique_ptr<Function> func);
 std::set<std::string> get_categories();
 nlohmann::json get_tools(std::set<std::string> categories);
 std::string call_tool(std::string const& name, nlohmann::json const& args);

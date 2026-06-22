@@ -79,6 +79,7 @@ class DiskSpaceInfoFunction : public ai::Function {
   }
   std::string const& category() const override { return category_; }
   nlohmann::json const& schema() const override { return schema_; }
+  [[maybe_unused]] static Function* const registered_;
 
  private:
   std::string category_ = "filesystem";
