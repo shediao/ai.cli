@@ -74,7 +74,7 @@ TEST(MakeUnexpectedTest, IntLiteral) {
 
 TEST(BadExpectedAccessTest, What) {
   bad_expected_access<int> ex(42);
-  EXPECT_STREQ(ex.what(), "bad expected access");
+  EXPECT_STREQ(ex.what(), "bad access to expected");
 }
 
 TEST(BadExpectedAccessTest, Error) {
