@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstdint>
 #include <exception>
 #include <functional>
 #include <type_traits>
