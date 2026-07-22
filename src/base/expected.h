@@ -9,18 +9,117 @@
 #include <utility>
 
 namespace ai::base {
+using std::conditional_t;
+using std::convertible_to;
+using std::decay_t;
+using std::declval;
+using std::invoke_result_t;
+using std::is_arithmetic_v;
+using std::is_array_v;
+using std::is_constructible_v;
+using std::is_convertible_v;
+using std::is_copy_assignable_v;
+using std::is_copy_constructible_v;
+using std::is_default_constructible_v;
+using std::is_floating_point_v;
+using std::is_function_v;
+using std::is_integral_v;
+using std::is_move_assignable_v;
+using std::is_move_constructible_v;
+using std::is_nothrow_constructible_v;
+using std::is_nothrow_copy_assignable_v;
+using std::is_nothrow_copy_constructible_v;
+using std::is_nothrow_move_assignable_v;
+using std::is_nothrow_move_constructible_v;
+using std::is_nothrow_swappable_v;
+using std::is_reference_v;
+using std::is_same_v;
+using std::is_signed_v;
+using std::is_swappable_v;
+using std::is_void_v;
+using std::is_volatile_v;
+using std::remove_cv_t;
+using std::remove_cvref_t;
+using std::same_as;
+using std::to_string;
+using std::to_wstring;
+using std::tuple_size_v;
+
+template <typename E>
+class unexpected;
+template <typename E>
+struct is_unexpected : std::false_type {};
+template <typename E>
+struct is_unexpected<unexpected<E>> : std::true_type {};
+template <typename E>
+constexpr bool is_unexpected_v = is_unexpected<E>::value;
+
+template <typename T>
+using is_valid_unexpected =
+    std::bool_constant<std::is_object_v<T> && !is_unexpected_v<T> &&
+                       !std::is_array_v<T> && !std::is_const_v<T> &&
+                       !std::is_volatile_v<T>>;
 
 template <typename E>
 class unexpected {
+  static_assert(is_valid_unexpected<E>::value,
+                "[expected.un.general] states a program that instantiates "
+                "std::unexpected for a non-object type, an "
+                "array type, a specialization of unexpected, or a cv-qualified "
+                "type is ill-formed.");
+
+  template <typename E2>
+  friend class unexpected;
+
  public:
   using error_type = E;
 
-  constexpr explicit unexpected(error_type const& e) : error_(e) {}
-  constexpr explicit unexpected(error_type&& e) : error_(std::move(e)) {}
+  template <class _Error = E>
+    requires(!std::is_same_v<std::remove_cvref_t<_Error>, unexpected> &&
+             !std::is_same_v<std::remove_cvref_t<_Error>, std::in_place_t> &&
+             std::is_constructible_v<E, _Error>)
+  constexpr explicit unexpected(_Error&& e) noexcept(
+      std::is_nothrow_constructible_v<E, _Error>)
+      : error_(std::forward<_Error>(e)) {}
+
+  template <class... Args>
+    requires std::is_constructible_v<E, Args...>
+  constexpr explicit unexpected(std::in_place_t, Args&&... args) noexcept(
+      std::is_nothrow_constructible_v<E, Args...>)
+      : error_(std::forward<Args>(args)...) {}
+
+  constexpr unexpected(const unexpected&) = default;
+  constexpr unexpected(unexpected&&) = default;
+
+  constexpr unexpected& operator=(const unexpected&) = default;
+  constexpr unexpected& operator=(unexpected&&) = default;
 
   constexpr error_type& error() & noexcept { return error_; }
   constexpr error_type const& error() const& noexcept { return error_; }
   constexpr error_type&& error() && noexcept { return std::move(error_); }
+  constexpr const error_type&& error() const&& noexcept {
+    return std::move(error_);
+  }
+
+  constexpr void swap(unexpected& other) noexcept(is_nothrow_swappable_v<E>) {
+    static_assert(is_swappable_v<E>,
+                  "unexpected::swap requires is_swappable_v<E> to be true");
+    using std::swap;
+    swap(error_, other.error_);
+  }
+
+  friend constexpr void swap(unexpected& x,
+                             unexpected& y) noexcept(noexcept(x.swap(y)))
+    requires is_swappable_v<E>
+  {
+    x.swap(y);
+  }
+
+  template <typename E2>
+  friend constexpr bool operator==(const unexpected& x,
+                                   const unexpected<E2>& y) {
+    return x.error_ == y.error();
+  }
 
  private:
   E error_;
@@ -65,6 +164,9 @@ class bad_expected_access : public bad_expected_access<void> {
 
 template <typename T, typename E>
 class expected_storage {
+  template <typename T2, typename E2>
+  friend class expected_storage;
+
  protected:
   union storage_t {
     T value;
@@ -135,7 +237,25 @@ inline constexpr unexpect_t unexpect{};
 
 template <typename T, typename E>
 class expected : private expected_storage<T, E> {
+  static_assert(!std::is_reference_v<T> && !std::is_function_v<T> &&
+                    !std::is_same_v<std::remove_cv_t<T>, std::in_place_t> &&
+                    !std::is_same_v<std::remove_cv_t<T>, unexpect_t> &&
+                    !is_unexpected<std::remove_cv_t<T>>::value &&
+                    is_valid_unexpected<E>::value,
+                "[expected.object.general] A program that instantiates the "
+                "definition of template expected<T, E> for a "
+                "reference type, a function type, or for possibly cv-qualified "
+                "types in_place_t, unexpect_t, or a "
+                "specialization of unexpected for the T parameter is "
+                "ill-formed. A program that instantiates the "
+                "definition of the template expected<T, E> with a type for the "
+                "E parameter that is not a valid "
+                "template argument for unexpected is ill-formed.");
+
   using base = expected_storage<T, E>;
+
+  template <typename T2, typename E2>
+  friend class expected;
 
  public:
   using value_type = T;
@@ -181,7 +301,15 @@ class expected : private expected_storage<T, E> {
   }
 
   // Assignment
-  constexpr expected& operator=(expected const& other) {
+  constexpr expected& operator=(const expected&) = delete;
+  constexpr expected& operator=(expected const& other) noexcept(
+      is_nothrow_copy_assignable_v<T> && is_nothrow_copy_constructible_v<T> &&
+      is_nothrow_copy_assignable_v<E> && is_nothrow_copy_constructible_v<E>)
+    requires(is_copy_assignable_v<T> && is_copy_constructible_v<T> &&
+             is_copy_assignable_v<E> && is_copy_constructible_v<E> &&
+             (is_nothrow_move_constructible_v<T> ||
+              is_nothrow_move_constructible_v<E>))
+  {
     if (this == &other) {
       return *this;
     }
@@ -190,12 +318,35 @@ class expected : private expected_storage<T, E> {
   }
 
   constexpr expected& operator=(expected&& other) noexcept(
-      std::is_nothrow_move_assignable_v<T> &&
-      std::is_nothrow_move_assignable_v<E>) {
+      is_nothrow_move_assignable_v<T> && is_nothrow_move_constructible_v<T> &&
+      is_nothrow_move_assignable_v<E> && is_nothrow_move_constructible_v<E>)
+    requires(is_move_constructible_v<T> && is_move_assignable_v<T> &&
+             is_move_constructible_v<E> && is_move_assignable_v<E> &&
+             (is_nothrow_move_constructible_v<T> ||
+              is_nothrow_move_constructible_v<E>))
+  {
     if (this == &other) {
       return *this;
     }
     move_from(std::move(other));
+    return *this;
+  }
+
+  template <class U = T>
+  constexpr expected& operator=(U&& v)
+    requires(!is_same_v<expected, remove_cvref_t<U>> &&
+             !is_unexpected<remove_cvref_t<U>>::value &&
+             is_constructible_v<T, U> && std::is_assignable_v<T&, U> &&
+             (is_nothrow_constructible_v<T, U> ||
+              is_nothrow_move_constructible_v<T> ||
+              is_nothrow_move_constructible_v<E>))
+  {
+    if (this->has_value()) {
+      this->value() = std::forward<U>(v);
+    } else {
+      base::destroy();
+      construct_value(std::forward<U>(v));
+    }
     return *this;
   }
 
@@ -436,9 +587,11 @@ class expected : private expected_storage<T, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) & {
-    using result_type =
-        expected<T,
-                 std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>>;
+    using R = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    using result_type = expected<T, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type(std::in_place, value());
     }
@@ -447,9 +600,11 @@ class expected : private expected_storage<T, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) const& {
-    using result_type =
-        expected<T,
-                 std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>>;
+    using R = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    using result_type = expected<T, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type(std::in_place, value());
     }
@@ -458,9 +613,12 @@ class expected : private expected_storage<T, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) && {
-    using result_type =
-        expected<T, std::remove_cv_t<
-                        std::invoke_result_t<F, decltype(std::move(error()))>>>;
+    using R =
+        std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    using result_type = expected<T, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type(std::in_place, std::move(value()));
     }
@@ -470,9 +628,12 @@ class expected : private expected_storage<T, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) const&& {
-    using result_type =
-        expected<T, std::remove_cv_t<
-                        std::invoke_result_t<F, decltype(std::move(error()))>>>;
+    using R =
+        std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    using result_type = expected<T, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type(std::in_place, std::move(value()));
     }
@@ -585,22 +746,41 @@ class expected : private expected_storage<T, E> {
       other.swap(*this);
     }
   }
+  friend constexpr void swap(expected& x,
+                             expected& y) noexcept(noexcept(x.swap(y)))
+    requires requires { x.swap(y); }
+  {
+    x.swap(y);
+  }
 
   // Destructor
   constexpr ~expected() = default;
 
-  bool operator==(const expected& other) const {
-    if (base::has_value_impl() && other.base::has_value_impl()) {
-      return this->storage_.value == other.storage_.value;
+  template <class T2, class E2>
+  friend constexpr bool operator==(const expected& x, const expected<T2, E2>& y)
+    requires(!is_void_v<T>)
+  {
+    if (x.has_value() != y.has_value()) {
+      return false;
+    } else {
+      if (x.has_value()) {
+        return x.value() == y.value();
+      } else {
+        return x.error() == y.error();
+      }
     }
-    if (base::has_error_impl() && other.base::has_error_impl()) {
-      return this->storage_.error == other.storage_.error;
-    }
-    return false;
   }
 
-  bool operator==(const T& value) const {
-    return has_value() && this->storage_.value == value;
+  template <class T2>
+  friend constexpr bool operator==(const expected& x, const T2& v)
+    requires(!is_expected_v<T2>)
+  {
+    return x.has_value() && static_cast<bool>(x.value() == v);
+  }
+
+  template <class E2>
+  friend constexpr bool operator==(const expected& x, const unexpected<E2>& e) {
+    return !x.has_value() && static_cast<bool>(x.error() == e.error());
   }
 
  private:
@@ -668,6 +848,9 @@ class expected : private expected_storage<T, E> {
 template <typename T, typename E>
 class expected<T&, E> : private expected_storage<T*, E> {
   using base = expected_storage<T*, E>;
+
+  template <typename T2, typename E2>
+  friend class expected;
 
  public:
   using value_type = T&;
@@ -738,6 +921,20 @@ class expected<T&, E> : private expected_storage<T*, E> {
       base::construct_value(other.storage_.value);
     } else {
       base::construct_error(std::move(other.storage_.error));
+    }
+    return *this;
+  }
+
+  template <class U = T>
+  constexpr expected& operator=(U& v)
+    requires(!is_same_v<expected, remove_cvref_t<U>> &&
+             !is_unexpected<remove_cvref_t<U>>::value)
+  {
+    if (this->has_value()) {
+      this->storage_.value = &v;
+    } else {
+      base::destroy();
+      construct_value(&v);
     }
     return *this;
   }
@@ -960,9 +1157,11 @@ class expected<T&, E> : private expected_storage<T*, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) & {
-    using result_type =
-        expected<T&,
-                 std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>>;
+    using R = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    using result_type = expected<T&, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type(*this->storage_.value);
     }
@@ -971,9 +1170,11 @@ class expected<T&, E> : private expected_storage<T*, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) const& {
-    using result_type =
-        expected<T&,
-                 std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>>;
+    using R = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    using result_type = expected<T&, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type(*this->storage_.value);
     }
@@ -982,8 +1183,12 @@ class expected<T&, E> : private expected_storage<T*, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) && {
-    using result_type = expected<T&, std::remove_cv_t<std::invoke_result_t<
-                                         F, decltype(std::move(error()))>>>;
+    using R =
+        std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    using result_type = expected<T&, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type(*this->storage_.value);
     }
@@ -993,8 +1198,12 @@ class expected<T&, E> : private expected_storage<T*, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) const&& {
-    using result_type = expected<T&, std::remove_cv_t<std::invoke_result_t<
-                                         F, decltype(std::move(error()))>>>;
+    using R =
+        std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    using result_type = expected<T&, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type(*this->storage_.value);
     }
@@ -1106,18 +1315,37 @@ class expected<T&, E> : private expected_storage<T*, E> {
     }
   }
 
-  bool operator==(expected const& other) const {
-    if (has_value() && other.has_value()) {
-      return *this->storage_.value == *other.storage_.value;
-    }
-    if (!has_value() && !other.has_value()) {
-      return this->storage_.error == other.storage_.error;
-    }
-    return false;
+  friend constexpr void swap(expected& x,
+                             expected& y) noexcept(noexcept(x.swap(y)))
+    requires requires { x.swap(y); }
+  {
+    x.swap(y);
   }
 
-  bool operator==(T const& value) const {
-    return has_value() && *this->storage_.value == value;
+  template <class T2, class E2>
+  friend constexpr bool operator==(const expected& x,
+                                   const expected<T2&, E2>& y) {
+    if (x.has_value() != y.has_value()) {
+      return false;
+    } else {
+      if (x.has_value()) {
+        return x.value() == y.value();
+      } else {
+        return x.error() == y.error();
+      }
+    }
+  }
+
+  template <class T2>
+  friend constexpr bool operator==(const expected& x, T2 const& v)
+    requires(!is_expected_v<T2>)
+  {
+    return x.has_value() && *x.storage_.value == v;
+  }
+
+  template <class E2>
+  friend constexpr bool operator==(const expected& x, const unexpected<E2>& e) {
+    return !x.has_value() && static_cast<bool>(x.error() == e.error());
   }
 
  private:
@@ -1132,8 +1360,12 @@ class expected<T&, E> : private expected_storage<T*, E> {
   }
 };
 
-template <typename E>
-class expected<void, E> {
+template <typename T, typename E>
+  requires(is_void_v<T>)
+class expected<T, E> {
+  template <typename T2, typename E2>
+  friend class expected;
+
  public:
   using error_type = E;
   using value_type = void;
@@ -1143,37 +1375,33 @@ class expected<void, E> {
 
   template <typename... Args>
   constexpr expected(unexpect_t, Args&&... args) : has_value_(false) {
-    new (&error_) E(std::forward<Args>(args)...);
+    construct_error(std::forward<Args>(args)...);
   }
 
   constexpr expected(unexpected<E> const& e) : has_value_(false) {
-    new (&error_) E(e.error());
+    construct_error(e.error());
   }
 
   constexpr expected(unexpected<E>&& e) : has_value_(false) {
-    new (&error_) E(std::move(e.error()));
+    construct_error(std::move(e.error()));
   }
 
   constexpr expected(expected const& other) : has_value_(other.has_value_) {
     if (!has_value_) {
-      new (&error_) E(other.error_);
+      construct_error(other.error_);
     }
   }
 
   constexpr expected(expected&& other) : has_value_(other.has_value_) {
     if (!has_value_) {
-      new (&error_) E(std::move(other.error_));
+      construct_error(std::move(other.error_));
     }
   }
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
-  constexpr ~expected() {
-    if (!has_value_) {
-      error_.~E();
-    }
-  }
+  constexpr ~expected() { destroy_error(); }
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
@@ -1229,12 +1457,10 @@ class expected<void, E> {
     if (this == &other) {
       return *this;
     }
-    if (!has_value_) {
-      error_.~E();
-    }
+    destroy_error();
     has_value_ = other.has_value_;
     if (!has_value_) {
-      new (&error_) E(other.error_);
+      construct_error(other.error_);
     }
     return *this;
   }
@@ -1243,12 +1469,10 @@ class expected<void, E> {
     if (this == &other) {
       return *this;
     }
-    if (!has_value_) {
-      error_.~E();
-    }
+    destroy_error();
     has_value_ = other.has_value_;
     if (!has_value_) {
-      new (&error_) E(std::move(other.error_));
+      construct_error(std::move(other.error_));
     }
     return *this;
   }
@@ -1351,9 +1575,11 @@ class expected<void, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) & {
-    using result_type =
-        expected<void,
-                 std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>>;
+    using R = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    using result_type = expected<void, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type();
     }
@@ -1362,9 +1588,11 @@ class expected<void, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) const& {
-    using result_type =
-        expected<void,
-                 std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>>;
+    using R = std::remove_cv_t<std::invoke_result_t<F, decltype(error())>>;
+    using result_type = expected<void, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type();
     }
@@ -1373,8 +1601,12 @@ class expected<void, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) && {
-    using result_type = expected<void, std::remove_cv_t<std::invoke_result_t<
-                                           F, decltype(std::move(error()))>>>;
+    using R =
+        std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    using result_type = expected<void, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type();
     }
@@ -1384,8 +1616,12 @@ class expected<void, E> {
 
   template <typename F>
   constexpr auto transform_error(F&& f) const&& {
-    using result_type = expected<void, std::remove_cv_t<std::invoke_result_t<
-                                           F, decltype(std::move(error()))>>>;
+    using R =
+        std::remove_cv_t<std::invoke_result_t<F, decltype(std::move(error()))>>;
+    using result_type = expected<void, R>;
+    static_assert(is_valid_unexpected<R>::value,
+                  "The result of f(error()) must be a valid template argument "
+                  "for unexpected");
     if (has_value()) {
       return result_type();
     }
@@ -1464,12 +1700,12 @@ class expected<void, E> {
     } else if (has_value() && !other.has_value()) {
       if constexpr (std::is_nothrow_move_constructible_v<E>) {
         E temp{std::move(other.error_)};
-        std::destroy_at(&(other.error_));
-        std::construct_at(&(this->error_), std::move(temp));
+        other.destroy_error();
+        this->construct_error(std::move(temp));
       } else {
         try {
-          std::construct_at(&(this->error_), std::move(other.error_));
-          std::destroy_at(&(other.error_));
+          this->construct_error(std::move(other.error_));
+          other.destroy_error();
         } catch (...) {
           throw;
         }
@@ -1481,7 +1717,41 @@ class expected<void, E> {
     }
   }
 
+  friend constexpr void swap(expected& x,
+                             expected& y) noexcept(noexcept(x.swap(y)))
+    requires requires { x.swap(y); }
+  {
+    x.swap(y);
+  }
+
+  template <typename T2, typename E2>
+  friend constexpr bool operator==(const expected& x, const expected<T2, E2>& y)
+    requires(is_same_v<void, T2>)
+  {
+    if (x.has_value() != y.has_value()) {
+      return false;
+    } else {
+      return x.has_value() || static_cast<bool>(x.error() == y.error());
+    }
+  }
+
+  template <typename E2>
+  friend constexpr bool operator==(const expected& x, const unexpected<E2>& y) {
+    return !x.has_value() && static_cast<bool>(x.error() == y.error());
+  }
+
  private:
+  template <typename... Args>
+  constexpr void construct_error(Args&&... args) {
+    std::construct_at(std::addressof(error_), std::forward<Args>(args)...);
+  }
+
+  constexpr void destroy_error() noexcept {
+    if (!has_value_) {
+      std::destroy_at(std::addressof(error_));
+    }
+  }
+
   constexpr void check_value() const {
 #ifdef __cpp_exceptions
     if (!has_value_) {
@@ -1498,33 +1768,5 @@ class expected<void, E> {
 
   bool has_value_;
 };
-
-template <typename T, typename E>
-constexpr bool operator==(expected<T, E> const& lhs,
-                          expected<T, E> const& rhs) {
-  if (lhs.has_value() != rhs.has_value()) {
-    return false;
-  }
-
-  if (lhs.has_value()) {
-    return lhs.value() == rhs.value();
-  }
-
-  return lhs.error() == rhs.error();
-}
-
-template <typename E>
-constexpr bool operator==(expected<void, E> const& lhs,
-                          expected<void, E> const& rhs) {
-  if (lhs.has_value() != rhs.has_value()) {
-    return false;
-  }
-
-  if (lhs.has_value()) {
-    return true;  // both void, both have value
-  }
-
-  return lhs.error() == rhs.error();
-}
 
 }  // namespace ai::base
