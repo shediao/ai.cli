@@ -105,7 +105,7 @@ class Timer {
   struct State {
     std::mutex mutex_;
     std::condition_variable cv_;
-    std::atomic_bool cancelled_{true};
+    std::atomic_bool cancelled_{false};
     std::atomic_bool running_{false};
     std::thread worker_;
   };
