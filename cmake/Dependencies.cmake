@@ -146,6 +146,12 @@ else()
       ON
       CACHE BOOL "Enable SSL/TLS")
 
+  # Disable PSL (Public Suffix List) to avoid linking against Homebrew's
+  # architecture-specific libpsl on macOS universal builds.
+  set(CURL_DISABLE_PSL
+      ON
+      CACHE BOOL "Disable PSL")
+
   set(USE_LIBIDN2
       OFF
       CACHE BOOL "Use libidn2 for IDN support")
