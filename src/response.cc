@@ -238,34 +238,6 @@ StreamResponse::StreamResponse(std::ostream& out) : out_(out) {
   }
 }
 
-size_t StreamResponse::parse(const char* ptr, size_t size, size_t nmemb,
-                             StreamResponse* self) {
-  self->response_data_.insert(self->response_data_.end(), ptr,
-                              ptr + (size * nmemb));
-  self->parse_impl();
-  return size * nmemb;
-}
-
-constexpr std::string_view data_prefix = "data: ";
-constexpr std::string_view done_prefix = "[DONE]";
-
-static std::optional<std::string> getLine(std::vector<char>& data,
-                                          size_t& index) {
-  auto begin = std::find_if(data.begin() + index, data.end(),
-                            [](char c) { return c != '\n'; });
-  if (begin == data.end()) {
-    return std::nullopt;
-  }
-  auto newline_iter = std::find(begin, data.end(), '\n');
-  if (newline_iter == data.end()) {
-    return std::nullopt;
-  }
-
-  index = newline_iter - data.begin() + 1;
-  std::string ret{begin, newline_iter};
-  return ret;
-}
-
 static void parse_line(std::string const& data, std::vector<json>& all,
                        std::ostream& out, bool is_terminal,
                        bool& is_started_reasoning_content) {
@@ -316,29 +288,22 @@ static void parse_line(std::string const& data, std::vector<json>& all,
   }
 }
 
-void StreamResponse::parse_impl() {
-  while (true) {
-    auto line = getLine(response_data_, parse_index_);
-    if (!line.has_value()) {
-      break;
+size_t StreamResponse::parse(const char* ptr, size_t size, size_t nmemb,
+                             StreamResponse* self) {
+  self->response_data_.insert(self->response_data_.end(), ptr,
+                              ptr + (size * nmemb));
+  self->sse_decoder_.feed({ptr, size * nmemb}, [self](sse::Event&& event) {
+    if (event.event == "message") {
+      if (event.data == "[DONE]") {
+        return;
+      }
+      if (!event.data.empty()) {
+        parse_line(event.data, self->all_json_data_, self->out_,
+                   self->is_terminal_, self->is_started_reasoning_content_);
+      }
     }
-    if (line.value().starts_with("event: ") ||
-        line.value().starts_with(": keep-alive")) {
-      continue;
-    }
-    if (!line.value().starts_with(data_prefix)) {
-      break;
-    }
-    // If line starts with "data: "
-    auto data = line.value().substr(data_prefix.size());
-    if (data.starts_with(done_prefix)) {
-      // If line starts with "[DONE]", stream ends
-      // is_parse_done_ = true;
-      break;
-    }
-    parse_line(data, all_json_data_, out_, is_terminal_,
-               is_started_reasoning_content_);
-  }
+  });
+  return size * nmemb;
 }
 
 Response StreamResponse::toResponse() {

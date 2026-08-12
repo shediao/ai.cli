@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <nlohmann/json.hpp>
+#include <sse/decoder.hpp>
 #include <vector>
 
 namespace ai {
@@ -102,9 +103,8 @@ class StreamResponse {
 
  private:
   std::vector<nlohmann::json> all_json_data_;
-  void parse_impl();
   std::vector<char> response_data_;
-  std::size_t parse_index_{0};
+  sse::Decoder sse_decoder_;
   std::reference_wrapper<std::ostream> out_;
   bool is_terminal_{false};
   bool is_started_reasoning_content_{false};

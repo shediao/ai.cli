@@ -182,6 +182,7 @@ target_link_libraries(
          subprocess::subprocess
          environment::environment
          utfx::utfx
+         sse-core
          CURL::libcurl
          SQLite3::SQLite3)
 
