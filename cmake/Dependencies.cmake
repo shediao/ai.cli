@@ -29,7 +29,7 @@ FetchContent_MakeAvailable(subprocess)
 FetchContent_Declare(
   sse-core
   GIT_REPOSITORY https://github.com/shediao/sse-core.git
-  GIT_TAG bde75424d919da914ebc10cec1b0fc86ddf1c234)
+  GIT_TAG c20162a16537dc1736a59424482db58176273f0c)
 FetchContent_MakeAvailable(sse-core)
 
 # ── environment (environment variable access) ──────────────────────────────
