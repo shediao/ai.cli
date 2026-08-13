@@ -34,7 +34,11 @@ namespace {
 /// Returns empty string when the platform is not recognised.
 std::string detect_platform_target() {
 #if defined(__APPLE__)
-  return "darwin-universal";
+#if defined(__aarch64__) || defined(__arm64__)
+  return "darwin-arm64";
+#else
+  return "darwin-x64";
+#endif
 #elif defined(__linux__)
 #if defined(__aarch64__) || defined(__arm64__)
   return "linux-arm64";

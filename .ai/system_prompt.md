@@ -195,7 +195,7 @@ Tool categories:
 
 ### Update (`src/update.cc`, `include/ai/update.h`)
 
-Self-update subcommand. Fetches the latest GitHub release from `api.github.com/repos/shediao/ai.cli/releases/latest`, compares semver with the current `GIT_VERSION`, downloads the platform-appropriate asset (`darwin-universal`, `linux-arm64`/`x64`, `windows-arm64`/`x64`, `mingw64-x64`, `freebsd-arm64`/`x64`), extracts the binary, and replaces the running executable. On Windows, a detached batch script handles the in-place replacement after process exit. Supports `--force` to skip version comparison.
+Self-update subcommand. Fetches the latest GitHub release from `api.github.com/repos/shediao/ai.cli/releases/latest`, compares semver with the current `GIT_VERSION`, downloads the platform-appropriate asset (`darwin-arm64`/`darwin-x64`, `linux-arm64`/`x64`, `windows-arm64`/`x64`, `mingw64-x64`, `freebsd-arm64`/`x64`), extracts the binary, and replaces the running executable. On Windows, a detached batch script handles the in-place replacement after process exit. Supports `--force` to skip version comparison.
 
 ### Models (`src/models.cc`, `include/ai/models.h`)
 
