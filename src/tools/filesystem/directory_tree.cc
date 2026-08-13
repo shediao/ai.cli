@@ -9,7 +9,11 @@
 namespace ai {
 
 namespace {
-static nlohmann::json buildTree(std::filesystem::path const& path) {
+static nlohmann::json buildTree(std::filesystem::path const& path,
+                                size_t depth) {
+  if (depth == 0) {
+    return nlohmann::json{};
+  }
   std::error_code err;
   if (!std::filesystem::exists(path, err) ||
       !std::filesystem::is_directory(path, err) || err) {
@@ -20,10 +24,20 @@ static nlohmann::json buildTree(std::filesystem::path const& path) {
     nlohmann::json ret = nlohmann::json::array();
     for (auto const& entry : std::filesystem::directory_iterator(path, err)) {
       nlohmann::json obj;
-      obj["name"] = entry.path().filename();
+      auto name = entry.path().filename().string();
+      obj["name"] = name;
       if (entry.is_directory() && !entry.is_symlink(err)) {
         obj["type"] = "directory";
-        obj["children"] = buildTree(entry.path());
+        if (depth > 1 && name != ".git" && name != ".svn" && name != ".hg" &&
+            name != ".cache") {
+          obj["children"] = buildTree(entry.path(), depth - 1);
+        }
+      } else if (entry.is_symlink(err)) {
+        obj["type"] = "symlink";
+        auto symlink = std::filesystem::read_symlink(entry.path(), err);
+        if (!err) {
+          obj["target"] = symlink.string();
+        }
       } else {
         obj["type"] = "file";
       }
@@ -53,13 +67,27 @@ std::string directory_tree(nlohmann::json const& args) {
   }
   std::string path = std::move(*path_opt);
   path = expand_tilde(path);
-  print_toolcall_log("directory_tree", {{"path", path}});
+  size_t depth = 3;
+  if (args.contains("depth")) {
+    if (!args["depth"].is_number_integer()) {
+      return "function directory_tree arguments is invalid: \"depth\" must "
+             "be a non-negative integer.";
+    }
+    auto parsed = args["depth"].get<int64_t>();
+    if (parsed < 0) {
+      return "function directory_tree arguments is invalid: \"depth\" must "
+             "be a non-negative integer.";
+    }
+    depth = static_cast<size_t>(parsed);
+  }
+  print_toolcall_log("directory_tree",
+                     {{"path", path}, {"depth", std::to_string(depth)}});
   std::error_code err;
   if (!std::filesystem::exists(path, err) ||
       !std::filesystem::is_directory(path, err) || err) {
     return "Error: " + path + " not a directory or not exists";
   }
-  return buildTree(path).dump(2);
+  return buildTree(path, depth).dump(2);
 }
 }  // namespace
 
@@ -84,6 +112,10 @@ class DirectoryTreeFunction : public ai::Function {
     "properties": {
       "path": {
         "type": "string"
+      },
+      "depth": {
+        "type": "integer",
+        "description": "Maximum depth of the directory tree. Defaults to 3 if not provided."
       }
     },
     "required": ["path"]
