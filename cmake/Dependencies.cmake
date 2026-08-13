@@ -155,9 +155,9 @@ else()
 
   # Disable PSL (Public Suffix List) to avoid linking against Homebrew's
   # architecture-specific libpsl on macOS universal builds.
-  set(CURL_DISABLE_PSL
-      ON
-      CACHE BOOL "Disable PSL")
+  set(CURL_USE_LIBPSL
+      OFF
+      CACHE BOOL "Use libpsl" FORCE)
 
   set(USE_LIBIDN2
       OFF
