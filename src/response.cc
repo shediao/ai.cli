@@ -292,17 +292,24 @@ size_t StreamResponse::parse(const char* ptr, size_t size, size_t nmemb,
                              StreamResponse* self) {
   self->response_data_.insert(self->response_data_.end(), ptr,
                               ptr + (size * nmemb));
-  self->sse_decoder_.feed({ptr, size * nmemb}, [self](sse::Event&& event) {
-    if (event.event == "message") {
-      if (event.data == "[DONE]") {
-        return;
-      }
-      if (!event.data.empty()) {
-        parse_line(event.data, self->all_json_data_, self->out_,
-                   self->is_terminal_, self->is_started_reasoning_content_);
-      }
-    }
-  });
+  auto result =
+      self->sse_decoder_.feed({ptr, size * nmemb}, [self](sse::Event&& event) {
+        if (event.event == "message") {
+          if (event.data == "[DONE]") {
+            return;
+          }
+          if (!event.data.empty()) {
+            parse_line(event.data, self->all_json_data_, self->out_,
+                       self->is_terminal_, self->is_started_reasoning_content_);
+          }
+        }
+      });
+  if (!result) {
+    auto const& error = result.error();
+    LOG(ERROR) << "SSE parse error: " << error.code_name() << " at line "
+               << error.line << ", offset " << error.offset << ": "
+               << error.message;
+  }
   return size * nmemb;
 }
 
