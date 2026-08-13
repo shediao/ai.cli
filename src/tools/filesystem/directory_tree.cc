@@ -9,8 +9,8 @@
 namespace ai {
 
 namespace {
-static nlohmann::json buildTree(std::filesystem::path const& path,
-                                size_t depth) {
+static nlohmann::json buildTree(std::filesystem::path const& path, size_t depth,
+                                bool directories_only) {
   if (depth == 0) {
     return nlohmann::json{};
   }
@@ -23,14 +23,20 @@ static nlohmann::json buildTree(std::filesystem::path const& path,
       !std::filesystem::is_symlink(path, err)) {
     nlohmann::json ret = nlohmann::json::array();
     for (auto const& entry : std::filesystem::directory_iterator(path, err)) {
+      bool is_directory = entry.is_directory() && !entry.is_symlink(err);
+      if (directories_only && !is_directory) {
+        continue;
+      }
       nlohmann::json obj;
       auto name = entry.path().filename().string();
       obj["name"] = name;
-      if (entry.is_directory() && !entry.is_symlink(err)) {
+      if (is_directory) {
         obj["type"] = "directory";
         if (depth > 1 && name != ".git" && name != ".svn" && name != ".hg" &&
-            name != ".cache") {
-          obj["children"] = buildTree(entry.path(), depth - 1);
+            name != ".cache" && name != ".cache2" && name != "node_modules" &&
+            name != "__pycache__" && name != ".pytest_cache") {
+          obj["children"] =
+              buildTree(entry.path(), depth - 1, directories_only);
         }
       } else if (entry.is_symlink(err)) {
         obj["type"] = "symlink";
@@ -80,14 +86,24 @@ std::string directory_tree(nlohmann::json const& args) {
     }
     depth = static_cast<size_t>(parsed);
   }
-  print_toolcall_log("directory_tree",
-                     {{"path", path}, {"depth", std::to_string(depth)}});
+  bool directories_only = false;
+  if (args.contains("directories_only")) {
+    if (!args["directories_only"].is_boolean()) {
+      return "function directory_tree arguments is invalid: "
+             "\"directories_only\" must be a boolean.";
+    }
+    directories_only = args["directories_only"].get<bool>();
+  }
+  print_toolcall_log("directory_tree", {{"path", path},
+                                        {"depth", std::to_string(depth)},
+                                        {"directories_only",
+                                         directories_only ? "true" : "false"}});
   std::error_code err;
   if (!std::filesystem::exists(path, err) ||
       !std::filesystem::is_directory(path, err) || err) {
     return "Error: " + path + " not a directory or not exists";
   }
-  return buildTree(path, depth).dump(2);
+  return buildTree(path, depth, directories_only).dump(2);
 }
 }  // namespace
 
@@ -116,6 +132,10 @@ class DirectoryTreeFunction : public ai::Function {
       "depth": {
         "type": "integer",
         "description": "Maximum depth of the directory tree. Defaults to 3 if not provided."
+      },
+      "directories_only": {
+        "type": "boolean",
+        "description": "Whether to include only directories in the tree, excluding files and symlinks. Defaults to false if not provided."
       }
     },
     "required": ["path"]

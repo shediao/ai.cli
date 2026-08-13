@@ -743,6 +743,30 @@ TEST(DirectoryTreeTest, ReturnsJsonTree) {
   EXPECT_TRUE(found_dir);
 }
 
+TEST(DirectoryTreeTest, DirectoriesOnly) {
+  TempTestDir dir;
+  std::ofstream((std::filesystem::path(dir.path()) / "file.txt").string(),
+                std::ios::binary)
+      << "data";
+  std::filesystem::create_directory(std::filesystem::path(dir.path()) /
+                                    "subdir");
+  std::ofstream(
+      (std::filesystem::path(dir.path()) / "subdir" / "nested.txt").string(),
+      std::ios::binary)
+      << "nested";
+
+  json args = {{"path", dir.path()}, {"directories_only", true}};
+  std::string result = ai::call_tool("directory_tree", args);
+
+  auto tree = json::parse(result);
+  EXPECT_TRUE(tree.is_array());
+  EXPECT_EQ(tree.size(), 1);
+  EXPECT_EQ(tree[0]["name"], "subdir");
+  EXPECT_EQ(tree[0]["type"], "directory");
+  EXPECT_TRUE(tree[0]["children"].is_array());
+  EXPECT_TRUE(tree[0]["children"].empty());
+}
+
 TEST(DirectoryTreeTest, NotADirectory) {
   TempTestFile f("content");
   json args = {{"path", f.path()}};
