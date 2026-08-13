@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - target: linux-x64
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - target: linux-arm64
             os: ubuntu-24.04-arm
           - target: windows-x64
@@ -25,7 +25,7 @@ jobs:
           - target: windows-arm64
             os: windows-11-arm
           - target: darwin-x64
-            os: macos-13
+            os: macos-15-intel
             arch: x86_64
           - target: darwin-arm64
             os: macos-latest
@@ -146,19 +146,11 @@ jobs:
           path: dist/
 
   # =========================================================================
-  # FreeBSD builds (via VM on ubuntu-latest)
+  # FreeBSD build (via VM on ubuntu-latest)
   # =========================================================================
   build-freebsd:
-    name: ${{ matrix.target }}
+    name: freebsd-x64
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: freebsd-x64
-            arch: x86_64
-          - target: freebsd-arm64
-            arch: aarch64
     steps:
       - uses: actions/checkout@v5
 
@@ -170,7 +162,7 @@ jobs:
         uses: vmactions/freebsd-vm@v1
         with:
           usesh: true
-          arch: ${{ matrix.arch }}
+          arch: x86_64
           prepare: |
             pkg install -y cmake git zip
           run: |
@@ -181,12 +173,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          zip -j "dist/ai-${{ matrix.target }}.zip" build/ai
-          tar -czf "dist/ai-${{ matrix.target }}.tar.gz" -C build ai
+          zip -j "dist/ai-freebsd-x64.zip" build/ai
+          tar -czf "dist/ai-freebsd-x64.tar.gz" -C build ai
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ai-${{ matrix.target }}
+          name: ai-freebsd-x64
           path: dist/
 
   # =========================================================================
