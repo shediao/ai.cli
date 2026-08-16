@@ -4,8 +4,28 @@
 #include <atomic>
 #include <chrono>
 #include <stdexcept>
+#include <thread>
 
 using namespace std::chrono_literals;
+
+namespace {
+
+// Polls `pred()` until it returns true or `timeout` elapses, returning whether
+// the predicate became true. This avoids flaky failures when the timer worker
+// thread is delayed by scheduler contention (e.g. on loaded CI runners).
+template <typename Predicate>
+bool wait_until_true(Predicate pred, std::chrono::milliseconds timeout = 5s) {
+  const auto deadline = std::chrono::steady_clock::now() + timeout;
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (pred()) {
+      return true;
+    }
+    std::this_thread::sleep_for(1ms);
+  }
+  return pred();
+}
+
+}  // namespace
 
 // =============================================================================
 // Timer
@@ -16,9 +36,8 @@ TEST(TimerTest, FiresCallbackAfterDuration) {
   {
     ai::base::Timer timer([&called] { called.store(true); }, 50ms);
     EXPECT_TRUE(timer.running());
-    std::this_thread::sleep_for(200ms);
     // Timer should have fired and stopped by now
-    EXPECT_TRUE(called.load());
+    EXPECT_TRUE(wait_until_true([&called] { return called.load(); }));
   }
 }
 
@@ -63,8 +82,7 @@ TEST(TimerTest, MoveConstructor) {
   EXPECT_FALSE(t1.running());  // moved-from should not be running
   EXPECT_TRUE(t2.running());
 
-  std::this_thread::sleep_for(200ms);
-  EXPECT_TRUE(called.load());
+  EXPECT_TRUE(wait_until_true([&called] { return called.load(); }));
 }
 
 TEST(TimerTest, MoveAssignment) {
@@ -80,8 +98,7 @@ TEST(TimerTest, MoveAssignment) {
   EXPECT_TRUE(t2.running());
   EXPECT_FALSE(c2.load());  // original t2 callback cancelled
 
-  std::this_thread::sleep_for(200ms);
-  EXPECT_TRUE(c1.load());
+  EXPECT_TRUE(wait_until_true([&c1] { return c1.load(); }));
   EXPECT_FALSE(c2.load());
 }
 
@@ -95,8 +112,7 @@ TEST(TimerTest, SelfStopFromCallback) {
       },
       50ms);
 
-  std::this_thread::sleep_for(200ms);
-  EXPECT_TRUE(callback_ran.load());
+  EXPECT_TRUE(wait_until_true([&callback_ran] { return callback_ran.load(); }));
   EXPECT_FALSE(timer.running());
 }
 
@@ -111,9 +127,9 @@ TEST(TimerTest, RestartRunningTimer) {
   timer.start([&second_called] { second_called.store(true); }, 50ms);
   EXPECT_TRUE(timer.running());
 
-  std::this_thread::sleep_for(200ms);
+  EXPECT_TRUE(
+      wait_until_true([&second_called] { return second_called.load(); }));
   EXPECT_FALSE(first_called.load());  // original callback cancelled
-  EXPECT_TRUE(second_called.load());  // new callback fired
 }
 
 TEST(TimerTest, ExceptionInCallbackIsCaught) {
@@ -121,17 +137,15 @@ TEST(TimerTest, ExceptionInCallbackIsCaught) {
   ai::base::Timer timer([] { throw std::runtime_error("test exception"); },
                         50ms);
 
-  std::this_thread::sleep_for(200ms);
   // No crash = pass. Timer should no longer be running after callback returns.
-  EXPECT_FALSE(timer.running());
+  EXPECT_TRUE(wait_until_true([&timer] { return !timer.running(); }));
 }
 
 TEST(TimerTest, UnknownExceptionInCallbackIsCaught) {
   // Callback that throws a non-std exception should not crash.
   ai::base::Timer timer([] { throw 42; }, 50ms);
 
-  std::this_thread::sleep_for(200ms);
-  EXPECT_FALSE(timer.running());
+  EXPECT_TRUE(wait_until_true([&timer] { return !timer.running(); }));
 }
 
 TEST(TimerTest, AfterStaticFactory) {
@@ -139,8 +153,7 @@ TEST(TimerTest, AfterStaticFactory) {
   auto timer = ai::base::Timer::after([&called] { called.store(true); }, 50ms);
   EXPECT_TRUE(timer.running());
 
-  std::this_thread::sleep_for(200ms);
-  EXPECT_TRUE(called.load());
+  EXPECT_TRUE(wait_until_true([&called] { return called.load(); }));
 }
 
 TEST(TimerTest, StopTwiceIsSafe) {
@@ -157,16 +170,13 @@ TEST(TimerTest, StartStopStart) {
   ai::base::Timer timer;
 
   timer.start([&count] { ++count; }, 50ms);
-  std::this_thread::sleep_for(200ms);
-  EXPECT_EQ(count.load(), 1);
+  EXPECT_TRUE(wait_until_true([&count] { return count.load() == 1; }));
 
   timer.start([&count] { ++count; }, 50ms);
-  std::this_thread::sleep_for(200ms);
-  EXPECT_EQ(count.load(), 2);
+  EXPECT_TRUE(wait_until_true([&count] { return count.load() == 2; }));
 
   timer.start([&count] { ++count; }, 50ms);
-  std::this_thread::sleep_for(200ms);
-  EXPECT_EQ(count.load(), 3);
+  EXPECT_TRUE(wait_until_true([&count] { return count.load() == 3; }));
 }
 
 TEST(TimerTest, CallbackCapturesByReference) {
@@ -174,6 +184,5 @@ TEST(TimerTest, CallbackCapturesByReference) {
   int value = 0;
   ai::base::Timer timer([&value] { value = 42; }, 50ms);
 
-  std::this_thread::sleep_for(200ms);
-  EXPECT_EQ(value, 42);
+  EXPECT_TRUE(wait_until_true([&value] { return value == 42; }));
 }
