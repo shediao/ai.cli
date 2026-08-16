@@ -3,6 +3,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS ON)
 
 include(FetchContent)
+include(CheckCXXCompilerFlag)
 
 # Disable pthreads in gtest on non-Windows non-MSVC platforms
 if(NOT CMAKE_HOST_SYSTEM_NAME MATCHES "Windows" AND NOT MSVC)
@@ -36,13 +37,17 @@ set_target_properties(gtest PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")
 
 # Suppress -Wcharacter-conversion for gtest/gmock when using Clang and C++20.
 # char8_t (C++20) to char32_t implicit conversion in gtest-printers.h triggers
-# this warning, which becomes an error under -WX.
+# this warning, which becomes an error under -WX. Only add the flag when the
+# Clang in use actually supports it.
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  foreach(gtarget gtest gtest_main gmock gmock_main)
-    if(TARGET ${gtarget})
-      target_compile_options(${gtarget} PRIVATE -Wno-character-conversion)
-    endif()
-  endforeach()
+  check_cxx_compiler_flag(-Wno-character-conversion CLANG_HAS_WNO_CHARACTER_CONVERSION)
+  if(CLANG_HAS_WNO_CHARACTER_CONVERSION)
+    foreach(gtarget gtest gtest_main gmock gmock_main)
+      if(TARGET ${gtarget})
+        target_compile_options(${gtarget} PRIVATE -Wno-character-conversion)
+      endif()
+    endforeach()
+  endif()
 endif()
 
 # ── Helper function to add a test executable ───────────────────────────────
