@@ -16,7 +16,23 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/google/googletest.git
   GIT_TAG v1.15.2)
 
+# Only gtest is used by this project. Building gmock can fail when a
+# system-installed gtest/gmock is present (e.g. Homebrew at /usr/local/include):
+# gmock propagates gtest's include dirs via -isystem, which is searched after
+# /usr/local/include on macOS, so a mismatched system gtest header shadows the
+# fetched one.
+set(BUILD_GMOCK
+    OFF
+    CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(googletest)
+
+# gtest marks its include dirs as SYSTEM, which consumers receive as -isystem.
+# On macOS, -isystem paths are searched after /usr/local/include, so a
+# system-installed gtest there would shadow the fetched headers and cause an
+# ABI mismatch at link time (system headers + fetched library). Drop the SYSTEM
+# flag so consumers use regular -I paths that take precedence.
+set_target_properties(gtest PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "")
 
 # Suppress -Wcharacter-conversion for gtest/gmock when using Clang and C++20.
 # char8_t (C++20) to char32_t implicit conversion in gtest-printers.h triggers
